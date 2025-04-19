@@ -90,7 +90,7 @@ npm run start:dev
 ```
 
 ## 📄 Licencja
-Ten projekt jest objęty licencją CC BY-NC 4.0). Zobacz [LICENSE](/License.md) po więcej informacji.
+Ten projekt jest objęty licencją CC BY-NC 4.0). Zobacz [LICENSE](/LICENSE.md) po więcej informacji.
 
 ## 👤 Autor
 Projekt tworzony przez **Nikovsky**, jako część portfolio i narzędzie wspierające lokalną społeczność harcerską.
