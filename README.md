@@ -1,16 +1,22 @@
 # Harcerski-System-Stopni
+<p align="center">
+  <img src="./docs/assets/Logo.png" alt="Logo HSS" width="250"/>
+</p>
 
-**System wspierający działanie Komisji Stopni Instruktorskich**  
-Cyfrowa platforma do zarządzania próbami harcerskimi, dokumentacją i organizacji posiedzeń komisji.
+<p align="center"><b>System wspierający działanie Komisji Stopni Instruktorskich</b><br />
+Cyfrowa platforma do zarządzania próbami harcerskimi, dokumentacją i organizacji posiedzeń komisji.</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/NestJS-%E2%9D%A4-red?logo=nestjs&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React-18.2.0-61DAFB?logo=react&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Database-MySQL-blue?logo=mysql&logoColor=white"/>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Auth-JWT-orange?logo=jsonwebtokens&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Status-WIP-yellow"/>
+  <img src="https://img.shields.io/badge/License-CC%20BY--NC--Custom-blue.svg"/>
+</p>
 
 ---
-![NestJS](https://img.shields.io/badge/NestJS-%E2%9D%A4-red?logo=nestjs&logoColor=white)
-![React](https://img.shields.io/badge/React-18.2.0-61DAFB?logo=react&logoColor=white)
-![MySQL](https://img.shields.io/badge/Database-MySQL-blue?logo=mysql&logoColor=white)
-![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript&logoColor=white)
-![JWT](https://img.shields.io/badge/Auth-JWT-orange?logo=jsonwebtokens&logoColor=white)
-![Status](https://img.shields.io/badge/Status-WIP-yellow)
-![License](https://img.shields.io/badge/License-CC%20BY--NC--Custom-blue.svg)
 
 ## 📋 Spis treści
 
@@ -67,16 +73,12 @@ hss/
 └── .env.example    # Zmienne środowiskowe
 ```
 
-## 🗺️ Plany rozwoju
-
-Zobacz [docs/roadmap.md](dosc/roadmap.md) po więcej informacji o planowanych funkcjonalnościach i etapach rozwoju projektu.
-
 ## 🚀 Uruchomienie lokalne
 
 ```bash
 # 1. Klonowanie repozytorium
-git clone https://github.com/twoj-nick/ski-sks-app.git
-cd ski-sks-app/backend
+git clone https://github.com/Nikovsky/Harcerski-System-Stopni.git
+cd hss/server
 
 # 2. Instalacja zależności
 npm install
