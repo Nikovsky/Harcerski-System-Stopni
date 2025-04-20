@@ -24,7 +24,6 @@ Cyfrowa platforma do zarządzania próbami harcerskimi, dokumentacją i organiza
 - [Funkcjonalności](#funkcjonalności)
 - [Technologie](#technologie)
 - [Struktura katalogów](#struktura-katalogów)
-- [Plany rozwoju](#plany-rozwoju)
 - [Uruchomienie lokalne](#uruchomienie-lokalne)
 - [Licencja](#licencja)
 - [Autor](#autor)
@@ -35,7 +34,7 @@ Cyfrowa platforma do zarządzania próbami harcerskimi, dokumentacją i organiza
 
 Aplikacja webowa, której celem jest wsparcie członków komisji instruktorskiej w ich pracy. Umożliwia zgłaszanie prób przez harcerzy, zatwierdzanie ich przez uprawnione osoby, zarządzanie kalendarzem spotkań oraz archiwizowanie dokumentacji.
 
-> W przyszłości planowana jest implementacja OCR, systemu powiadomień oraz głosowań online.
+> W przyszłości planowana jest implementacja OCR, systemu powiadomień.
 
 ---
 
@@ -91,7 +90,7 @@ npm run start:dev
 ```
 
 ## 📄 Licencja
-Ten projekt jest objęty licencją CC BY-NC 4.0). Zobacz [LICENSE](/License.md) po więcej informacji.
+Ten projekt jest objęty licencją CC BY-NC 4.0). Zobacz [LICENSE](/LICENSE.md) po więcej informacji.
 
 ## 👤 Autor
 Projekt tworzony przez **Nikovsky**, jako część portfolio i narzędzie wspierające lokalną społeczność harcerską.
