@@ -1,7 +1,11 @@
+/**
+ * @file src/modules/users/user-profile.entity.ts
+ * @description Entity representing user profiles (first name, last name) in the database.
+ */
 import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { UserScoutRank } from './enums/user-scout-rank.enum';
 import { UserScoutTeam } from './enums/user-scout-team.enum';
-import { UserAccount } from './user-account.entity';
+import { AuthUserAccount } from '../auth/auth-user-account.entity';
 
 @Entity('user_profiles')
 export class UserProfile {
@@ -18,10 +22,13 @@ export class UserProfile {
     @Column( { type: 'enum', enum: UserScoutRank, default: UserScoutRank.DRUH })
     scoutRank: UserScoutRank;
 
+    @Column( { default: 'Brak'})
+    scoutInstructorRank: 'Brak' | 'Przewodnik'
+
     @Column( { type: 'enum', enum: UserScoutTeam})
     scoutTeam: UserScoutTeam;
 
-    @OneToOne(() => UserAccount, user => user.profile)
+    @OneToOne(() => AuthUserAccount, user => user.profile)
     @JoinColumn()
-    userAccount: UserAccount;
+    userAccount: AuthUserAccount;
 }

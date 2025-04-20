@@ -1,9 +1,13 @@
+/**
+ * @file src/modules/users/user-account.entity.ts
+ * @description Entity representing user accounts (email, password, role) in the database.
+ */
 import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { UserRole } from './enums/user-role.enum';
-import { UserProfile } from './user-profile.entity';
+import { UserRole } from './enums/auth-user-role.enum';
+import { UserProfile } from '../users/user-profile.entity';
 
 @Entity('user_accounts')
-export class UserAccount {
+export class AuthUserAccount {
     @PrimaryGeneratedColumn('uuid')
     uuid_account: string;
 
