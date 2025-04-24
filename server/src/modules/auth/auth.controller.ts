@@ -4,6 +4,7 @@
  */
 import { Post, Body, Controller, Req, Res, UseGuards, Get, Param } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { SessionGuard } from './guards/session.guard';
 import { Request, Response } from 'express';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
 import { AuthService } from './auth.service';
@@ -59,5 +60,11 @@ export class AuthController {
     ) {
         console.log('includeCurrent z requesta:', includeCurrent);
         return this.authService.logoutOther(req, includeCurrent);
+    }
+
+    @Get('protected')
+    @UseGuards(SessionGuard)
+    getProtectedRoute() {
+        return 'Tylko dla zalogowanych!';
     }
 }

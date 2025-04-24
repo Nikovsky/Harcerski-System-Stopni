@@ -6,16 +6,12 @@ export class AuthSession {
     @PrimaryGeneratedColumn('uuid')
     uuid_session: string;
 
-    @Column({ type: 'varchar', length: 255 })
-    refresh_token: string;
-
     @ManyToOne(() => AuthUserAccount, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })
     user: AuthUserAccount;
 
     @Column()
     user_id: string;
-
 
     @Column({ nullable: true })
     userAgent?: string;

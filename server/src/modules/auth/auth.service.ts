@@ -5,7 +5,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from "argon2";
-import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
@@ -58,16 +58,32 @@ export class AuthService {
             expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
         });
 
-        const refreshToken = await this.jwtService.sign(payload, {
-            secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-        });
+        const uuidSession = uuidv4();
+
+        const refreshToken = await this.jwtService.signAsync(
+            {
+                sub: user.uuid_account,
+                email: user.email,
+                role: user.role,
+                uuid_session: uuidSession,
+            },
+            {
+                secret: process.env.JWT_REFRESH_SECRET,
+                expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+            },
+        );
 
         // Zapis do baz danych sesji
         const userAgent = (req.headers['user-agent'] ?? '') as string;
         const ipAddress = req.ip ?? '';
 
-        await this.sessionService.createSession(refreshToken, user, ipAddress, req.headers['user-agent'] || '');
+        await this.sessionService.createSession({
+            uuid_session: uuidSession,
+            user_id: user.uuid_account,
+            ipAddress,
+            userAgent: req.headers['user-agent'] || '',
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dni
+        });
 
         // Ustaw cookie
         res.cookie('refreshToken', refreshToken, {
@@ -101,7 +117,9 @@ export class AuthService {
             throw new UnauthorizedException('Refresh token jest niepoprawny lub wygasł!');
         }
 
-        const session = await this.sessionService.findByRefreshToken(token);
+        const { uuid_session } = payload;
+
+        const session = await this.sessionService.findBySessionId(uuid_session);
         if (!session || session.is_revoked || !session.user) {
             throw new UnauthorizedException('Sesja nie została znaleziona lub została unieważniona');
         }
@@ -128,7 +146,14 @@ export class AuthService {
         const token = req.cookies['refreshToken'];
         if (!token) return;
 
-        await this.sessionService.revokeByToken(token);
+        const payload = this.jwtService.decode(token) as any;
+        
+        const userId = payload?.sub;
+        const sessionId = payload?.uuid_session
+        if (sessionId && userId) {
+            await this.sessionService.revokeSession(sessionId, userId);
+        }
+        
         res.clearCookie('refreshToken');
         return { message: 'Wylogowano pomyślnie' };
     }

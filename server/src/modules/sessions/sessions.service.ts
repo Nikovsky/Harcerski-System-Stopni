@@ -11,25 +11,30 @@ constructor(
 private sessionRepository: Repository<AuthSession>,
 ) {}
 
-async createSession(refresh_token: string, user: AuthUserAccount, ipAddress: string, userAgent: string) {
-
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+async createSession(data: {
+    uuid_session: string;
+    user_id: string;
+    ipAddress: string;
+    userAgent: string;
+    expiresAt: Date;
+    }) {
 
     const session = this.sessionRepository.create({
-        user,
-        refresh_token,
-        ipAddress,
-        userAgent,
-        expiresAt,
-    } as Partial<AuthSession>) ;
+        uuid_session: data.uuid_session,
+        user: { uuid_account: data.user_id } as AuthUserAccount, // relacja po id
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+        expiresAt: data.expiresAt,
+        created_at: new Date(),});
+
     return this.sessionRepository.save(session);
     }
 
-    async findByRefreshToken(token: string) {
-    return this.sessionRepository.findOne({
-        where: { refresh_token: token, is_revoked: false },
-        relations: ['user'],
-    });
+    async findBySessionId(sessionId: string) {
+        return this.sessionRepository.findOne({
+            where: { uuid_session: sessionId, is_revoked: false },
+            relations: ['user'],
+        });
     }
 
     async revokeSession(sessionId: string, userId: string) {
@@ -44,14 +49,6 @@ async createSession(refresh_token: string, user: AuthUserAccount, ipAddress: str
 
         session.is_revoked = true;
         await this.sessionRepository.save(session);
-    }
-
-    async revokeByToken(token: string) {
-        const session = await this.findByRefreshToken(token);
-        if (session) {
-            session.is_revoked = true;
-            await this.sessionRepository.save(session);
-        }
     }
 
     async revokeAllExcept(currentSessionId: string, userId: string) {
