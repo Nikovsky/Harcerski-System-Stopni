@@ -2,9 +2,10 @@
  * @file src/modules/users/user-account.entity.ts
  * @description Entity representing user accounts (email, password, role) in the database.
  */
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { UserRole } from './enums/auth-user-role.enum';
 import { UserProfile } from '../users/user-profile.entity';
+import { AuthSession } from '../sessions/session.entity'
 
 @Entity('user_accounts')
 export class AuthUserAccount {
@@ -22,11 +23,14 @@ export class AuthUserAccount {
 
     @Column( { type: 'enum', enum: UserRole, default: UserRole.UZYTKOWNIK })
     role: UserRole;
-
-    @CreateDateColumn()
-    createdAt: Date;
-
+    
     @OneToOne(() => UserProfile, profile => profile.userAccount, { cascade: true })
     @JoinColumn({ name: 'user_profile_id' })
     profile: UserProfile;
+
+    @OneToMany(() => AuthSession, (session) => session.user)
+    sessions: AuthSession[];
+
+    @CreateDateColumn()
+    createdAt: Date;
 }

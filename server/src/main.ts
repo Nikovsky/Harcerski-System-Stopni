@@ -7,23 +7,27 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AppDataSource } from './config/typeorm.datasources';
+import * as cookieParser from 'cookie-parser';
+
+async function initializeWithRetry(retries = 5, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await AppDataSource.initialize();
+      console.log('📦 Data Source initialized');
+      return;
+    } catch (err) {
+      console.warn(`🔁 Retry ${i + 1}/${retries}...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+  throw new Error('❌ Failed to connect to DB after retries');
+}
 
 async function bootstrap() {
-  try {
-    if (!AppDataSource.isInitialized) {
-      await AppDataSource.initialize();
-      console.log('Database connection established successfully.');
-    }
-    if (AppDataSource.options.synchronize) {
-      await AppDataSource.synchronize();
-      console.log('Database synchronized successfully.');
-    }
-  } catch (error) {
-    console.error('Error during Data Source initialization:', error);
-    process.exit(1);
-  }
+  await initializeWithRetry();
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true,}));
+  app.use(cookieParser());
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
