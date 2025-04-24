@@ -6,6 +6,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,6 +19,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({ 
       useFactory: typeOrmConfig}),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     SessionsModule
