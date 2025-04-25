@@ -12,7 +12,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from 'src/strategies/jwt.strategy';
 import { SessionsModule } from '../sessions/sessions.module';
+import { SessionGuard } from './guards/session.guard';
 
+/**
+ * @description NestJS module responsible for authentication logic, JWT configuration, and session management.
+ */
 @Module({
   imports: [TypeOrmModule.forFeature([AuthUserAccount]),
   JwtModule.registerAsync({
@@ -27,7 +31,7 @@ import { SessionsModule } from '../sessions/sessions.module';
   }),
   SessionsModule,
 ],
-  providers: [AuthService, UsersService, JwtStrategy],
+  providers: [AuthService, UsersService, JwtStrategy, SessionGuard],
   controllers: [AuthController]
 })
 export class AuthModule {}

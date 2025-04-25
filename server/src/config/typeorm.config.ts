@@ -7,6 +7,10 @@ import { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import 'dotenv/config';
 import * as path from "path";
 
+/**
+ * @description Asynchronous function returning TypeORM configuration options for connecting to a MySQL database.
+ * @returns Promise resolving to TypeOrmModuleOptions with database connection settings.
+ */
 export const typeOrmConfig = async (): Promise<TypeOrmModuleOptions> => ({
     type: 'mysql',
     host: process.env.DB_HOST || '127.0.0.1',
@@ -14,7 +18,6 @@ export const typeOrmConfig = async (): Promise<TypeOrmModuleOptions> => ({
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'hss',
-    // entities: [path.join(__dirname, '..', 'modules', '**', '*.entity.{ts,js}')],
     synchronize: true,
     autoLoadEntities: true,
     multipleStatements: true,

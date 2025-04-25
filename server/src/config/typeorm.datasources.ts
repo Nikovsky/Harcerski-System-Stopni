@@ -6,6 +6,9 @@
 import { DataSource } from 'typeorm';
 import * as path from 'path';
 
+/**
+ * @description DataSource instance providing configuration for database connection and migrations using TypeORM.
+ */
 export const AppDataSource = new DataSource({
     type: 'mysql',
     host: process.env.DB_HOST || 'localhost',

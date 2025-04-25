@@ -10,6 +10,9 @@ import { UserProfile } from './user-profile.entity';
 import { AuthUserAccount } from '../auth/auth-user-account.entity';
 import { AuthService } from '../auth/auth.service';
 
+/**
+ * @description NestJS module providing services and controllers related to user accounts and profile management.
+ */
 @Module({
   imports: [TypeOrmModule.forFeature([UserProfile, AuthUserAccount])],
   controllers: [UsersController],

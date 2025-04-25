@@ -7,3 +7,7 @@ export interface JwtPayload {
     email: string;
     role: string;
 }
+
+export interface RefreshTokenPayload extends JwtPayload {
+    uuid_session: string;
+}

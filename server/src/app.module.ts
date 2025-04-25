@@ -14,6 +14,9 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 
+/**
+ * @description Root module that initializes configuration, database connection, scheduling, and feature modules.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),

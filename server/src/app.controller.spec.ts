@@ -1,7 +1,14 @@
+/**
+ * @file src/app.controller.spec.ts
+ * @description Unit tests for the AppController, testing basic application behavior.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+/**
+ * @description Test suite for AppController verifying the return value of the root endpoint.
+ */
 describe('AppController', () => {
   let appController: AppController;
 

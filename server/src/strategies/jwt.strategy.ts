@@ -1,8 +1,14 @@
-
+/**
+ * @file src/strategies/jwt.strategy.ts
+ * @description Strategy handling JWT validation for protected routes.
+ */
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+/**
+ * @description JWT strategy for extracting and validating access tokens from Authorization headers.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
 constructor() {
@@ -13,6 +19,11 @@ super({
 });
 }
 
+    /**
+     * @description Validates the payload extracted from the JWT token.
+     * @param payload - Decoded JWT payload containing user information.
+     * @returns Object containing user identity fields (sub, email, role) to be attached to the request.
+     */
     async validate(payload: any) {
         return {
             sub: payload.sub,

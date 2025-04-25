@@ -10,9 +10,12 @@ import { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
 import { LoginUserAccountDto } from './dtos/login-user-account.dto';
-import { JwtPayload } from 'src/interfaces/jwt.payload';
+import { JwtPayload, RefreshTokenPayload } from 'src/interfaces/jwt.payload';
 import { SessionsService } from '../sessions/sessions.service';
 
+/**
+ * @description Service providing methods for user registration, authentication, token management, and session handling.
+ */
 @Injectable()
 export class AuthService {
     constructor(
@@ -21,6 +24,11 @@ export class AuthService {
         private readonly sessionService: SessionsService,
     ) {}
 
+    /**
+     * @description Registers a new user account after validating the email and hashing the password.
+     * @param dto - Data Transfer Object containing registration details.
+     * @returns Created user entity.
+     */
     async register(dto: RegisterUserAccountDto) {
         const users = await this.usersService.findOneByEmail(dto.email);
 
@@ -40,6 +48,13 @@ export class AuthService {
         })
     }
 
+    /**
+     * @description Authenticates a user and issues access and refresh tokens. Creates a new session record.
+     * @param dto - Data Transfer Object containing login credentials.
+     * @param req - HTTP request object for extracting IP and user agent.
+     * @param res - HTTP response object for setting the refresh token cookie.
+     * @returns Object containing the access token, expiration time, and user information.
+     */
     async login(dto: LoginUserAccountDto, req: Request, res: Response) {
         const user = await this.usersService.findOneByEmail(dto.email);
 
@@ -73,7 +88,6 @@ export class AuthService {
             },
         );
 
-        // Zapis do baz danych sesji
         const userAgent = (req.headers['user-agent'] ?? '') as string;
         const ipAddress = req.ip ?? '';
 
@@ -85,7 +99,6 @@ export class AuthService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dni
         });
 
-        // Ustaw cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -104,18 +117,20 @@ export class AuthService {
         };
     }
 
+    /**
+     * @description Issues a new access token based on a valid refresh token stored in cookies.
+     * @param req - HTTP request containing the refresh token.
+     * @returns Object containing the new access token.
+     */
     async refresh(req: Request) {
         const token = req.cookies['refreshToken'];
         if (!token) throw new UnauthorizedException('Brak refreshToken');
 
-        let payload: any;
-        try {
-            payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_REFRESH_SECRET,
-            });
-        } catch (err) {
+        const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
+            secret: process.env.JWT_REFRESH_SECRET,
+        }).catch(() => {
             throw new UnauthorizedException('Refresh token jest niepoprawny lub wygasł!');
-        }
+        });
 
         const { uuid_session } = payload;
 
@@ -138,10 +153,22 @@ export class AuthService {
         return { access_token: newAccessToken };
     }
 
+    /**
+     * @description Revokes a specific user session by its session ID.
+     * @param req - HTTP request containing user identity.
+     * @param sessionId - UUID of the session to be revoked.
+     * @returns Confirmation of session revocation.
+     */
     async revokeSession(req: Request, sessionId: string) {
         return this.sessionService.revokeSession(sessionId, (req.user as JwtPayload).sub);
     }
 
+    /**
+     * @description Logs out the user by revoking their current session and clearing the refresh token cookie.
+     * @param req - HTTP request containing the refresh token.
+     * @param res - HTTP response object to clear the cookie.
+     * @returns Confirmation message.
+     */
     async logout(req: Request, res: Response) {
         const token = req.cookies['refreshToken'];
         if (!token) return;
@@ -158,6 +185,12 @@ export class AuthService {
         return { message: 'Wylogowano pomyślnie' };
     }
 
+    /**
+     * @description Logs the user out of all sessions, optionally including the current one.
+     * @param req - HTTP request containing user identity.
+     * @param includeCurrent - Whether to include the current session in the revocation.
+     * @returns Confirmation message of sessions revocation.
+     */
     async logoutOther(req: Request, includeCurrent: boolean) {
         const userId = (req.user as { sub: string }).sub;
 
@@ -179,6 +212,11 @@ export class AuthService {
         };
     }  
 
+    /**
+     * @description Retrieves all active and historical sessions for the authenticated user.
+     * @param req - HTTP request containing user identity.
+     * @returns List of user sessions.
+     */
     async getSessions(req: Request) {
         return this.sessionService.getSessionsForUser((req.user as JwtPayload).sub);
     }
