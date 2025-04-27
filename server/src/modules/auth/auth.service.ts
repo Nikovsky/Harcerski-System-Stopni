@@ -62,18 +62,23 @@ export class AuthService {
             throw new UnauthorizedException('Nieprawidłowy email lub hasło');
         }
 
-        const payload = {
-            sub: user.uuid_account,
-            email: user.email,
-            role: user.role,
-        };
-
-        const accessToken = await this.jwtService.sign(payload, {
-            secret: process.env.JWT_SECRET,
-            expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
-        });
-
+        await this.sessionService.limitActiveSessions(user.uuid_account);
+        
         const uuidSession = uuidv4();
+
+        const accessToken = await this.jwtService.signAsync(
+            {
+                sub: user.uuid_account,
+                email: user.email,
+                role: user.role,
+                uuid_session: uuidSession,
+            } as JwtPayload & { uuid_session: string },
+            {
+                secret: process.env.JWT_SECRET,
+                expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
+            },
+        );
+
 
         const refreshToken = await this.jwtService.signAsync(
             {
@@ -81,29 +86,26 @@ export class AuthService {
                 email: user.email,
                 role: user.role,
                 uuid_session: uuidSession,
-            },
+            } as RefreshTokenPayload,
             {
                 secret: process.env.JWT_REFRESH_SECRET,
                 expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
             },
         );
 
-        const userAgent = (req.headers['user-agent'] ?? '') as string;
-        const ipAddress = req.ip ?? '';
-
         await this.sessionService.createSession({
             uuid_session: uuidSession,
             user_id: user.uuid_account,
-            ipAddress,
+            ipAddress: req.ip || '',
             userAgent: req.headers['user-agent'] || '',
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dni
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 ),
         });
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dni
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         return {
@@ -122,7 +124,7 @@ export class AuthService {
      * @param req - HTTP request containing the refresh token.
      * @returns Object containing the new access token.
      */
-    async refresh(req: Request) {
+    async refresh(req: Request, res: Response) {
         const token = req.cookies['refreshToken'];
         if (!token) throw new UnauthorizedException('Brak refreshToken');
 
@@ -132,25 +134,64 @@ export class AuthService {
             throw new UnauthorizedException('Refresh token jest niepoprawny lub wygasł!');
         });
 
-        const { uuid_session } = payload;
+        const { uuid_session: oldSessionId, sub: userId } = payload;
 
-        const session = await this.sessionService.findBySessionId(uuid_session);
+        const session = await this.sessionService.findBySessionId(oldSessionId);
         if (!session || session.is_revoked || !session.user) {
             throw new UnauthorizedException('Sesja nie została znaleziona lub została unieważniona');
         }
         
+        if (session.expiresAt < new Date()) {
+            throw new UnauthorizedException('Sesja wygasła. Zaloguj się ponownie.');
+        }
+
+        await this.sessionService.revokeSession(oldSessionId, userId);
+
+        const newSessionId = uuidv4();
+        const newRefreshToken = await this.jwtService.signAsync(
+            {
+                sub: userId,
+                email: session.user.email,
+                role: session.user.role,
+                uuid_session: newSessionId,
+            },
+            {
+                secret: process.env.JWT_REFRESH_SECRET,
+                expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+            },
+        );
+
+        await this.sessionService.createSession({
+            uuid_session: newSessionId,
+            user_id: userId,
+            ipAddress: req.ip || '',
+            userAgent: req.headers['user-agent'] || '',
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dni
+        });
 
         const newAccessToken = await this.jwtService.signAsync(
             {
                 sub: session.user.uuid_account,
                 email: session.user.email,
                 role: session.user.role,
-            },
+                uuid_session: newSessionId,
+            } as JwtPayload & { uuid_session: string },
             {
-                expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '15m',
+                secret: process.env.JWT_SECRET,
+                expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
             },
         );
-        return { access_token: newAccessToken };
+        return {
+            access_token: newAccessToken,
+            expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        };
     }
 
     /**
@@ -171,17 +212,35 @@ export class AuthService {
      */
     async logout(req: Request, res: Response) {
         const token = req.cookies['refreshToken'];
-        if (!token) return;
-
-        const payload = this.jwtService.decode(token) as any;
-        
-        const userId = payload?.sub;
-        const sessionId = payload?.uuid_session
-        if (sessionId && userId) {
-            await this.sessionService.revokeSession(sessionId, userId);
+        if (!token) {
+            throw new UnauthorizedException('Brak tokena odświeżania.');
         }
-        
-        res.clearCookie('refreshToken');
+    
+        let payload: RefreshTokenPayload;
+        try {
+            payload = await this.jwtService.verifyAsync(token, {
+                secret: process.env.JWT_REFRESH_SECRET,
+});
+        } catch (error) {
+            throw new UnauthorizedException('Nieprawidłowy lub wygasły token odświeżania.');
+        }
+    
+        const userId = payload?.sub;
+        const sessionId = payload?.uuid_session;
+    
+        if (!sessionId || !userId) {
+            throw new UnauthorizedException('Nieprawidłowe dane w tokenie odświeżania.');
+        }
+    
+        await this.sessionService.revokeSession(sessionId, userId);
+    
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            path: '/',
+        });
+    
         return { message: 'Wylogowano pomyślnie' };
     }
 

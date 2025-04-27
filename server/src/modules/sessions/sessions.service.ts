@@ -104,6 +104,27 @@ private sessionRepository: Repository<AuthSession>,
     }
 
     /**
+     * @description Ensures a user does not exceed a maximum number of active sessions.
+     * If limit exceeded, revokes the oldest active session(s).
+     * @param userId - UUID of the user.
+     * @param maxSessions - Maximum allowed active sessions (default is 3).
+     */
+    async limitActiveSessions(userId: string, maxSessions = 3) {
+        const activeSessions = await this.sessionRepository.find({
+            where: { user: { uuid_account: userId }, is_revoked: false },
+            order: { created_at: 'ASC' }, // najstarsze najpierw
+        });
+
+        if (activeSessions.length >= maxSessions) {
+            const oldestSession = activeSessions[0];
+            await this.sessionRepository.update(
+                { uuid_session: oldestSession.uuid_session },
+                { is_revoked: true }
+            );
+        }
+    }
+
+    /**
      * @description Retrieves all sessions for a given user, ordered by creation date.
      * @param userId - UUID of the user.
      * @returns Array of session summaries including IP address, user agent, creation time, and revocation status.

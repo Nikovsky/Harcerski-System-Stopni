@@ -5,12 +5,13 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AccessTokenPayload } from 'src/interfaces/jwt.payload';
 
 /**
  * @description JWT strategy for extracting and validating access tokens from Authorization headers.
  */
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 constructor() {
 super({
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,11 +25,7 @@ super({
      * @param payload - Decoded JWT payload containing user information.
      * @returns Object containing user identity fields (sub, email, role) to be attached to the request.
      */
-    async validate(payload: any) {
-        return {
-            sub: payload.sub,
-            email: payload.email,
-            role: payload.role,
-        };
+    async validate(payload: AccessTokenPayload): Promise<AccessTokenPayload> {
+        return payload;
     }
 }

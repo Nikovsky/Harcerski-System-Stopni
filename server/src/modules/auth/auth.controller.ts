@@ -3,7 +3,7 @@
  * @description Controller handling authentication endpoints.
  */
 import { Post, Body, Controller, Req, Res, UseGuards, Get, Param } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { JwtSessionAuthGuard } from './guards/jwt-session.guard';
 import { SessionGuard } from './guards/session.guard';
 import { Request, Response } from 'express';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
@@ -67,8 +67,8 @@ export class AuthController {
      */
     @UseGuards(SessionGuard)
     @Post('refresh')
-    refresh(@Req() req: Request) {
-        return this.authService.refresh(req);
+    refresh(@Req() req: Request,  @Res({ passthrough: true }) res: Response) {
+        return this.authService.refresh(req, res);
     }
 
     /**
@@ -76,7 +76,7 @@ export class AuthController {
      * @param req - HTTP request object with user identity.
      * @returns List of user sessions.
      */
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtSessionAuthGuard)
     @Get('sessions')
     async getSessions(@Req() req: Request) {
         return this.authService.getSessions(req);
@@ -89,7 +89,7 @@ export class AuthController {
      * @returns Confirmation of successful revocation.
      */
     @Post('sessions/:id/revoke')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtSessionAuthGuard)
     async revokeSession(@Param('id') id: string, @Req() req: Request) {
         return this.authService.revokeSession(req, id);
     }
@@ -101,7 +101,7 @@ export class AuthController {
      * @returns Confirmation of session revocations.
      */
     @Post('logout-other')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtSessionAuthGuard)
     async logoutOther(
         @Req() req: Request,
         @Body('includeCurrent') includeCurrent: boolean,
@@ -111,7 +111,7 @@ export class AuthController {
     }
 
     @Get('admin')
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtSessionAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
     getAdminData() {
         return "Tylko dla adminów!";

@@ -8,6 +8,10 @@ export interface JwtPayload {
     role: string;
 }
 
-export interface RefreshTokenPayload extends JwtPayload {
+export interface AccessTokenPayload extends JwtPayload {
     uuid_session: string;
+}
+
+export interface RefreshTokenPayload extends AccessTokenPayload {
+    
 }
