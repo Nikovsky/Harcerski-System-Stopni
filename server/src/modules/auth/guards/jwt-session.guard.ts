@@ -1,3 +1,6 @@
+/**
+ * @file src/modules/auth/guards/jwt-session.guard.ts
+ */
 import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SessionsService } from 'src/modules/sessions/sessions.service';

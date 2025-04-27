@@ -10,7 +10,7 @@ import { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
 import { LoginUserAccountDto } from './dtos/login-user-account.dto';
-import { JwtPayload, RefreshTokenPayload } from 'src/interfaces/jwt.payload';
+import { AccessTokenPayload, RefreshTokenPayload } from 'src/interfaces/jwt.payload';
 import { SessionsService } from '../sessions/sessions.service';
 
 /**
@@ -72,7 +72,7 @@ export class AuthService {
                 email: user.email,
                 role: user.role,
                 uuid_session: uuidSession,
-            } as JwtPayload & { uuid_session: string },
+            } as AccessTokenPayload,
             {
                 secret: process.env.JWT_SECRET,
                 expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
@@ -182,7 +182,7 @@ export class AuthService {
                 email: session.user.email,
                 role: session.user.role,
                 uuid_session: newSessionId,
-            } as JwtPayload & { uuid_session: string },
+            } as AccessTokenPayload,
             {
                 secret: process.env.JWT_SECRET,
                 expiresIn: process.env.JWT_SECRET_EXPIRES_IN || '15m',
@@ -201,7 +201,7 @@ export class AuthService {
      * @returns Confirmation of session revocation.
      */
     async revokeSession(req: Request, sessionId: string) {
-        return this.sessionService.revokeSession(sessionId, (req.user as JwtPayload).sub);
+        return this.sessionService.revokeSession(sessionId, (req.user as AccessTokenPayload).sub);
     }
 
     /**
@@ -277,6 +277,6 @@ export class AuthService {
      * @returns List of user sessions.
      */
     async getSessions(req: Request) {
-        return this.sessionService.getSessionsForUser((req.user as JwtPayload).sub);
+        return this.sessionService.getSessionsForUser((req.user as AccessTokenPayload).sub);
     }
 }
