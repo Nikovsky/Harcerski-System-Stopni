@@ -53,6 +53,5 @@ export class UserProfile {
      * @description Relation to the associated user account entity.
      */
     @OneToOne(() => AuthUserAccount, user => user.profile)
-    @JoinColumn()
     userAccount: AuthUserAccount;
 }

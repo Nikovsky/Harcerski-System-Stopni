@@ -17,6 +17,7 @@ declare global {
             sub: string;
             email: string;
             role: string;
+            uuid_session:  sessionId,
         }
         
         /**

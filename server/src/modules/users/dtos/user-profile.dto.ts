@@ -16,7 +16,6 @@ export class UserProfileDto {
     @IsEnum(UserScoutRank, { message: 'Invalid scout rank' })
     scoutRank?: UserScoutRank;
 
-    @IsOptional()
     @IsIn(['Brak', 'Przewodnik'])
     scoutInstructorRank?: 'Brak' | 'Przewodnik'
 

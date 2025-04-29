@@ -7,6 +7,7 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2023",
+    "typeRoots": ["node_modules/@types", "src/types"],
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
@@ -18,6 +19,6 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src", "src/types"]
+  "include": ["src", "src/types", "src/types/**/*.d.ts"]
 
 }

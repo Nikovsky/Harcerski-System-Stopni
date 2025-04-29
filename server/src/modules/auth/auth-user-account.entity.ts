@@ -45,9 +45,11 @@ export class AuthUserAccount {
     /**
      * @description One-to-one relation with the user's profile information.
      */
-    @OneToOne(() => UserProfile, profile => profile.userAccount, { cascade: true })
+    @OneToOne(() => UserProfile, profile => profile.userAccount, { 
+        cascade: ['insert', 'update'],
+        eager: false })
     @JoinColumn({ name: 'user_profile_id' })
-    profile: UserProfile;
+    profile?: UserProfile;
 
     /**
      * @description One-to-many relation to the user's active and past sessions.

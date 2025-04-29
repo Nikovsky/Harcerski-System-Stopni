@@ -3,15 +3,18 @@
  * @description Controller handling authentication endpoints.
  */
 import { Post, Body, Controller, Req, Res, UseGuards, Get, Param } from '@nestjs/common';
-import { JwtSessionAuthGuard } from './guards/jwt-session.guard';
-import { SessionGuard } from './guards/session.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Serialize } from 'src/interceptors/serialize.decorator';
+import { RegisterUserResponseDto } from './dtos/register-user-response.dto';
 import { Request, Response } from 'express';
 import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
-import { AuthService } from './auth.service';
 import { LoginUserAccountDto } from './dtos/login-user-account.dto';
+import { AuthService } from './auth.service';
 import { Roles } from './decorator/roles.decorator';
 import { RolesGuard } from './guards/role.guard';
 import { UserRole } from './enums/auth-user-role.enum';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { LoginUserResponseDto } from './dtos/login-user-response.dto';
 
 /**
  * @description Controller exposing authentication-related routes such as login, logout, registration, token refresh, and session management.
@@ -28,6 +31,7 @@ export class AuthController {
      * @returns Confirmation of successful registration.
      */
     @Post('register')
+    @Serialize(RegisterUserResponseDto)
     signup(@Body() dto: RegisterUserAccountDto) {
         return this.authService.register(dto)
     }
@@ -40,6 +44,7 @@ export class AuthController {
      * @returns Authentication result and tokens.
      */
     @Post('login')
+    @Serialize(LoginUserResponseDto)
     login(
         @Body() dto: LoginUserAccountDto,
         @Req() req: Request,
@@ -54,7 +59,7 @@ export class AuthController {
      * @param res - HTTP response object for clearing cookies.
      * @returns Confirmation of successful logout.
      */
-    @UseGuards(SessionGuard)
+    @UseGuards(RefreshTokenGuard)
     @Post('logout')
     logout(@Req() req: Request, @Res( {passthrough: true}) res: Response) {
         return this.authService.logout(req, res);
@@ -65,7 +70,7 @@ export class AuthController {
      * @param req - HTTP request containing the refresh token cookie.
      * @returns New access token.
      */
-    @UseGuards(SessionGuard)
+    @UseGuards(RefreshTokenGuard)
     @Post('refresh')
     refresh(@Req() req: Request,  @Res({ passthrough: true }) res: Response) {
         return this.authService.refresh(req, res);
@@ -76,7 +81,7 @@ export class AuthController {
      * @param req - HTTP request object with user identity.
      * @returns List of user sessions.
      */
-    @UseGuards(JwtSessionAuthGuard)
+    @UseGuards(JwtAuthGuard)
     @Get('sessions')
     async getSessions(@Req() req: Request) {
         return this.authService.getSessions(req);
@@ -89,7 +94,7 @@ export class AuthController {
      * @returns Confirmation of successful revocation.
      */
     @Post('sessions/:id/revoke')
-    @UseGuards(JwtSessionAuthGuard)
+    @UseGuards(JwtAuthGuard)
     async revokeSession(@Param('id') id: string, @Req() req: Request) {
         return this.authService.revokeSession(req, id);
     }
@@ -101,7 +106,7 @@ export class AuthController {
      * @returns Confirmation of session revocations.
      */
     @Post('logout-other')
-    @UseGuards(JwtSessionAuthGuard)
+    @UseGuards(JwtAuthGuard)
     async logoutOther(
         @Req() req: Request,
         @Body('includeCurrent') includeCurrent: boolean,
@@ -111,7 +116,7 @@ export class AuthController {
     }
 
     @Get('admin')
-    @UseGuards(JwtSessionAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)
     getAdminData() {
         return "Tylko dla adminów!";

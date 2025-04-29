@@ -13,7 +13,6 @@ import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
-
 /**
  * @description Root module that initializes configuration, database connection, scheduling, and feature modules.
  */
@@ -25,8 +24,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
-    SessionsModule
-],
+    SessionsModule],
   controllers: [AppController],
   providers: [AppService],
 })
