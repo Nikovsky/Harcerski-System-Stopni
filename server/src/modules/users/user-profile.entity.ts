@@ -5,6 +5,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { UserScoutRank } from './enums/user-scout-rank.enum';
 import { UserScoutTeam } from './enums/user-scout-team.enum';
+import { UserTroopTeam } from './enums/user-troop-team.enum';
 import { AuthUserAccount } from '../auth/auth-user-account.entity';
 
 /**
@@ -30,12 +31,48 @@ export class UserProfile {
      */
     @Column({ type: 'varchar', length: 125})
     lastname: string;
+    
+    /**
+     * @description User's date of birth.
+     */
+    @Column({ type: 'date'})
+    dateOfBirth: Date;
+
+    /**
+     * @description Phone number of the user.
+     */
+    @Column({ type: 'varchar', length: 11})
+    phoneNumber: string;
+
+    /**
+     * @description Start date of scouting experience.
+     */
+    @Column({ type: 'date'})
+    startedScoutingAt: Date;
+
+    /**
+     * @description Date when the user joined the ZHR (Związek Harcerstwa Rzeczypospolitej).
+     */
+    @Column({ type: 'date'})
+    joinedZHRAt: Date;
+
+    /**
+     * @description Date when the user took the scout oath.
+     */
+    @Column({ type: 'date'})
+    oathDate: Date;
 
     /**
      * @description User's scouting rank (e.g., Druh, Młodzik).
      */
     @Column( { type: 'enum', enum: UserScoutRank, default: UserScoutRank.DRUH })
     scoutRank: UserScoutRank;
+    
+    /**
+     * @description Date when the user was granted their current scouting rank.
+     */
+    @Column({ type: 'date'})
+    scoutRankGrantedAt: Date;
 
     /**
      * @description User's instructor rank in scouting organization (e.g., Przewodnik).
@@ -44,10 +81,28 @@ export class UserProfile {
     scoutInstructorRank: 'Brak' | 'Przewodnik'
 
     /**
-     * @description Team or troop to which the user belongs.
+     * @description Team to which the user belongs.
      */
     @Column( { type: 'enum', enum: UserScoutTeam})
     scoutTeam: UserScoutTeam;
+
+    /**
+     * @description Function or role within the scout team (e.g., drużynowy, przyboczny).
+     */
+    @Column({ type: 'varchar', length: 60, default: 'Brak'})
+    functionInScoutTeam: string;
+    
+    /**
+     * @description Troop to which the user belongs.
+     */
+    @Column({ type: 'enum', enum: UserTroopTeam})
+    scoutTroop: UserTroopTeam;
+
+    /**
+     * @description Function or role within the troop (e.g., hufcowy).
+     */
+    @Column({ type: 'varchar', length: 60, default: 'Brak'})
+    functionInTroop: string;
 
     /**
      * @description Relation to the associated user account entity.
