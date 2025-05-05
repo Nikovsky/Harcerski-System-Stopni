@@ -2,11 +2,12 @@
  * @file src/modules/users/user-profile.entity.ts
  * @description Entity representing user profiles (first name, last name) in the database.
  */
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { UserScoutRank } from './enums/user-scout-rank.enum';
 import { UserScoutTeam } from './enums/user-scout-team.enum';
 import { UserTroopTeam } from './enums/user-troop-team.enum';
 import { AuthUserAccount } from '../auth/auth-user-account.entity';
+import { Trial } from '../trials/trial.entity';
 
 /**
  * @description Entity storing detailed profile information about the user such as name, scout rank, and team.
@@ -99,10 +100,29 @@ export class UserProfile {
     scoutTroop: UserTroopTeam;
 
     /**
-     * @description Function or role within the troop (e.g., hufcowy).
+     * @description Function or role within the troop (e.g. hufcowy).
      */
     @Column({ type: 'varchar', length: 60, default: 'Brak'})
     functionInTroop: string;
+
+    /**
+     * @description Currently open trial for a scout rank (e.g. Harcerz Orli).
+     */
+    @Column({ type: 'enum', enum: UserScoutRank, default: 'Brak'})
+    currentRankTarget: UserScoutRank
+
+    /**
+     * @description Planned date of completion of a currently open scouting trial for a rank (e.g. Harcerza Orlego).
+     */
+    @Column({ type: 'date', nullable: true})
+    plannedEndDate: Date
+
+    /**
+     * @description Relation to the trial entity.
+     */
+    @OneToMany(() => Trial, trial => trial.profile)
+    trials: Trial[];
+
 
     /**
      * @description Relation to the associated user account entity.

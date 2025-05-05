@@ -1,4 +1,5 @@
 export enum UserScoutRank {
+    BRAK = 'Brak',
     DRUH = 'Druh',
     MLODZIK = 'Młodzik',
     WYWIADOWCA = 'Wywiadowca',
