@@ -36,7 +36,7 @@ export class UserProfile {
     /**
      * @description User's date of birth.
      */
-    @Column({ type: 'date'})
+    @Column({ type: 'date', nullable: true})
     dateOfBirth: Date;
 
     /**
@@ -48,19 +48,19 @@ export class UserProfile {
     /**
      * @description Start date of scouting experience.
      */
-    @Column({ type: 'date'})
+    @Column({ type: 'date', nullable: true})
     startedScoutingAt: Date;
 
     /**
      * @description Date when the user joined the ZHR (Związek Harcerstwa Rzeczypospolitej).
      */
-    @Column({ type: 'date'})
+    @Column({ type: 'date', nullable: true})
     joinedZHRAt: Date;
 
     /**
      * @description Date when the user took the scout oath.
      */
-    @Column({ type: 'date'})
+    @Column({ type: 'date', nullable: true})
     oathDate: Date;
 
     /**
@@ -72,7 +72,7 @@ export class UserProfile {
     /**
      * @description Date when the user was granted their current scouting rank.
      */
-    @Column({ type: 'date'})
+    @Column({ type: 'date', nullable: true})
     scoutRankGrantedAt: Date;
 
     /**
@@ -122,7 +122,6 @@ export class UserProfile {
      */
     @OneToMany(() => Trial, trial => trial.profile)
     trials: Trial[];
-
 
     /**
      * @description Relation to the associated user account entity.

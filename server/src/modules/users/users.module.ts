@@ -14,7 +14,7 @@ import { AuthModule } from '../auth/auth.module';
  * @description NestJS module providing services and controllers related to user accounts and profile management.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([UserProfile, AuthUserAccount]), forwardRef(() => AuthModule)],
+  imports: [TypeOrmModule.forFeature([UserProfile, AuthUserAccount]), forwardRef(() => AuthModule),],
   controllers: [UsersController],
   providers: [UsersService, UsersProfileService]
 })

@@ -8,8 +8,7 @@ import * as argon2 from "argon2";
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
-import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
-import { LoginUserAccountDto } from './dtos/login-user-account.dto';
+import { LoginUserAccountDto, RegisterUserAccountDto } from './dtos/auth-user-account.dto';
 import { AccessTokenPayload, RefreshTokenPayload } from 'src/interfaces/jwt.payload';
 import { SessionsService } from '../sessions/sessions.service';
 

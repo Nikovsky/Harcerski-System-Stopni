@@ -4,6 +4,7 @@
  */
 import {IsEmail, IsEnum, IsIn, IsOptional, IsString, MinLength} from 'class-validator';
 import { UserRole } from '../enums/auth-user-role.enum';
+import { PickType, PartialType } from '@nestjs/mapped-types';
 
 export class AuthUserAccountDto {
     @IsEmail({}, {message: 'Invalid email address'})
@@ -18,7 +19,12 @@ export class AuthUserAccountDto {
     @IsIn(['local', 'google'])
     provider?: 'local' | 'google'
 
-    @IsOptional()
     @IsEnum(UserRole)
-    role?: UserRole;
+    role: UserRole;
 }
+
+export class RegisterUserAccountDto extends PickType(AuthUserAccountDto, ['email', 'password'] as const) {}
+
+export class LoginUserAccountDto extends PickType(AuthUserAccountDto, ['email', 'password'] as const) {}
+
+export class UpdateUserAccountDto extends PartialType(AuthUserAccountDto) {}

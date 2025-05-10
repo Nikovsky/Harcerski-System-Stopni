@@ -2,6 +2,27 @@ import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, OneToMany, JoinColum
 import { UserProfile } from '../users/user-profile.entity';
 import { TrialTask } from './trial-task.entity';
 
+export enum MentorRank {
+    PRZEWODNIK = 'Przewodnik',
+    OTWARTA_PODHARC = 'Otwarta próba podharcmistrzowska',
+    PODHARC = 'Podharcmistrz',
+    HARCMISTRZ = 'Harcmistrz'
+}
+
+export enum HufcowyPresence {
+    OSOBISTA = 'Obecność osobista',
+    ZDALNA = 'Obecność zdalna',
+    ZAŁĄCZNIK = 'Opinia w załączniku'
+}
+
+export enum CommissionDecision {
+    WYSŁANY = 'Wysłany',
+    OCZEKUJE = 'Oczekuje na rozpatrzenie',
+    POPRAWKI = 'Wymaga poprawek',
+    ZATWIERDZONY = 'Zatwierdzony',
+    ODRZUCONY = 'Odrzucony'
+}
+
 @Entity('trials')
 export class Trial {
 
@@ -31,14 +52,14 @@ export class Trial {
     @Column({ type: 'varchar', length: 128})
     mentorName: string;
 
-    @Column({ type: 'enum', enum: ['Przewodnik', 'Otwarta próba podharcmistrzowska', 'Podharcmistrz', 'Harcmistrz'], default: 'Przewodnik' })
-    mentorRank: 'Przewodnik' | 'Otwarta próba podharcmistrzowska'| 'Podharcmistrz'| 'Harcmistrz';
+    @Column({ type: 'enum', enum: MentorRank, default: MentorRank.PRZEWODNIK })
+    mentorRank: MentorRank;
 
     @Column({ type: 'varchar', length: 64})
     mentorFunction: string;
 
-    @Column({ type: 'enum', enum: ['Obecność osobista', 'Obecność zdalna', 'Opinia w załączniku'], default: 'Opinia w załączniku'})
-    hufcowyPresence: 'Obecność osobista' | 'Obecność zdalna' | 'Opinia w załączniku'; 
+    @Column({ type: 'enum', enum: HufcowyPresence, default: HufcowyPresence.ZAŁĄCZNIK})
+    hufcowyPresence: HufcowyPresence; 
 
     @Column({ type: 'date'})
     plannedTrialEndDate: Date;
@@ -47,8 +68,8 @@ export class Trial {
     @Column({ type: 'text', nullable: true })
     commissionNotes: string;
 
-    @Column({ type: 'enum', enum: ['Wysłany', 'Oczekuje na rozpatrzenie', 'Wymaga poprawek', 'Zatwierdzony', 'Odrzucony'], default: 'Wysłany'})
-    commissionDecision: 'Wysłany' | 'Oczekuje na rozpatrzenie' | 'Wymaga poprawek' | 'Zatwierdzony' | 'Odrzucony';
+    @Column({ type: 'enum', enum: CommissionDecision, default: CommissionDecision.WYSŁANY})
+    commissionDecision: CommissionDecision;
 
     @Column({ type: 'date', nullable: true })
     commissionDecisionDate: Date;

@@ -5,16 +5,15 @@
 import { Post, Body, Controller, Req, Res, UseGuards, Get, Param } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Serialize } from 'src/interceptors/serialize.decorator';
-import { RegisterUserResponseDto } from './dtos/register-user-response.dto';
 import { Request, Response } from 'express';
-import { RegisterUserAccountDto } from './dtos/register-user-account.dto';
-import { LoginUserAccountDto } from './dtos/login-user-account.dto';
+import { LoginUserAccountDto, RegisterUserAccountDto } from './dtos/auth-user-account.dto';
 import { AuthService } from './auth.service';
 import { Roles } from './decorator/roles.decorator';
 import { RolesGuard } from './guards/role.guard';
 import { UserRole } from './enums/auth-user-role.enum';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { LoginUserResponseDto } from './dtos/login-user-response.dto';
+import { RegisterUserResponseDto } from './dtos/register-user-response.dto';
 
 /**
  * @description Controller exposing authentication-related routes such as login, logout, registration, token refresh, and session management.

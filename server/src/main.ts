@@ -15,10 +15,11 @@ async function initializeWithRetry(retries = 5, delay = 2000) {
       await AppDataSource.initialize();
       console.log('📦 Data Source initialized');
       return;
-    } catch (err) {
-      console.warn(`🔁 Retry ${i + 1}/${retries}...`);
-      await new Promise(res => setTimeout(res, delay));
-    }
+} catch (err) {
+  console.error(`❌ Błąd podczas łączenia z bazą:`, err.message);
+  console.warn(`🔁 Retry ${i + 1}/${retries}...`);
+  await new Promise(res => setTimeout(res, delay));
+}
   }
   throw new Error('❌ Failed to connect to DB after retries');
 }
