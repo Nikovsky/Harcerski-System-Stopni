@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { plainToInstance } from 'class-transformer';
 import { UserProfile } from './user-profile.entity';
 import { AuthUserAccount } from '../auth/auth-user-account.entity';
-import { UpdateUserProfileDto, CreateUserProfileDto } from './dtos/user-profile.dto';
+import { UpdateUserProfileDto, CreateUserProfileDto, UserProfileResponseDto } from './dtos/user-profile.dto';
 
 @Injectable()
 export class UsersProfileService {
@@ -35,10 +36,10 @@ export class UsersProfileService {
         return this.userProfileRepository.save(user.profile);
     }
 
-    async getProfile(userId: string): Promise<UserProfile> {
+    async getProfile(userId: string): Promise<UserProfileResponseDto> {
         const user = await this.authUserAccountRepository.findOne({ where: {uuid_account: userId}, relations: ['profile'] })
         if (!user?.profile) throw new NotFoundException('Profil nie został wypełniony');
 
-        return user.profile;
+        return plainToInstance(UserProfileResponseDto, user.profile, { excludeExtraneousValues: true });
     }
 }

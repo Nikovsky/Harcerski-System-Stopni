@@ -6,7 +6,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthUserAccount } from '../auth/auth-user-account.entity';
-import { RegisterUserAccountDto } from '../auth/dtos/register-user-account.dto';
+import { RegisterUserAccountDto } from '../auth/dtos/auth-user-account.dto';
 
 /**
  * @description Service providing methods to create and retrieve user accounts from the database.
