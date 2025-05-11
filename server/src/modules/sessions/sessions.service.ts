@@ -50,7 +50,7 @@ private sessionRepository: Repository<AuthSession>,
      */
     async findBySessionId(sessionId: string) {
         return this.sessionRepository.findOne({
-            where: { uuid_session: sessionId, is_revoked: false },
+            where: { uuid_session: sessionId},
             relations: ['user'],
         });
     }
@@ -63,7 +63,7 @@ private sessionRepository: Repository<AuthSession>,
      */
     async revokeSession(sessionId: string, userId: string) {
         const session = await this.sessionRepository.findOne({
-            where: { uuid_session: sessionId, is_revoked: false },
+            where: { uuid_session: sessionId},
             relations: ['user'],
         });
 

@@ -54,7 +54,7 @@ export class AuthService {
      * @param res - HTTP response object for setting the refresh token cookie.
      * @returns Object containing the access token, expiration time, and user information.
      */
-    async login(dto: LoginUserAccountDto, req: Request, res: Response) {
+    async login(dto: LoginUserAccountDto, req: Request) {
         const user = await this.usersService.findOneByEmail(dto.email);
 
         if (!user || !user.password || !dto.password || !(await argon2.verify(user.password, dto.password))) {
@@ -100,15 +100,9 @@ export class AuthService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 ),
         });
 
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
         return {
             accessToken,
+            refreshToken,
             expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
             user: {
                 uuid_user: user.uuid_account,
@@ -123,7 +117,7 @@ export class AuthService {
      * @param req - HTTP request containing the refresh token.
      * @returns Object containing the new access token.
      */
-    async refresh(req: Request, res: Response) {
+    async refresh(req: Request) {
         const token = req.cookies['refreshToken'];
         if (!token) throw new UnauthorizedException('Brak refreshToken');
 
@@ -136,9 +130,15 @@ export class AuthService {
         const { uuid_session: oldSessionId, sub: userId } = payload;
 
         const session = await this.sessionService.findBySessionId(oldSessionId);
-        if (!session || session.is_revoked || !session.user) {
-            throw new UnauthorizedException('Sesja nie została znaleziona lub została unieważniona');
+
+        if (!session) {
+            throw new NotFoundException('Sesja nie została znaleziona');
         }
+
+        if (session.user.uuid_account !== userId) {
+            throw new UnauthorizedException('Sesja nie należy do użytkownika');
+        }
+
         
         if (session.expiresAt < new Date()) {
             throw new UnauthorizedException('Sesja wygasła. Zaloguj się ponownie.');
@@ -168,13 +168,6 @@ export class AuthService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dni
-        });
-
         const newAccessToken = await this.jwtService.signAsync(
             {
                 sub: session.user.uuid_account,
@@ -188,7 +181,8 @@ export class AuthService {
             },
         );
         return {
-            access_token: newAccessToken,
+            refreshToken: newRefreshToken,
+            accessToken: newAccessToken,
             expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         };
     }
@@ -209,37 +203,13 @@ export class AuthService {
      * @param res - HTTP response object to clear the cookie.
      * @returns Confirmation message.
      */
-    async logout(req: Request, res: Response) {
-        const token = req.cookies['refreshToken'];
-        if (!token) {
-            throw new UnauthorizedException('Brak tokena odświeżania.');
-        }
-    
-        let payload: RefreshTokenPayload;
-        try {
-            payload = await this.jwtService.verifyAsync(token, {
-                secret: process.env.JWT_REFRESH_SECRET,
-});
-        } catch (error) {
-            throw new UnauthorizedException('Nieprawidłowy lub wygasły token odświeżania.');
-        }
-    
-        const userId = payload?.sub;
-        const sessionId = payload?.uuid_session;
-    
-        if (!sessionId || !userId) {
-            throw new UnauthorizedException('Nieprawidłowe dane w tokenie odświeżania.');
-        }
-    
+    async logout(req: Request) {
+        const user = req.user as RefreshTokenPayload;
+        const sessionId = user.uuid_session;
+        const userId = user.sub;
+
         await this.sessionService.revokeSession(sessionId, userId);
-    
-        res.clearCookie('refreshToken', {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-            path: '/',
-        });
-    
+
         return { message: 'Wylogowano pomyślnie' };
     }
 

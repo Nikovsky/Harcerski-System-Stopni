@@ -15,36 +15,41 @@ export class RefreshTokenGuard implements CanActivate {
         private readonly sessionsService: SessionsService,
     ) {}
 
-    async canActivate(context: ExecutionContext): Promise<boolean> {
-        const req = context.switchToHttp().getRequest<Request>();
-        const token = req.cookies['refreshToken'];
-        if (!token) {
-            throw new UnauthorizedException('Brak tokenu odświeżania');
-        }
-
-        const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
-            secret: process.env.JWT_REFRESH_SECRET,
-        }).catch(() => {
-            throw new UnauthorizedException('Refresh token jest nieprawidłowy lub wygasł');
-        });
-
-        const sessionId = payload.uuid_session;
-        if (!sessionId) {
-            throw new UnauthorizedException('Brak uuid sesji w tokenie odświeżania');
-        }
-
-        const session = await this.sessionsService.findBySessionId(sessionId);
-        if (!session || session.is_revoked || session.expiresAt < new Date()) {
-            throw new UnauthorizedException('Sesja nieaktywna lub wygasła');
-        }
-
-        req.user = {
-        sub:           payload.sub,
-        email:         payload.email,
-        role:          payload.role,
-        uuid_session:  sessionId,
-        };
-
-        return true;
+async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const token = req.cookies['refreshToken'];
+    if (!token) {
+        throw new UnauthorizedException('Brak tokena odświeżania');
     }
+
+    let payload: RefreshTokenPayload;
+    try {
+        payload = await this.jwtService.verifyAsync(token, {
+            secret: process.env.JWT_REFRESH_SECRET,
+        });
+    } catch (err) {
+        throw new UnauthorizedException('Refresh token jest nieprawidłowy lub wygasł');
+    }
+
+    const sessionId = payload.uuid_session;
+    if (!sessionId) {
+        throw new UnauthorizedException('Brak uuid sesji w tokenie odświeżania');
+    }
+
+    const session = await this.sessionsService.findBySessionId(sessionId);
+
+    if (!session || session.is_revoked || session.expiresAt < new Date()) {
+        throw new UnauthorizedException('Sesja nieaktywna lub wygasła');
+    }
+
+    req.user = {
+        sub: payload.sub,
+        email: payload.email,
+        role: payload.role,
+        uuid_session: sessionId,
+    };
+
+    return true;
+}
+
 }

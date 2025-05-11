@@ -44,12 +44,21 @@ export class AuthController {
      */
     @Post('login')
     @Serialize(LoginUserResponseDto)
-    login(
+    async login(
         @Body() dto: LoginUserAccountDto,
         @Req() req: Request,
         @Res({ passthrough: true }) res: Response
     ) {
-        return this.authService.login(dto, req, res);
+        const { accessToken, refreshToken, expiresAt, user } = await this.authService.login(dto, req);
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        return { accessToken, expiresAt, user };
     }
 
     /**
@@ -60,8 +69,17 @@ export class AuthController {
      */
     @UseGuards(RefreshTokenGuard)
     @Post('logout')
-    logout(@Req() req: Request, @Res( {passthrough: true}) res: Response) {
-        return this.authService.logout(req, res);
+    async logout(@Req() req: Request, @Res( {passthrough: true}) res: Response) {
+        const result = await this.authService.logout(req);
+
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+            path: '/',
+        });
+
+        return result;
     }
 
     /**
@@ -71,8 +89,17 @@ export class AuthController {
      */
     @UseGuards(RefreshTokenGuard)
     @Post('refresh')
-    refresh(@Req() req: Request,  @Res({ passthrough: true }) res: Response) {
-        return this.authService.refresh(req, res);
+    async refresh(@Req() req: Request,  @Res({ passthrough: true }) res: Response) {
+        const { refreshToken, accessToken, expiresAt } = await this.authService.refresh(req);
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dni
+        });
+
+        return { accessToken, expiresAt };
     }
 
     /**
@@ -110,7 +137,7 @@ export class AuthController {
         @Req() req: Request,
         @Body('includeCurrent') includeCurrent: boolean,
     ) {
-        console.log('includeCurrent z requesta:', includeCurrent);
+
         return this.authService.logoutOther(req, includeCurrent);
     }
 
