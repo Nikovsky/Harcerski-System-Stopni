@@ -64,7 +64,6 @@ export class Trial {
     @Column({ type: 'date'})
     plannedTrialEndDate: Date;
 
-    
     @Column({ type: 'text', nullable: true })
     commissionNotes: string;
 
