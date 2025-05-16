@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm'; 
+import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm'; 
 import { UserProfile } from '../users/user-profile.entity';
 import { TrialTask } from './trial-task.entity';
 
@@ -32,7 +32,6 @@ export class Trial {
     @ManyToOne(() => UserProfile, profile => profile.trials, { onDelete: 'CASCADE' })
     @JoinColumn()
     profile: UserProfile;
-
 
     @Column({ type: 'text' })
     heldRoles: string;
@@ -76,4 +75,9 @@ export class Trial {
     @OneToMany(() => TrialTask, task => task.trial, { cascade: true })
     tasks: TrialTask[];
 
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
 }

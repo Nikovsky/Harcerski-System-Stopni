@@ -14,6 +14,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TrialsModule } from './modules/trials/trials.module';
+import { SerializeInterceptor } from './interceptors/serialize.interceptor';
 /**
  * @description Root module that initializes configuration, database connection, scheduling, and feature modules.
  */
@@ -28,7 +29,7 @@ import { TrialsModule } from './modules/trials/trials.module';
     SessionsModule,
     TrialsModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SerializeInterceptor],
 })
 export class AppModule {}
 

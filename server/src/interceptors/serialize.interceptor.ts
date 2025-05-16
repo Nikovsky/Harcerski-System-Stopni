@@ -1,35 +1,43 @@
-/**
- * @file src/interceptors/serialize.interceptor.ts
- * @description Interceptor for serializing responses using class-transformer.
- */
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nestjs/common";
-import { map } from "rxjs/operators";
-import { plainToInstance } from "class-transformer";
-import { Observable } from "rxjs";
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler,
+} from '@nestjs/common';
+import { Observable, map } from 'rxjs';
+import { plainToInstance } from 'class-transformer';
+import { Reflector } from '@nestjs/core';
+import { UserRole } from '../modules/auth/enums/auth-user-role.enum';
 
-/**
- * @description Interceptor that transforms the response data into a specific DTO format using class-transformer.
- * @param dto - The Data Transfer Object class to transform the response data into.
- */
-interface ClassConstructor {
-    new (...args: any[]): any;
+interface ClassConstructor<T = any> {
+    new (...args: any[]): T;
 }
 
-/**
- * @description Interceptor that serializes the response data using the provided DTO class.
- * @param dto - The Data Transfer Object class to transform the response data into.
- */
 @Injectable()
 export class SerializeInterceptor implements NestInterceptor {
-    constructor(private dto: ClassConstructor) {}
-
+    constructor(private readonly reflector: Reflector) {}
+    
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+        const dto = this.reflector.get<ClassConstructor<any>>('serializer', context.getHandler());
+        const request = context.switchToHttp().getRequest();
+        
+        let groups = ['user']; // domyślnie
+        
+        const user = request.user;
+        const adminRoles = [
+            UserRole.ADMIN,
+            UserRole.PRZEWODNICZACY,
+            UserRole.CZLONEK_KI,
+            UserRole.SEKRETARZ,
+        ];
+
+        if (user && adminRoles.includes(user.role)) {
+        groups = ['user', 'admin']; // komisja ma pełny wgląd
+        }
+        
         return next.handle().pipe(
-            map((data: any) => {
-                return plainToInstance(this.dto, data, {
+            map((data: any) =>
+                plainToInstance(dto, data, {
+                    groups,
                     excludeExtraneousValues: true,
-                });
-            }),
-        )
+                }),
+            ),
+        );
     }
 }

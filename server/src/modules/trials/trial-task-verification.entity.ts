@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { TrialTask } from "./trial-task.entity";
 
 export enum verificationType {
@@ -17,6 +17,12 @@ export class TrialTaskVerification {
 
     @Column({ type: 'text' })
     value: string;
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
 
     @ManyToOne(() => TrialTask, task => task.verifications, { onDelete: 'CASCADE' })
     @JoinColumn()

@@ -29,6 +29,7 @@ export class TrialDto {
     @IsNotEmpty()
     mentorName: string;
 
+    @IsNotEmpty()
     @IsEnum(MentorRank)
     mentorRank: MentorRank;
 
@@ -36,23 +37,13 @@ export class TrialDto {
     @IsNotEmpty()
     mentorFunction: string;
 
+    @IsNotEmpty()
     @IsEnum(HufcowyPresence)
     hufcowyPresence: HufcowyPresence;
 
+    @IsNotEmpty()
     @IsDateString()
     plannedTrialEndDate: Date;
-
-    @IsString()
-    @IsOptional()
-    commissionNotes?: string;
-
-    @IsEnum(CommissionDecision)
-    @IsOptional()
-    commissionDecision?: CommissionDecision;
-
-    @IsDateString()
-    @IsOptional()
-    commissionDecisionDate?: Date;
 }
 
 export class TrialTaskDto {
@@ -73,10 +64,15 @@ export class TrialTaskDto {
     @Min(0)
     orderIndex: number;
 
+    @IsOptional()
+    @IsString()
+    plannedVerification?: string;
+
+    @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => TrialTaskVerificationDto)
-    verifications: TrialTaskVerificationDto[];
+    verifications?: TrialTaskVerificationDto[];
 }
 
 export class TrialTaskVerificationDto {
@@ -92,4 +88,18 @@ export class TrialTaskVerificationDto {
 export class TrialUpdateDto extends PartialType(TrialDto) {}
 export class TrialTaskUpdateDto extends PartialType(TrialTaskDto) {}
 export class TrialTaskVerificationUpdateDto extends PartialType(TrialTaskVerificationDto) {}
+
+export class TrialDecisionDto {
+    @IsString()
+    @IsOptional()
+    commissionNotes?: string;
+
+    @IsEnum(CommissionDecision)
+    @IsOptional()
+    commissionDecision?: CommissionDecision;
+
+    @IsDateString()
+    @IsOptional()
+    commissionDecisionDate?: Date;
+}
 
