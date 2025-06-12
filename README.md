@@ -65,8 +65,7 @@ Aplikacja webowa, której celem jest wsparcie członków komisji instruktorskiej
 
 ```
 hss/
-├── server/        # Backend (NestJS)
-├── client/       # Frontend (React, w planach)
+├── server/        # Backend (NestJS, zawiera package.json)
 ├── docs/           # Dokumentacja (roadmap, wymagania)
 ├── README.md       # Główna dokumentacja projektu
 └── .env.example    # Zmienne środowiskowe
@@ -77,9 +76,9 @@ hss/
 ```bash
 # 1. Klonowanie repozytorium
 git clone https://github.com/Nikovsky/Harcerski-System-Stopni.git
-cd hss/server
+cd Harcerski-System-Stopni/server
 
-# 2. Instalacja zależności
+# 2. Instalacja zależności (w katalogu server)
 npm install
 
 # 3. Utwórz plik konfiguracyjny
