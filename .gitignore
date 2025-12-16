@@ -1,1 +1,35 @@
-client
+# dependencies
+node_modules/
+**/node_modules/
+
+# Turbo
+.turbo/
+
+# Next.js / build outputs
+.next/
+out/
+dist/
+build/
+
+# tests
+coverage/
+
+# caches
+.cache/
+.vite/
+*.tsbuildinfo
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# env (sekrety)
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
