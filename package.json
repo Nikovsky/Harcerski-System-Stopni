@@ -19,11 +19,20 @@
   "packageManager": "pnpm@10.26.0",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@hss/eslint-config": "workspace:*",
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
+    "prisma": "^7.2.0",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.50.0"
+  },
+  "dependencies": {
+    "@nestjs/config": "^4.0.2",
+    "@prisma/adapter-pg": "^7.2.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "pg": "^8.16.3"
   }
 }

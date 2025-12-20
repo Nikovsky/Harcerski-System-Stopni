@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/**
+ * ========= ENUMS =========
+ */
+
+enum AppRole {
+  USER
+  COMMITTEE_MEMBER
+  SECRETARY
+  CHAIR
+  ADMIN
+}
+
+enum TrialDegree {
+  PRZEWODNIK
+  PODHARCMISTRZ
+  HARCMISTRZ
+}
+
+enum TrialStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_CHANGES
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum RequirementDeclaration {
+  DONE_BEFORE_OPENING
+  TO_DO
+}
+
+enum RequirementProgress {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+  VERIFIED
+}
+
+enum CommentVisibility {
+  COMMITTEE_ONLY
+  APPLICANT_AND_COMMITTEE
+}
+
+enum StoredFileKind {
+  ATTACHMENT
+  GENERATED_PDF
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  CANCELLED
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  CANCELLED
+}
+
+enum AuditEntityType {
+  USER
+  TRIAL
+  TRIAL_FORM
+  TRIAL_REQUIREMENT
+  TRIAL_EVIDENCE
+  TRIAL_WITNESS
+  TRIAL_COMMENT
+  MEETING
+  MEETING_REGISTRATION
+  DOCUMENT
+  STORED_FILE
+  REQUIREMENT_TEMPLATE
+}
+
+/**
+ * ========= IDENTITY =========
+ */
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  keycloakId  String   @unique
+  email       String?
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles    UserRole[]
+  trials   Trial[]               @relation("TrialApplicant")
+  comments TrialComment[]
+  regs     MeetingRegistration[]
+  audit    AuditLog[]            @relation("AuditActor")
+}
+
+model UserRole {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  role             AppRole
+  assignedAt       DateTime @default(now())
+  assignedByUserId String?  @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+}
+
+/**
+ * ========= REQUIREMENT TEMPLATES (seeded) =========
+ */
+
+model RequirementTemplate {
+  id        String      @id @default(uuid()) @db.Uuid
+  degree    TrialDegree
+  version   Int
+  name      String
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  items RequirementTemplateItem[]
+
+  @@unique([degree, version])
+  @@index([degree, isActive])
+}
+
+model RequirementTemplateItem {
+  id         String @id @default(uuid()) @db.Uuid
+  templateId String @db.Uuid
+
+  code        String // "1", "1A", "1B", ...
+  title       String
+  description String
+  order       Int
+
+  suggestedEvidence Json?
+
+  template RequirementTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, code])
+  @@index([templateId, order])
+}
+
+/**
+ * ========= TRIALS =========
+ */
+
+model Trial {
+  id       String  @id @default(uuid()) @db.Uuid
+  publicId String? @unique // np. TR-2025-0001 (opcjonalne)
+
+  applicantUserId String @db.Uuid
+  applicant       User   @relation("TrialApplicant", fields: [applicantUserId], references: [id], onDelete: Restrict)
+
+  degree TrialDegree
+  status TrialStatus @default(DRAFT)
+
+  submittedAt DateTime?
+  decidedAt   DateTime?
+  archivedAt  DateTime?
+
+  // pod filtry w panelu kapituły (denormalizacja z TrialForm.payload.personal.unit.*)
+  unitHufiec  String? @db.VarChar(120)
+  unitDruzyna String? @db.VarChar(180)
+
+  // template użyty do stworzenia próby (spójność historyczna)
+  templateId      String? @db.Uuid
+  templateVersion Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  form          TrialForm?
+  requirements  TrialRequirement[]
+  statusHistory TrialStatusHistory[]
+  comments      TrialComment[]
+
+  @@index([status, submittedAt])
+  @@index([unitHufiec, status])
+  @@index([unitHufiec, unitDruzyna])
+  @@index([applicantUserId, createdAt])
+}
+
+model TrialForm {
+  id      String @id @default(uuid()) @db.Uuid
+  trialId String @unique @db.Uuid
+
+  payload     Json // JSONB: dane osobowe + historia służby itp.
+  formVersion Int  @default(1)
+
+  // opiekun próby: user albo wpis ręczny
+  mentorUserId String? @db.Uuid
+  mentorName   String?
+  mentorRank   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+}
+
+model TrialRequirement {
+  id      String @id @default(uuid()) @db.Uuid
+  trialId String @db.Uuid
+
+  // snapshot + sortowanie (nie chcemy, aby zmiana template zmieniała stare próby)
+  templateItemId String? @db.Uuid
+  code           String
+  title          String
+  description    String
+  order          Int
+
+  // wypełnia kandydat
+  planText         String?
+  verificationText String?
+
+  declarationAtOpen RequirementDeclaration @default(TO_DO)
+  progressStatus    RequirementProgress    @default(NOT_STARTED)
+
+  verifiedAt       DateTime?
+  verifiedByUserId String?   @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trial     Trial                      @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  evidences TrialRequirementEvidence[]
+  witnesses TrialRequirementWitness[]
+
+  @@unique([trialId, code])
+  @@index([trialId, order])
+  @@index([trialId, progressStatus])
+}
+
+model TrialRequirementEvidence {
+  id            String @id @default(uuid()) @db.Uuid
+  requirementId String @db.Uuid
+  storedFileId  String @db.Uuid
+
+  note      String?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  requirement TrialRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  file        StoredFile       @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
+
+  @@unique([requirementId, storedFileId])
+  @@index([requirementId, createdAt])
+}
+
+model TrialRequirementWitness {
+  id            String @id @default(uuid()) @db.Uuid
+  requirementId String @db.Uuid
+
+  // user albo wpis ręczny
+  witnessUserId String? @db.Uuid
+  witnessName   String?
+  witnessNote   String?
+
+  createdAt DateTime @default(now())
+
+  requirement TrialRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@index([requirementId])
+}
+
+model TrialStatusHistory {
+  id              String       @id @default(uuid()) @db.Uuid
+  trialId         String       @db.Uuid
+  fromStatus      TrialStatus?
+  toStatus        TrialStatus
+  reason          String?
+  changedByUserId String?      @db.Uuid
+  changedAt       DateTime     @default(now())
+
+  trial Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+
+  @@index([trialId, changedAt])
+  @@index([toStatus, changedAt])
+}
+
+model TrialComment {
+  id           String            @id @default(uuid()) @db.Uuid
+  trialId      String            @db.Uuid
+  authorUserId String            @db.Uuid
+  visibility   CommentVisibility @default(COMMITTEE_ONLY)
+  text         String
+  createdAt    DateTime          @default(now())
+  deletedAt    DateTime?
+
+  trial  Trial @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([trialId, createdAt])
+}
+
+/**
+ * ========= FILES / DOCUMENTS =========
+ */
+
+model StoredFile {
+  id   String         @id @default(uuid()) @db.Uuid
+  kind StoredFileKind
+
+  bucket       String
+  objectKey    String  @unique
+  originalName String
+  mime         String
+  size         Int
+  sha256       String?
+
+  // pipeline przyszłości (AV/OCR/PDF)
+  avStatus  String?
+  ocrStatus String?
+  meta      Json?
+
+  createdByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  deletedAt       DateTime?
+
+  evidences TrialRequirementEvidence[]
+  documents Document[]
+}
+
+model Document {
+  id                String          @id @default(uuid()) @db.Uuid
+  type              String // np. "DECISION_PDF"
+  relatedEntityType AuditEntityType
+  relatedEntityId   String // uuid jako string (bo różne encje)
+  storedFileId      String          @db.Uuid
+
+  version         Int      @default(1)
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  file StoredFile @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
+
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+/**
+ * ========= MEETINGS =========
+ */
+
+model Meeting {
+  id     String        @id @default(uuid()) @db.Uuid
+  status MeetingStatus @default(SCHEDULED)
+
+  startsAt DateTime
+  endsAt   DateTime
+  capacity Int
+  location String?
+  notes    String?
+
+  createdByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  cancelledAt     DateTime?
+
+  registrations MeetingRegistration[]
+
+  @@index([startsAt])
+  @@index([status, startsAt])
+}
+
+model MeetingRegistration {
+  id          String             @id @default(uuid()) @db.Uuid
+  meetingId   String             @db.Uuid
+  userId      String             @db.Uuid
+  status      RegistrationStatus @default(REGISTERED)
+  createdAt   DateTime           @default(now())
+  cancelledAt DateTime?
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([meetingId, userId])
+  @@index([meetingId, status])
+  @@index([userId, createdAt])
+}
+
+/**
+ * ========= AUDIT =========
+ */
+
+model AuditLog {
+  id          String  @id @default(uuid()) @db.Uuid
+  actorUserId String? @db.Uuid
+
+  action     String // np. "TRIAL_SUBMITTED", "TRIAL_STATUS_CHANGED", "FILE_DOWNLOADED"
+  entityType AuditEntityType
+  entityId   String
+
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  requestId String?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+}
