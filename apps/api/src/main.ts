@@ -17,6 +17,13 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.enableCors({
+    origin: ['http://localhost:3000'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'x-request-id'],
+    exposedHeaders: ['x-request-id'],
+  });
+
   app.useGlobalInterceptors(new RequestIdInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
