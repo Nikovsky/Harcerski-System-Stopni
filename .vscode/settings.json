@@ -1,0 +1,39 @@
+{
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.indentSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "task.allowAutomaticTasks": "on",
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "diffEditor.ignoreTrimWhitespace": false,
+  "html.format.wrapLineLength": 0,
+  "editor.rulers": [
+    {
+      "color": "#500",
+      "column": 100
+    },
+    {
+      "color": "#800",
+      "column": 120
+    }
+  ],
+  "[plaintext][markdown][python]": {
+    "editor.indentSize": 4,
+    "editor.tabSize": 4,
+    "editor.rulers": [
+      {
+        "color": "#500",
+        "column": 80
+      },
+      {
+        "color": "#800",
+        "column": 100
+      }
+    ]
+  }
+}
