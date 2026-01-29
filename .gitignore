@@ -1,35 +1,50 @@
-# dependencies
-node_modules/
+# dependencies (any depth)
 **/node_modules/
+**/.pnp
+**/.pnp.*
+**/.yarn/*
+!**/.yarn/patches
+!**/.yarn/plugins
+!**/.yarn/releases
+!**/.yarn/versions
 
-# Turbo
-.turbo/
+# pnpm store (if ever created locally)
+**/.pnpm-store/
 
-# Next.js / build outputs
-.next/
-out/
-dist/
-build/
+# testing
+**/coverage/
 
-# tests
-coverage/
+# next.js
+**/.next/
+**/out/
 
-# caches
-.cache/
-.vite/
-*.tsbuildinfo
+# nest / node builds
+**/dist/
+**/build/
 
-# logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
+# misc
+**/.DS_Store
+**/*.pem
 
-# env (sekrety)
-.env
-.env.*
+# debug logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.pnpm-debug.log*
+
+# env files (any depth)
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
-# OS
-.DS_Store
-Thumbs.db
+# vercel
+**/.vercel/
+
+# typescript
+**/*.tsbuildinfo
+**/next-env.d.ts
+
+**/.turbo
+
+**/generated
