@@ -346,7 +346,3 @@ A change is considered done only if:
 - no sensitive data is exposed in client payloads or logs,
 - the feature remains horizontally scalable (no correctness-critical in-memory state),
 - tests cover the critical path.
-
-```
-::contentReference[oaicite:0]{index=0}
-```
