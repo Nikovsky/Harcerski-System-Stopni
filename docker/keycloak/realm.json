@@ -1,0 +1,111 @@
+{
+  "realm": "hss",
+  "enabled": true,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "ROOT"
+      },
+      {
+        "name": "SYSTEM"
+      },
+      {
+        "name": "ADMIN"
+      },
+      {
+        "name": "COMMISSION_CHAIR"
+      },
+      {
+        "name": "COMMISSION_SECRETARY"
+      },
+      {
+        "name": "COMMISSION_MEMBER"
+      },
+      {
+        "name": "SCOUT"
+      },
+      {
+        "name": "USER"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "users",
+      "realmRoles": [
+        "USER"
+      ]
+    },
+    {
+      "name": "scouts",
+      "realmRoles": [
+        "SCOUT"
+      ]
+    },
+    {
+      "name": "commission-members",
+      "realmRoles": [
+        "COMMISSION_MEMBER"
+      ]
+    },
+    {
+      "name": "commission-secretaries",
+      "realmRoles": [
+        "COMMISSION_SECRETARY"
+      ]
+    },
+    {
+      "name": "commission-chairs",
+      "realmRoles": [
+        "COMMISSION_CHAIR"
+      ]
+    },
+    {
+      "name": "admins",
+      "realmRoles": [
+        "ADMIN"
+      ]
+    },
+    {
+      "name": "system",
+      "realmRoles": [
+        "SYSTEM"
+      ]
+    },
+    {
+      "name": "root",
+      "realmRoles": [
+        "ROOT"
+      ]
+    }
+  ],
+  "defaultGroups": [
+    "/users"
+  ],
+  "clients": [
+    {
+      "clientId": "hss-web",
+      "name": "hss Web (Next.js)",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_hss_WEB_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "https://hss.local/api/auth/*"
+      ],
+      "webOrigins": [
+        "https://hss.local"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "https://hss.local/*"
+      }
+    }
+  ]
+}

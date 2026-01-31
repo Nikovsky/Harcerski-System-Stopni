@@ -1,0 +1,78 @@
+{
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**"
+      ]
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false
+    },
+    "db:deploy": {
+      "cache": false
+    },
+    "db:reset": {
+      "cache": false
+    },
+    "db:reset:force": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@hss/schemas#dev": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "@hss/database#build": {
+      "dependsOn": [
+        "db:generate"
+      ],
+      "cache": false,
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@hss/database#dev": {
+      "dependsOn": [
+        "db:migrate"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "api#dev": {
+      "dependsOn": [
+        "@hss/database#db:migrate",
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "web#dev": {
+      "dependsOn": [
+        "@hss/database#db:migrate",
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

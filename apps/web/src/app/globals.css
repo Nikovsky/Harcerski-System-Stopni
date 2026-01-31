@@ -1,0 +1,142 @@
+@import "tailwindcss";
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-fg));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-fg));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-fg));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-fg));
+  --color-danger: hsl(var(--danger));
+  --color-danger-foreground: hsl(var(--danger-fg));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-fg));
+}
+
+/* @file: apps/web/src/app/globals.css */
+
+/* keep your imports as you have them ... */
+/* keep your @theme {...} as you have it ... */
+
+/* Your tokens (triplets) */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --border: 214 32% 91%;
+
+  --primary: 221 83% 53%;
+  --primary-fg: 210 40% 98%;
+  --primary-hover: 221 83% 46%;
+
+  --secondary: 215 20% 65%;
+  --secondary-fg: 222 47% 11%;
+  --secondary-hover: 215 20% 58%;
+
+  --success: 142 71% 45%;
+  --success-fg: 210 40% 98%;
+  --success-hover: 142 71% 38%;
+
+  --warning: 38 92% 50%;
+  --warning-fg: 222 47% 11%;
+  --warning-hover: 38 92% 44%;
+
+  --danger: 0 84% 60%;
+  --danger-fg: 210 40% 98%;
+  --danger-hover: 0 84% 52%;
+
+  --info: 199 89% 48%;
+  --info-fg: 210 40% 98%;
+  --info-hover: 199 89% 42%;
+
+  /* ALIAS: "main" always follows the current app theme (light/dark/...) */
+  --main: var(--primary);
+  --main-fg: var(--primary-fg);
+  --main-hover: var(--primary-hover);
+}
+
+[data-theme="dark"] {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --border: 217 19% 27%;
+
+  /* you can optionally override colors for dark if you want different accents */
+  /* --primary: ...; --primary-hover: ...; etc */
+}
+
+/* High contrast = global overlay (colors only) */
+[data-contrast="high"] {
+  /* minimal example – tighten contrast of surfaces */
+  --border: 0 0% 0%;
+}
+
+[data-theme="dark"][data-contrast="high"] {
+  --border: 0 0% 100%;
+}
+
+/* Base page (colors only) */
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* THEME MAPPINGS (colors only) */
+@layer components {
+
+  /* Base “theme-applier” class (colors only) */
+  .ui-theme {
+    background-color: hsl(var(--ui-bg));
+    color: hsl(var(--ui-fg));
+  }
+
+  .ui-theme:hover {
+    background-color: hsl(var(--ui-hover));
+  }
+
+  /* Allowed UITheme variants */
+  .ui-theme-main {
+    --ui-bg: var(--main);
+    --ui-fg: var(--main-fg);
+    --ui-hover: var(--main-hover);
+  }
+
+  .ui-theme-danger {
+    --ui-bg: var(--danger);
+    --ui-fg: var(--danger-fg);
+    --ui-hover: var(--danger-hover);
+  }
+
+  .ui-theme-warning {
+    --ui-bg: var(--warning);
+    --ui-fg: var(--warning-fg);
+    --ui-hover: var(--warning-hover);
+  }
+
+  .ui-theme-success {
+    --ui-bg: var(--success);
+    --ui-fg: var(--success-fg);
+    --ui-hover: var(--success-hover);
+  }
+
+  .ui-theme-info {
+    --ui-bg: var(--info);
+    --ui-fg: var(--info-fg);
+    --ui-hover: var(--info-hover);
+  }
+
+  .ui-theme-secondary {
+    --ui-bg: var(--secondary);
+    --ui-fg: var(--secondary-fg);
+    --ui-hover: var(--secondary-hover);
+  }
+}
