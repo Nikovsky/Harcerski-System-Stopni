@@ -12,3 +12,247 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ScoutRankEnum {
+  CWIK
+  HARCERZ_ORLI
+  HARCERZ_RZECZYPOSPOLITEJ
+}
+
+enum InstructorRankEnum {
+  PRZEWODNIK
+  PODHARCMISTRZ
+  HARCMISTRZ
+}
+
+enum superVisiorInstructorRankEnum {
+  PRZEWODNIK
+  OTWARTY_PODHARCMISTRZ
+  PODHARCMISTRZ
+  HARCMISTRZ
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  TO_FIX
+  APPROVED
+  ARCHIVED
+  REJECTED
+}
+
+enum PresenceType {
+  IN_PERSON
+  REMOTE
+  ATTACHMENT_OPINION
+}
+
+enum UnitType {
+  HUFIEC
+  DRUZYNA
+}
+
+enum RequirementState {
+  DONE
+  PLANNED
+}
+
+model UserPersonalDate {
+  uuid         String @id @default(uuid()) @db.Uuid
+  KeyCloakUuid String @unique @db.Uuid
+
+  fristName  String
+  secondName String
+  surnName   String
+  birthDate  DateTime @db.Date
+
+  email    String @unique
+  phoneNum String
+
+  hufiecCode String    @db.VarChar(32)
+  hufiec     ScoutUnit @relation("ProfileHufiec", fields: [hufiecCode], references: [code], onDelete: Restrict)
+
+  druzynaCode String    @db.VarChar(32)
+  druzyna     ScoutUnit @relation("ProfileDruzyna", fields: [druzynaCode], references: [code], onDelete: Restrict)
+
+  teamFunction   String?
+  hufiecFunction String?
+
+  scoutRank          ScoutRankEnum
+  scoutRankAwardedAt DateTime      @db.Date
+
+  inScoutingSince DateTime @db.Date
+  inZHRSince      DateTime @db.Date
+  oathDate        DateTime @db.Date
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  applications Application[]
+
+  @@index([hufiecCode])
+  @@index([druzynaCode])
+}
+
+model ScoutUnit {
+  uuid String   @id @default(uuid()) @db.Uuid
+  code String   @unique @db.VarChar(64)
+  name String
+  type UnitType
+
+  parentCode String?     @db.VarChar(32)
+  parent     ScoutUnit?  @relation("UnitHierarchy", fields: [parentCode], references: [code], onDelete: Restrict)
+  children   ScoutUnit[] @relation("UnitHierarchy")
+
+  profilesAsHufiec UserPersonalDate[] @relation("ProfileHufiec")
+  profileAsDruzyna UserPersonalDate[] @relation("ProfileDruzyna")
+
+  submissionsAsHufiec     ApplicationAsSubmitted[] @relation("SubmissionHufiec")
+  submissionsAsDruzyna    ApplicationAsSubmitted[] @relation("SubmissionDruzyna")
+  applicationAsSubmitteds ApplicationAsSubmitted[]
+
+  @@index([type])
+  @@index([parentCode])
+}
+
+model RequirementTemplate {
+  uuid       String             @id @default(uuid()) @db.Uuid
+  degreeCode InstructorRankEnum @unique
+
+  createdAt DateTime @default(now())
+
+  definitions  RequirementDefinition[]
+  applications Application[]
+}
+
+model RequirementDefinition {
+  uuid       String              @id @default(uuid()) @db.Uuid
+  templateId String              @db.Uuid
+  template   RequirementTemplate @relation(fields: [templateId], references: [uuid], onDelete: Cascade)
+
+  code        String  @db.VarChar(4)
+  description String  @db.Text
+  isGroup     Boolean @default(false)
+  sortOrder   Int
+
+  parentId String?                 @db.Uuid
+  parent   RequirementDefinition?  @relation("RequirementHierarchy", fields: [parentId], references: [uuid], onDelete: Cascade)
+  children RequirementDefinition[] @relation("RequirementHierarchy")
+
+  applicationRequirements ApplicationRequirement[]
+
+  @@unique([templateId, code])
+  @@index([templateId, sortOrder])
+}
+
+model Application {
+  uuid          String           @id @default(uuid()) @db.Uuid
+  candidateUuid String           @db.Uuid
+  candidate     UserPersonalDate @relation(fields: [candidateUuid], references: [uuid], onDelete: Cascade)
+
+  templateId String              @db.Uuid
+  template   RequirementTemplate @relation(fields: [templateId], references: [uuid], onDelete: Restrict)
+
+  status          ApplicationStatus @default(DRAFT)
+  lastSubmittedAt DateTime?
+
+  targetDegree InstructorRankEnum
+
+  plannedFinishAt DateTime? @db.Date
+
+  hufiecPresence PresenceType?
+
+  serviceHistory String? @db.Text
+  coursesHistory String? @db.Text
+  CampsHistory   String? @db.Text
+
+  successes String? @db.Text
+  failures  String? @db.Text
+
+  superVisiorFirstName      String?
+  superVisiorSecondName     String?
+  superVisiorSurnName       String?
+  superVisiorInstructorRank superVisiorInstructorRankEnum?
+  superVisiorFunction       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submission   ApplicationAsSubmitted?
+  requirements ApplicationRequirement[]
+  comments     ApplicationComment[]
+
+  @@index([candidateUuid, updatedAt(sort: Desc)])
+  @@index([status, updatedAt(sort: Desc)])
+}
+
+model ApplicationAsSubmitted {
+  applicationUuid String      @id @db.Uuid
+  aplication      Application @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+
+  revision    Int
+  submittedAt DateTime
+
+  emailAtSubmit String @db.VarChar(32)
+  phoneAtSubmit String
+
+  hufiecCodeAtSubmit  String    @db.VarChar(32)
+  hufiecAtSubmit      ScoutUnit @relation("SubmissionHufiec", fields: [hufiecCodeAtSubmit], references: [code], onDelete: Restrict)
+  druzynaCodeAtSubmit String    @db.VarChar(32)
+  druzynaAtSubmit     ScoutUnit @relation("SubmissionDruzyna", fields: [druzynaCodeAtSubmit], references: [code], onDelete: Restrict)
+
+  scoutRankAtSubmit        ScoutRankEnum
+  scoutRankAwardedAtSubmit DateTime?     @db.Date
+  scoutUnit                ScoutUnit?    @relation(fields: [scoutUnitUuid], references: [uuid])
+  scoutUnitUuid            String?       @db.Uuid
+}
+
+model ApplicationRequirement {
+  uuid            String      @id @default(uuid()) @db.Uuid
+  applicationUuid String      @db.Uuid
+  application     Application @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+
+  requirementDefinitionUuid String                @db.Uuid
+  reqirementDefinition      RequirementDefinition @relation(fields: [requirementDefinitionUuid], references: [uuid], onDelete: Restrict)
+
+  state RequirementState
+
+  actionDescription String @db.Text
+  verificationText  String @db.Text
+
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+  comments    ApplicationComment[]
+
+  @@unique([applicationUuid, requirementDefinitionUuid])
+}
+
+model Attachment {
+  id                         String                 @id @default(uuid()) @db.Uuid
+  applicationRequirementUuid String                 @db.Uuid
+  applicationRequirement     ApplicationRequirement @relation(fields: [applicationRequirementUuid], references: [uuid], onDelete: Cascade)
+
+  objectKey         String  @unique @db.Text
+  checkSum          String? @db.Text
+  checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
+  contentType       String  @db.VarChar(255)
+  sizesBytes        BigInt
+  originalFilename  String  @db.Text
+
+  uploadedAt DateTime @default(now())
+}
+
+model ApplicationComment {
+  uuid            String      @id @default(uuid()) @db.Uuid
+  applicationUuid String      @db.Uuid
+  application     Application @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+
+  relatedRequirementUuid String?                 @db.Uuid
+  relatedRequirement     ApplicationRequirement? @relation(fields: [relatedRequirementUuid], references: [uuid], onDelete: Cascade)
+
+  body String @db.Text
+
+  authorComissionUserUuid String @db.Uuid
+
+  createdAt DateTime @default(now())
+}
