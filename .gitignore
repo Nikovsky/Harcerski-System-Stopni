@@ -48,3 +48,6 @@
 **/.turbo
 
 **/generated
+
+# python
+**/__pycache__/
