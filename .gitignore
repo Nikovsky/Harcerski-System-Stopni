@@ -51,3 +51,4 @@
 
 # python
 **/__pycache__/
+**/tmp/

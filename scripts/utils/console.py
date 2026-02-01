@@ -96,6 +96,19 @@ class Console:
 
         return f"{color}{message}{a.reset}"
 
+    def plain(self, text: str = "") -> None:
+        """
+        Print a plain line without any prefix.
+        Used by doctor output for bullet lists and spacing.
+        """
+        print(text)
+
+    def __call__(self, text: str = "") -> None:
+        """
+        Allow calling Console instance like a function:
+          msg("text") -> plain line output (no prefix)
+        """
+        self.plain(text)
 
 msg: Final[Console] = Console(with_prefix=False)   # no prefix
 msgx: Final[Console] = Console(with_prefix=True)  # prefix always

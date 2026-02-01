@@ -1,50 +1,74 @@
 # @file: ./scripts/main.py
-# @description: Demo main printing console output using msg (no prefix) and msgx (with prefix)
+# @description: Main CLI dispatcher (args parsing + help/version + command stubs)
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+from scripts.cli.args import Command, parse_args
+from scripts.core.app_info import APP_INFO
 from scripts.core.global_vars import init_global_vars
-from scripts.runtime.terminal import supports_ansi
-from scripts.utils.console import msg, msgx
+from scripts.core.errors import CliError
+from scripts.utils.console import msgx
 
 
-def _resolve_repo_root() -> Path:
-    """Resolve repo root based on file location."""
+def _default_repo_root() -> Path:
+    """Auto-detect repo root based on this file location."""
     return Path(__file__).resolve().parent.parent
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Demo only: prints all levels in both modes."""
-    _ = argv
+    argv = sys.argv[1:] if argv is None else argv
 
-    repo_root = _resolve_repo_root()
-    init_global_vars(repo_root=repo_root)
+    default_root = _default_repo_root()
+    args, bundle = parse_args(argv, default_root=default_root)
 
-    ansi_ok = supports_ansi(sys.stdout)
+    init_global_vars(repo_root=args.global_args.root_dir)
 
-    # msgx = prefix
-    msgx.i(f"Console demo (repo_root={repo_root})")
-    msgx.i(f"ANSI supported (stdout): {ansi_ok}")
-    msgx.i("Below: msgx = prefix, msg = no prefix.")
+    match args.command:
+        case Command.HELP:
+            assert args.help is not None
+            _print_help(bundle, topic=args.help.topic)
+            return 0
 
-    msgx.i("----- msgx (with prefix) -----")
-    msgx.i("Info message")
-    msgx.s("Success message")
-    msgx.w("Warning message")
-    msgx.e("Error message")
-    msgx.x("Fatal message")
+        case Command.VERSION:
+            msgx.i(f"{APP_INFO.name} {APP_INFO.version} ({APP_INFO.license})")
+            return 0
 
-    msgx.i("----- msg (no prefix) -----")
-    msg.i("Info message")
-    msg.s("Success message")
-    msg.w("Warning message")
-    msg.e("Error message")
-    msg.x("Fatal message")
+        case Command.CLEAN:
+            assert args.clean is not None
+            from scripts.commands.clean import run_clean
+            return run_clean(repo_root=args.global_args.root_dir, opt=args.clean)
 
-    return 0
+
+        case Command.DOCTOR:
+            assert args.doctor is not None
+            from scripts.commands.doctor import run_doctor
+            return run_doctor(repo_root=args.global_args.root_dir, opt=args.doctor)
+
+
+        case Command.DOCKER:
+            assert args.docker is not None
+            from scripts.commands.docker import run_docker
+            return run_docker(repo_root=args.global_args.root_dir, opt=args.docker)
+
+        case _:
+            raise CliError(f"Unsupported command: {args.command!s}")
+
+
+def _print_help(bundle, *, topic: str | None) -> None:
+    if not topic:
+        bundle.parser.print_help()
+        return
+
+    sub = bundle.command_parsers.get(topic)
+    if sub is None:
+        msgx.e(f"Unknown help topic: {topic!r}")
+        msgx.i("Available topics: " + ", ".join(sorted(bundle.command_parsers.keys())))
+        return
+
+    sub.print_help()
 
 
 if __name__ == "__main__":

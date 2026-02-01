@@ -1,0 +1,104 @@
+# ==================================================================================================
+# File:        .env.dev
+# Author:      BO$ Kacper
+# Created:     2025-12-11
+# Updated:     2025-12-19
+# Version:     1.0.0
+# Mode:        dev
+# Description: Environment variables for the hss local Docker stack (Compose)
+# License:     AGPL-3.0-only
+# Notes:
+#   - This file is intended for LOCAL DEVELOPMENT.
+#   - Do NOT use weak secrets (e.g., "rootsecret") in production.
+#   - Consider keeping real secrets outside Git (e.g., .env.local not committed).
+# ==================================================================================================
+
+# ===[GENERAL]======================================================================================
+ENV_MODE=dev
+STACK_NAME=hss
+TZ=Europe/Warsaw
+
+# ===[POSTGRES]=====================================================================================
+POSTGRES_IMAGE=postgres:18-alpine
+
+PG_USER=hss
+PG_DB=hss
+PG_PASSWORD=rootsecret
+PG_PORT=5432
+
+LOG_MAX_SIZE=10m
+LOG_MAX_FILE=3
+
+PG_MEM_LIMIT=1g
+PG_CPUS=1.0
+PG_SHM_SIZE=512m
+PG_INITDB_ARGS=--data-checksums
+
+# ===[KEYCLOAK]=====================================================================================
+# ---[Postgres for Keycloak]------------------------------------------------------------------------
+KC_PG_USER=keycloak
+KC_PG_DB=keycloak
+KC_PG_PASSWORD=rootsecret
+# --------------------------------------------------------------------------------------------------
+KEYCLOAK_IMAGE=keycloak/keycloak:26.5.2
+KEYCLOAK_PORT=8080
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=rootsecret
+
+KEYCLOAK_CPUS=4.0
+
+KC_HTTP_RELATIVE_PATH=/
+KC_PROXY_HEADERS=xforwarded
+KC_HOSTNAME=auth.hss.local
+KC_HOSTNAME_STRICT=false
+KC_HTTP_ENABLED=true
+
+KEYCLOAK_hss_WEB_CLIENT_SECRET=uvNSJqj5VBmexON4uwmOkdJz4G47JlahI9wCbYZWjwA=
+
+KC_HOSTNAME_DEBUG=true
+
+# ===[REDIS]========================================================================================
+# REDIS_IMAGE=redis:8.4.0-alpine
+# REDIS_PORT=6379
+
+# REDIS_PASSWORD=rootsecret
+# REDIS_MEM_LIMIT=256m
+
+# REDIS_MAXMEMORY=200mb
+# REDIS_MAXMEMORY_POLICY=allkeys-lru
+
+# REDIS_APPENDONLY=yes
+# REDIS_APPENDFSYNC=everysec
+# REDIS_SAVE=""
+
+# ===[MINIO]========================================================================================
+MINIO_IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z
+
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=rootsecret
+MINIO_REGION=eu-central-1
+
+MINIO_PORT=9000
+MINIO_CONSOLE_PORT=9001
+
+S3_ENDPOINT=https://s3.hss.local
+S3CONSOLE_ENDPOINT=https://s3console.hss.local
+MINIO_BROWSER_REDIRECT_URL=https://s3console.hss.local
+
+MINIO_MEM_LIMIT=1g
+MINIO_CPUS=1.0
+
+# ===[NGINX]========================================================================================
+NGINX_IMAGE=nginx:1.29.4-alpine-slim
+NGINX_HTTP_PORT=80
+NGINX_HTTPS_PORT=443
+NGINX_MEM_LIMIT=256m
+
+# ===[PUBLIC URLS]==================================================================================
+APP_URL=https://hss.local
+API_URL=https://api.hss.local
+AUTH_URL=https://auth.hss.local
+S3_URL=https://s3.hss.local
+S3CONSOLE_URL=https://s3console.hss.local
+
+# ===[EOF @file: infra/docker/.env.dev]=============================================================
