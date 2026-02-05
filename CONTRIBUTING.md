@@ -346,3 +346,93 @@ A change is considered done only if:
 - no sensitive data is exposed in client payloads or logs,
 - the feature remains horizontally scalable (no correctness-critical in-memory state),
 - tests cover the critical path.
+
+---
+
+## 18) Branching, commits, and PR size
+
+### Branch naming
+Use one of:
+- `feat/<short-topic>`
+- `fix/<short-topic>`
+- `chore/<short-topic>`
+- `docs/<short-topic>`
+- `refactor/<short-topic>`
+
+### Commit messages
+Prefer Conventional Commits:
+- `feat(api): add slot reservation endpoint`
+- `fix(web): prevent leaking role in client payload`
+- `chore(ci): enable pnpm audit`
+
+### PR size guideline
+Keep PRs small and reviewable:
+- Prefer < ~400 LOC diff unless there is a strong reason.
+- If larger, split into “prep/refactor” PR + “behavior” PR.
+
+---
+
+## 19) Run quality gates locally
+
+Before pushing, run:
+
+- `pnpm -r lint`
+- `pnpm -r typecheck`
+- `pnpm -r test`
+
+Recommended for risky changes:
+- `pnpm -r build`
+
+CI is the source of truth, but local gates should match CI as closely as possible.
+
+---
+
+## 20) Sensitive changes (extra requirements)
+
+A change is **sensitive** if it affects any of:
+- auth/session/cookies/refresh flows
+- RBAC/permissions/policy checks
+- file uploads or MinIO access policies
+- endpoints processing personal data (PII)
+- nginx/Keycloak/PostgreSQL/infra hardening
+- crypto/password hashing/token handling
+
+For sensitive changes, PR description must include:
+- Threat summary (1–2 bullets)
+- Control summary (1–2 bullets)
+- Verification steps (tests + manual checks)
+
+---
+
+## 21) Reporting security issues
+
+Do **not** report vulnerabilities using public issues or public PRs.
+Follow the private process described in `SECURITY.md`.
+
+---
+
+## 22) API contracts and shared schemas (packages/schemas)
+
+- `packages/schemas` is the source of truth for shared request/response contracts.
+- Any contract change must update:
+  - zod schema
+  - inferred types
+  - API + Web usage
+- Breaking changes must be explicitly called out in the PR description.
+
+---
+
+## 23) Database & migrations (packages/database)
+
+- Local dev: `prisma migrate dev` (developer workflow only)
+- CI/prod-like: `prisma migrate deploy`
+- No destructive migration without a documented plan (data backfill + rollback strategy).
+- New queries must consider indexes/constraints where applicable.
+
+---
+
+## 24) Shell scripts and line endings
+
+- All `.sh` scripts must use LF line endings.
+- Do not commit CRLF in scripts (it breaks Docker/Linux).
+- Ensure executable scripts have the correct permissions (`chmod +x`).
