@@ -11,7 +11,7 @@
 // =============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../src/generated"
 }
 
@@ -124,53 +124,44 @@ enum DegreeType {
 // =============================================================================
 
 model User {
-  uuid         String   @id @default(uuid()) @db.Uuid
-  keycloakUuid String   @unique @db.Uuid
-
+  uuid                    String                  @id @default(uuid()) @db.Uuid
+  keycloakUuid            String                  @unique @db.Uuid
   // === Personal data ===
-  firstName  String   @db.VarChar(32)
-  secondName String?  @db.VarChar(32)
-  surname    String   @db.VarChar(32)
-  email      String   @unique @db.VarChar(320)
-  phone      String   @db.VarChar(16)
-  birthDate  DateTime @db.Date
-
-  role UserRole @default(USER)
-
+  firstName               String?                 @db.VarChar(32)
+  secondName              String?                 @db.VarChar(32)
+  surname                 String?                 @db.VarChar(32)
+  email                   String?                 @unique @db.VarChar(320)
+  phone                   String?                 @db.VarChar(16)
+  birthDate               DateTime?               @db.Date
+  role                    UserRole                @default(USER)
   // === Organizational affiliation ===
-  hufiecCode  String?    @db.VarChar(32)
-  hufiec      ScoutUnit? @relation("UserHufiec", fields: [hufiecCode], references: [code], onDelete: Restrict)
-  druzynaCode String?    @db.VarChar(32)
-  druzyna     ScoutUnit? @relation("UserDruzyna", fields: [druzynaCode], references: [code], onDelete: Restrict)
-
+  hufiecCode              String?                 @db.VarChar(32)
+  hufiec                  ScoutUnit?              @relation("UserHufiec", fields: [hufiecCode], references: [code], onDelete: Restrict)
+  druzynaCode             String?                 @db.VarChar(32)
+  druzyna                 ScoutUnit?              @relation("UserDruzyna", fields: [druzynaCode], references: [code], onDelete: Restrict)
   // === Scout rank (harcerski) ===
-  scoutRank          ScoutRank?
-  scoutRankAwardedAt DateTime?  @db.Date
-
+  scoutRank               ScoutRank?
+  scoutRankAwardedAt      DateTime?               @db.Date
   // === Instructor rank (instruktorski) ===
   instructorRank          InstructorRank?
-  instructorRankAwardedAt DateTime?       @db.Date
-
+  instructorRankAwardedAt DateTime?               @db.Date
   // === Scouting history ===
-  inScoutingSince DateTime? @db.Date
-  inZhrSince      DateTime? @db.Date
-  oathDate        DateTime? @db.Date
-
+  inScoutingSince         DateTime?               @db.Date
+  inZhrSince              DateTime?               @db.Date
+  oathDate                DateTime?               @db.Date
   // === Timestamps ===
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-  isDeleted Boolean  @default(false)
-
+  createdAt               DateTime                @default(now()) @db.Timestamptz
+  updatedAt               DateTime                @updatedAt @db.Timestamptz
+  isDeleted               Boolean                 @default(false)
   // === Relations: as candidate ===
-  instructorApplications InstructorApplication[]
-  scoutApplications      ScoutApplication[]
-
+  instructorApplications  InstructorApplication[]
+  scoutApplications       ScoutApplication[]
   // === Relations: as commission member ===
-  commissionMemberships CommissionMember[]
-  createdMeetings       CommissionMeeting[]  @relation("MeetingCreatedBy")
-  uploadedDocuments     CommissionDocument[]
-  comments              ApplicationComment[]
-  meetingRegistrations  MeetingRegistration[]
+  commissionMemberships   CommissionMember[]
+  createdMeetings         CommissionMeeting[]     @relation("MeetingCreatedBy")
+  uploadedDocuments       CommissionDocument[]
+  comments                ApplicationComment[]
+  meetingRegistrations    MeetingRegistration[]
 
   @@index([hufiecCode])
   @@index([druzynaCode])
@@ -184,24 +175,21 @@ model User {
 // =============================================================================
 
 model ScoutUnit {
-  uuid String   @id @default(uuid()) @db.Uuid
-  code String   @unique @db.VarChar(32)
-  name String   @db.VarChar(128)
-  type UnitType
-
+  uuid             String      @id @default(uuid()) @db.Uuid
+  code             String?     @unique @db.VarChar(32)
+  name             String?     @db.VarChar(128)
+  type             UnitType?
   // Hierarchy: only for DRUZYNA → parent is HUFIEC
-  parentHufiecCode String?    @db.VarChar(32)
-  parentHufiec     ScoutUnit? @relation("HufiecDruzyny", fields: [parentHufiecCode], references: [code], onDelete: Restrict)
-
+  parentHufiecCode String?     @db.VarChar(32)
+  parentHufiec     ScoutUnit?  @relation("HufiecDruzyny", fields: [parentHufiecCode], references: [code], onDelete: Restrict)
   // Relations: for HUFIEC → has many DRUZYNA
-  druzyny ScoutUnit[] @relation("HufiecDruzyny")
-
+  druzyny          ScoutUnit[] @relation("HufiecDruzyny")
   // Users
-  usersAsHufiec  User[] @relation("UserHufiec")
-  usersAsDruzyna User[] @relation("UserDruzyna")
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
+  usersAsHufiec    User[]      @relation("UserHufiec")
+  usersAsDruzyna   User[]      @relation("UserDruzyna")
+  // Timestamps
+  createdAt        DateTime    @default(now()) @db.Timestamptz
+  updatedAt        DateTime    @updatedAt @db.Timestamptz
 
   @@index([type])
   @@index([parentHufiecCode])
@@ -212,34 +200,29 @@ model ScoutUnit {
 // =============================================================================
 
 model Commission {
-  uuid String         @id @default(uuid()) @db.Uuid
-  name String         @db.VarChar(128)
-  type CommissionType
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  members  CommissionMember[]
-  meetings CommissionMeeting[]
+  uuid      String              @id @default(uuid()) @db.Uuid
+  name      String?             @db.VarChar(128)
+  type      CommissionType?
+  isActive  Boolean             @default(true)
+  // Timestamps
+  createdAt DateTime            @default(now()) @db.Timestamptz
+  updatedAt DateTime            @updatedAt @db.Timestamptz
+  // Relations
+  members   CommissionMember[]
+  meetings  CommissionMeeting[]
 
   @@index([type, isActive])
 }
 
 model CommissionMember {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  commissionUuid String     @db.Uuid
-  commission     Commission @relation(fields: [commissionUuid], references: [uuid], onDelete: Cascade)
-
-  userUuid String @db.Uuid
-  user     User   @relation(fields: [userUuid], references: [uuid], onDelete: Restrict)
-
-  role CommissionRole @default(MEMBER)
-
-  joinedAt DateTime  @default(now()) @db.Timestamptz
-  leftAt   DateTime? @db.Timestamptz
+  uuid           String         @id @default(uuid()) @db.Uuid
+  commissionUuid String         @db.Uuid
+  commission     Commission     @relation(fields: [commissionUuid], references: [uuid], onDelete: Cascade)
+  userUuid       String         @db.Uuid
+  user           User           @relation(fields: [userUuid], references: [uuid], onDelete: Restrict)
+  role           CommissionRole @default(MEMBER)
+  joinedAt       DateTime       @default(now()) @db.Timestamptz
+  leftAt         DateTime?      @db.Timestamptz
 
   @@unique([commissionUuid, userUuid])
   @@index([userUuid])
@@ -251,19 +234,17 @@ model CommissionMember {
 // =============================================================================
 
 model RequirementTemplate {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  degreeType DegreeType
-  degreeCode String     @db.VarChar(32)
-
-  version  Int     @default(1)
-  isActive Boolean @default(false)
-
-  name        String? @db.VarChar(128)
-  description String? @db.Text
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-
+  uuid                   String                  @id @default(uuid()) @db.Uuid
+  degreeType             DegreeType
+  degreeCode             String                  @db.VarChar(32)
+  version                Int                     @default(1)
+  isActive               Boolean                 @default(false)
+  name                   String?                 @db.VarChar(128)
+  description            String?                 @db.Text
+  // Timestamps
+  updatedAt              DateTime                @updatedAt @db.Timestamptz
+  createdAt              DateTime                @default(now()) @db.Timestamptz
+  // Relations
   definitions            RequirementDefinition[]
   instructorApplications InstructorApplication[]
   scoutApplications      ScoutApplication[]
@@ -273,20 +254,17 @@ model RequirementTemplate {
 }
 
 model RequirementDefinition {
-  uuid       String              @id @default(uuid()) @db.Uuid
-  templateId String              @db.Uuid
-  template   RequirementTemplate @relation(fields: [templateId], references: [uuid], onDelete: Cascade)
-
-  code        String  @db.VarChar(8)
-  description String  @db.Text
-  isGroup     Boolean @default(false)
-  sortOrder   Int
-
+  uuid                   String                             @id @default(uuid()) @db.Uuid
+  templateId             String                             @db.Uuid
+  template               RequirementTemplate                @relation(fields: [templateId], references: [uuid], onDelete: Cascade)
+  code                   String                             @db.VarChar(8)
+  description            String                             @db.Text
+  isGroup                Boolean                            @default(false)
+  sortOrder              Int
   // Hierarchy
-  parentId String?                 @db.Uuid
-  parent   RequirementDefinition?  @relation("RequirementHierarchy", fields: [parentId], references: [uuid], onDelete: Cascade)
-  children RequirementDefinition[] @relation("RequirementHierarchy")
-
+  parentId               String?                            @db.Uuid
+  parent                 RequirementDefinition?             @relation("RequirementHierarchy", fields: [parentId], references: [uuid], onDelete: Cascade)
+  children               RequirementDefinition[]            @relation("RequirementHierarchy")
   instructorRequirements InstructorApplicationRequirement[]
   scoutRequirements      ScoutApplicationRequirement[]
 
@@ -300,62 +278,50 @@ model RequirementDefinition {
 // =============================================================================
 
 model InstructorApplication {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  candidateUuid String @db.Uuid
-  candidate     User   @relation(fields: [candidateUuid], references: [uuid], onDelete: Restrict)
-
-  templateUuid String              @db.Uuid
-  template     RequirementTemplate @relation(fields: [templateUuid], references: [uuid], onDelete: Restrict)
-
-  status ApplicationStatus @default(DRAFT)
-
-  targetDegree    InstructorRank?
-  plannedFinishAt DateTime?       @db.Date
-
+  uuid                          String                             @id @default(uuid()) @db.Uuid
+  candidateUuid                 String                             @db.Uuid
+  candidate                     User                               @relation(fields: [candidateUuid], references: [uuid], onDelete: Restrict)
+  templateUuid                  String                             @db.Uuid
+  template                      RequirementTemplate                @relation(fields: [templateUuid], references: [uuid], onDelete: Restrict)
+  status                        ApplicationStatus                  @default(DRAFT)
+  targetDegree                  InstructorRank?
+  plannedFinishAt               DateTime?                          @db.Date
   // === Candidate state at application time (per-application, will be snapshotted) ===
-  teamFunction      String?         @db.VarChar(64)
-  hufiecFunction    String?         @db.VarChar(64)
-  openTrialForRank  InstructorRank?
-  openTrialDeadline DateTime?       @db.Date
-
+  teamFunction                  String?                            @db.VarChar(64)
+  hufiecFunction                String?                            @db.VarChar(64)
+  openTrialForRank              InstructorRank?
+  openTrialDeadline             DateTime?                          @db.Date
   // === PWD-specific (nullable for PHM) ===
   hufcowyPresence               PresenceType?
-  hufcowyPresenceAttachmentUuid String?       @db.Uuid
-  hufcowyPresenceAttachment     Attachment?   @relation("HufcowyPresence", fields: [hufcowyPresenceAttachmentUuid], references: [uuid], onDelete: SetNull)
-
+  hufcowyPresenceAttachmentUuid String?                            @db.Uuid
+  hufcowyPresenceAttachment     Attachment?                        @relation("HufcowyPresence", fields: [hufcowyPresenceAttachmentUuid], references: [uuid], onDelete: SetNull)
   // === Service history (PWD & PHM) ===
-  functionsHistory String? @db.Text
-  coursesHistory   String? @db.Text
-  campsHistory     String? @db.Text
-  successes        String? @db.Text
-  failures         String? @db.Text
-
+  functionsHistory              String?                            @db.Text
+  coursesHistory                String?                            @db.Text
+  campsHistory                  String?                            @db.Text
+  successes                     String?                            @db.Text
+  failures                      String?                            @db.Text
   // === Supervisor data ===
-  supervisorFirstName          String?         @db.VarChar(32)
-  supervisorSecondName         String?         @db.VarChar(32)
-  supervisorSurname            String?         @db.VarChar(32)
-  supervisorInstructorRank     InstructorRank?
-  supervisorInstructorFunction String?         @db.VarChar(64)
-
+  supervisorFirstName           String?                            @db.VarChar(32)
+  supervisorSecondName          String?                            @db.VarChar(32)
+  supervisorSurname             String?                            @db.VarChar(32)
+  supervisorInstructorRank      InstructorRank?
+  supervisorInstructorFunction  String?                            @db.VarChar(64)
   // === Final report (attachment uploaded after APPROVED, before ARCHIVED) ===
-  finalReportAttachmentUuid String?     @db.Uuid
-  finalReportAttachment     Attachment? @relation("InstructorFinalReport", fields: [finalReportAttachmentUuid], references: [uuid], onDelete: SetNull)
-
+  finalReportAttachmentUuid     String?                            @db.Uuid
+  finalReportAttachment         Attachment?                        @relation("InstructorFinalReport", fields: [finalReportAttachmentUuid], references: [uuid], onDelete: SetNull)
   // === Timestamps ===
-  lastSubmittedAt DateTime? @db.Timestamptz
-  approvedAt      DateTime? @db.Timestamptz
-  archivedAt      DateTime? @db.Timestamptz
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
+  lastSubmittedAt               DateTime?                          @db.Timestamptz
+  approvedAt                    DateTime?                          @db.Timestamptz
+  archivedAt                    DateTime?                          @db.Timestamptz
+  createdAt                     DateTime                           @default(now()) @db.Timestamptz
+  updatedAt                     DateTime                           @updatedAt @db.Timestamptz
   // === Relations ===
-  snapshots     InstructorApplicationSnapshot[]
-  requirements  InstructorApplicationRequirement[]
-  attachments   Attachment[]                        @relation("InstructorAppAttachment")
-  comments      ApplicationComment[]                @relation("InstructorAppComment")
-  registrations MeetingRegistration[]               @relation("InstructorAppRegistration")
+  snapshots                     InstructorApplicationSnapshot[]
+  requirements                  InstructorApplicationRequirement[]
+  attachments                   Attachment[]                       @relation("InstructorAppAttachment")
+  comments                      ApplicationComment[]               @relation("InstructorAppComment")
+  registrations                 MeetingRegistration[]              @relation("InstructorAppRegistration")
 
   @@index([candidateUuid, status, updatedAt(sort: Desc)])
   @@index([status, updatedAt(sort: Desc)])
@@ -438,7 +404,7 @@ model ScoutApplication {
   targetRank      ScoutRank?
   plannedFinishAt DateTime?  @db.Date
 
-  function   String? @db.VarChar(64)
+  function String? @db.VarChar(64)
 
   whatIsExploit String? @db.Text
   whatIsService String? @db.Text
@@ -548,7 +514,7 @@ model Attachment {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppAttachment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppAttachment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
 
   instructorRequirementUuid String?                           @db.Uuid
@@ -584,7 +550,7 @@ model ApplicationComment {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppComment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Cascade)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppComment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Cascade)
 
   // === Polymorphic: requirement ===
@@ -661,7 +627,7 @@ model MeetingRegistration {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppRegistration", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppRegistration", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
 
   candidateUuid String @db.Uuid
