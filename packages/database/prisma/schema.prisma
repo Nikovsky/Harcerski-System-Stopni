@@ -17,7 +17,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // =============================================================================
@@ -136,7 +135,7 @@ model User {
   phone      String   @db.VarChar(16)
   birthDate  DateTime @db.Date
 
-  role UserRole @default(User)
+  role UserRole @default(USER)
 
   // === Organizational affiliation ===
   hufiecCode  String?    @db.VarChar(32)
@@ -572,11 +571,6 @@ model Attachment {
   checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
 
   uploadedAt DateTime @default(now()) @db.Timestamptz
-
-  @@index([instructorApplicationUuid], where: { instructorApplicationUuid: { not: null } })
-  @@index([scoutApplicationUuid], where: { scoutApplicationUuid: { not: null } })
-  @@index([instructorRequirementUuid], where: { instructorRequirementUuid: { not: null } })
-  @@index([scoutRequirementUuid], where: { scoutRequirementUuid: { not: null } })
 }
 
 // =============================================================================

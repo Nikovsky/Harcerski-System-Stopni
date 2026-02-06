@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('ROOT', 'SYSTEM', 'ADMIN', 'COMMISSION_CHAIR', 'COMMISSION_SECRETARY', 'COMMISSION_MEMBER', 'SCOUT', 'USER', 'NONE');
+
+-- CreateEnum
 CREATE TYPE "ScoutRank" AS ENUM ('MLODZIK', 'WYWIADOWCA', 'CWIK', 'HARCERZ_ORLI', 'HARCERZ_RZECZYPOSPOLITEJ');
 
 -- CreateEnum
@@ -47,6 +50,7 @@ CREATE TABLE "User" (
     "email" VARCHAR(320) NOT NULL,
     "phone" VARCHAR(16) NOT NULL,
     "birthDate" DATE NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "hufiecCode" VARCHAR(32),
     "druzynaCode" VARCHAR(32),
     "scoutRank" "ScoutRank",
@@ -645,3 +649,19 @@ ALTER TABLE "CommissionDocument" ADD CONSTRAINT "CommissionDocument_uploadedByUu
 
 -- AddForeignKey
 ALTER TABLE "CommissionDocument" ADD CONSTRAINT "CommissionDocument_meetingUuid_fkey" FOREIGN KEY ("meetingUuid") REFERENCES "CommissionMeeting"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE INDEX "Attachment_instructorApplicationUuid_not_null_idx"
+  ON "Attachment" ("instructorApplicationUuid")
+  WHERE "instructorApplicationUuid" IS NOT NULL;
+
+CREATE INDEX "Attachment_scoutApplicationUuid_not_null_idx"
+  ON "Attachment" ("scoutApplicationUuid")
+  WHERE "scoutApplicationUuid" IS NOT NULL;
+
+CREATE INDEX "Attachment_instructorRequirementUuid_not_null_idx"
+  ON "Attachment" ("instructorRequirementUuid")
+  WHERE "instructorRequirementUuid" IS NOT NULL;
+
+CREATE INDEX "Attachment_scoutRequirementUuid_not_null_idx"
+  ON "Attachment" ("scoutRequirementUuid")
+  WHERE "scoutRequirementUuid" IS NOT NULL;
