@@ -1,11 +1,4 @@
-// =============================================================================
-// HSS - Harcerska System Stopni (Scout Degree Management System)
-// =============================================================================
-// PostgreSQL 18 + Prisma 7.3.0
-// Architecture: Split Instructor/Scout + EAV + Versioned Templates + JSONB Snapshots
-//
-// =============================================================================
-
+// @file: packages/database/prisma/schema.prisma
 generator client {
   provider = "prisma-client"
   output   = "../src/generated"
@@ -15,178 +8,184 @@ datasource db {
   provider = "postgresql"
 }
 
-// =============================================================================
-// ENUMS
-// =============================================================================
+enum UserRole {
+  ROOT
+  SYSTEM
+  ADMIN
+  COMMISSION_CHAIR
+  COMMISSION_SECRETARY
+  COMMISSION_MEMBER
+  SCOUT
+  USER
+  NONE
+}
+
+enum Gender {
+  NONE
+  MALE
+  FEMALE
+}
 
 enum ScoutRank {
-  MLODZIK
-  WYWIADOWCA
-  CWIK
-  HARCERZ_ORLI
-  HARCERZ_RZECZYPOSPOLITEJ
+  NONE
+  YOUNG // młodzik / ochotniczka
+  PATHFINDER // wywiadowca / tropicielka
+  DISCOVERER // odkrywca / pionierka
+  TROOPER // ćwik / samarytanka
+  EAGLE // Harcerz Orli / Harcerka Orla
+  REPUBLIC // Harcerz Rzeczypospolitej / Harcerka Rzeczypospolitej
 }
 
 enum InstructorRank {
-  PRZEWODNIK
-  PODHARCMISTRZ_OTWARTA_PROBA
-  PODHARCMISTRZ
-  HARCMISTRZ
+  GUIDE // PRZEWODNIK
+  OPEN_SUBSCOUTMASTER // OTWARTY_PODHARCMISTRZ
+  SUBSCOUTMASTER // PODHARCMISTRZ
+  SCOUTMASTER // HARCMISTRZ
 }
 
-enum ApplicationStatus {
+enum AllRank {
+  NONE
+  YOUNG
+  PATHFINDER
+  DISCOVERER
+  TROOPER
+  EAGLE
+  REPUBLIC
+  GUIDE
+  OPEN_SUBSCOUTMASTER
+  SUBSCOUTMASTER
+  SCOUTMASTER
+}
+
+enum SubmissionStatus {
   DRAFT
   SUBMITTED
-  TO_FIX
-  UNDER_REVIEW
+  IN_REVIEW
   APPROVED
-  IN_PROGRESS
-  REPORT_SUBMITTED
-  COMPLETED_POSITIVE
   REJECTED
-  ARCHIVED
-}
-
-enum PresenceType {
-  IN_PERSON
-  REMOTE
-  ATTACHMENT_OPINION
+  WITHDRAWN
 }
 
 enum UnitType {
-  HUFIEC
-  DRUZYNA
+  CHORAGIEW // Chorągiew
+  HUFIEC // Hufiec
+  DRUZYNA // Drużyna
 }
 
-enum RequirementState {
-  DONE
-  PLANNED
+enum Status {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  PENDING_DELETION
 }
 
-enum MeetingStatus {
-  DRAFT
-  OPEN_FOR_REGISTRATION
-  CLOSED
-  COMPLETED
+enum AttachmentStatus {
+  UPLOADING
+  READY
+  FAILED
+  DELETED
+}
+
+enum MeetingSlotKind {
+  DAY
+  SLOT
+}
+
+enum MeetingSignupStatus {
+  REQUESTED // user się zgłosił (dzień/slot)
+  CONFIRMED // potwierdzone (slot zajęty albo przydzielono godzinę)
+  REJECTED
   CANCELLED
 }
-
-enum RegistrationStatus {
-  REGISTERED
-  CANCELLED
-}
-
-enum SlotMode {
-  SLOTS
-  DAY_ONLY
-}
-
-enum DocumentType {
-  MEETING_PROTOCOL
-  DECISION
-  OTHER
-}
-
-enum CommissionType {
-  INSTRUCTOR
-  SCOUT
-}
-
-enum CommissionRole {
-  CHAIRMAN
-  SECRETARY
-  MEMBER
-}
-
-enum DegreeType {
-  INSTRUCTOR
-  SCOUT
-}
-
-// =============================================================================
-// USER - Unified model for candidates and commission members
-// =============================================================================
 
 model User {
-  uuid         String   @id @default(uuid()) @db.Uuid
-  keycloakUuid String   @unique @db.Uuid
+  id                  String          @id @default(uuid()) @db.Uuid
+  keycloakUuid        String          @unique @db.Uuid
+  scoutUnitId         String?         @db.Uuid
+  role                UserRole        @default(USER)
+  email               String          @unique
+  status              Status          @default(ACTIVE)
+  // Personal data
+  lastName            String?
+  firstName           String?
+  secondName          String?
+  thirdName           String?
+  phone               String?
+  birthDate           DateTime?
+  gender              Gender          @default(NONE)
+  // Funcions
+  teamFunction        String? // funkcja w drużynie
+  groupFunction       String? // funkcja w hufcu / chorągwi
+  // Scout data
+  scoutRank           ScoutRank       @default(NONE)
+  scoutStartDate      DateTime?
+  // Timestamps
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  // Relations
+  submissions         Submission[]
+  comments            Comment[]
+  unit                ScoutUnit?      @relation("UnitToParticipants", fields: [scoutUnitId], references: [id])
+  meetingSlotsCreated MeetingSlot[]   @relation("MeetingSlotCreatedBy")
+  meetingSignups      MeetingSignup[] @relation("MeetingSignupUser")
+  meetingAssigned     MeetingSignup[] @relation("MeetingSignupAssignedBy")
+}
 
-  // === Personal data ===
-  firstName  String   @db.VarChar(32)
-  secondName String?  @db.VarChar(32)
-  surname    String   @db.VarChar(32)
-  email      String   @unique @db.VarChar(320)
-  phone      String   @db.VarChar(16)
-  birthDate  DateTime @db.Date
-
-  // === Organizational affiliation ===
-  hufiecCode  String?    @db.VarChar(32)
-  hufiec      ScoutUnit? @relation("UserHufiec", fields: [hufiecCode], references: [code], onDelete: Restrict)
-  druzynaCode String?    @db.VarChar(32)
-  druzyna     ScoutUnit? @relation("UserDruzyna", fields: [druzynaCode], references: [code], onDelete: Restrict)
-
-  // === Scout rank (harcerski) ===
-  scoutRank          ScoutRank?
-  scoutRankAwardedAt DateTime?  @db.Date
-
-  // === Instructor rank (instruktorski) ===
-  instructorRank          InstructorRank?
-  instructorRankAwardedAt DateTime?       @db.Date
-
-  // === Scouting history ===
-  inScoutingSince DateTime? @db.Date
-  inZhrSince      DateTime? @db.Date
-  oathDate        DateTime? @db.Date
-
-  // === Timestamps ===
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-  isDeleted Boolean  @default(false)
-
-  // === Relations: as candidate ===
-  instructorApplications InstructorApplication[]
-  scoutApplications      ScoutApplication[]
-
-  // === Relations: as commission member ===
-  commissionMemberships CommissionMember[]
-  createdMeetings       CommissionMeeting[]  @relation("MeetingCreatedBy")
-  uploadedDocuments     CommissionDocument[]
-  comments              ApplicationComment[]
-  meetingRegistrations  MeetingRegistration[]
-
-  @@index([hufiecCode])
-  @@index([druzynaCode])
-  @@index([email])
-  @@index([keycloakUuid])
-  @@index([isDeleted])
+model ScoutUnit {
+  id           String        @id @default(uuid()) @db.Uuid
+  parentUnitId String?       @db.Uuid
+  // Scout unit data
+  code         String
+  name         String
+  description  String?
+  type         UnitType
+  status       Status        @default(ACTIVE)
+  // Timestamps
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  // Relations
+  parentUnit   ScoutUnit?    @relation("UnitToParent", fields: [parentUnitId], references: [id])
+  childUnits   ScoutUnit[]   @relation("UnitToParent")
+  participants User[]        @relation("UnitToParticipants")
+  meetingSlots MeetingSlot[]
 }
 
 // =============================================================================
 // ORGANIZATIONAL STRUCTURE - Hufiec → Drużyna
 // =============================================================================
 
-model ScoutUnit {
-  uuid String   @id @default(uuid()) @db.Uuid
-  code String   @unique @db.VarChar(32)
-  name String   @db.VarChar(128)
-  type UnitType
-
-  // Hierarchy: only for DRUZYNA → parent is HUFIEC
-  parentHufiecCode String?    @db.VarChar(32)
-  parentHufiec     ScoutUnit? @relation("HufiecDruzyny", fields: [parentHufiecCode], references: [code], onDelete: Restrict)
-
-  // Relations: for HUFIEC → has many DRUZYNA
-  druzyny ScoutUnit[] @relation("HufiecDruzyny")
-
-  // Users
-  usersAsHufiec  User[] @relation("UserHufiec")
-  usersAsDruzyna User[] @relation("UserDruzyna")
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  @@index([type])
-  @@index([parentHufiecCode])
+model Submission {
+  id                   String                            @id @default(uuid()) @db.Uuid
+  userId               String                            @db.Uuid
+  badgeId              String                            @db.Uuid
+  // Submission data
+  submissionStatus     SubmissionStatus                  @default(DRAFT)
+  version              Int                               @default(1)
+  status               Status                            @default(ACTIVE)
+  // Personal data
+  email                String                            @unique
+  lastName             String
+  firstName            String
+  secondName           String?
+  thirdName            String?
+  phone                String
+  birthDate            DateTime
+  // Supervisor data
+  supervisorLastName   String
+  supervisorFirstName  String
+  supervisorSecondName String?
+  supervisorPhone      String
+  supervisorRank       InstructorRank
+  supervisionFunction  String
+  // Timestamps
+  createdAt            DateTime                          @default(now())
+  updatedAt            DateTime                          @updatedAt
+  // Relations
+  user                 User                              @relation(fields: [userId], references: [id])
+  badge                ProficiencyBadge                  @relation(fields: [badgeId], references: [id])
+  comments             Comment[]
+  fields               SubmissionProficiencyBadgeField[]
+  attachments          Attachment[]
 }
 
 // =============================================================================
@@ -232,470 +231,156 @@ model CommissionMember {
 // REQUIREMENT TEMPLATES - Versioned definitions
 // =============================================================================
 
-model RequirementTemplate {
-  uuid String @id @default(uuid()) @db.Uuid
+model ProficiencyBadge {
+  id          String  @id @default(uuid()) @db.Uuid
+  // Badge data
+  code        String
+  name        String
+  description String?
+  targetRank  AllRank @default(NONE)
+  version     Int     @default(1)
+  status      Status  @default(ACTIVE)
 
-  degreeType DegreeType
-  degreeCode String     @db.VarChar(32)
-
-  version  Int     @default(1)
-  isActive Boolean @default(false)
-
-  name        String? @db.VarChar(128)
-  description String? @db.Text
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-
-  definitions            RequirementDefinition[]
-  instructorApplications InstructorApplication[]
-  scoutApplications      ScoutApplication[]
-
-  @@unique([degreeType, degreeCode, version])
-  @@index([degreeType, degreeCode, isActive])
+  // Timestamps
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  // Relations
+  fields      ProficiencyBadgeField[]
+  submissions Submission[]
 }
 
-model RequirementDefinition {
-  uuid       String              @id @default(uuid()) @db.Uuid
-  templateId String              @db.Uuid
-  template   RequirementTemplate @relation(fields: [templateId], references: [uuid], onDelete: Cascade)
-
-  code        String  @db.VarChar(8)
-  description String  @db.Text
-  isGroup     Boolean @default(false)
-  sortOrder   Int
-
-  // Hierarchy
-  parentId String?                 @db.Uuid
-  parent   RequirementDefinition?  @relation("RequirementHierarchy", fields: [parentId], references: [uuid], onDelete: Cascade)
-  children RequirementDefinition[] @relation("RequirementHierarchy")
-
-  instructorRequirements InstructorApplicationRequirement[]
-  scoutRequirements      ScoutApplicationRequirement[]
-
-  @@unique([templateId, code])
-  @@index([templateId, sortOrder])
-  @@index([parentId])
+model ProficiencyBadgeField {
+  id                               String                            @id @default(uuid()) @db.Uuid
+  badgeId                          String                            @db.Uuid
+  parentFieldId                    String?                           @db.Uuid
+  // Field data
+  code                             String?
+  name                             String?
+  description                      String?
+  hint                             String?
+  version                          Int                               @default(1)
+  status                           Status                            @default(ACTIVE)
+  // Timestamps
+  createdAt                        DateTime                          @default(now())
+  updatedAt                        DateTime                          @updatedAt
+  // Relations
+  badge                            ProficiencyBadge                  @relation(fields: [badgeId], references: [id])
+  parentField                      ProficiencyBadgeField?            @relation("FieldToParent", fields: [parentFieldId], references: [id])
+  childFields                      ProficiencyBadgeField[]           @relation("FieldToParent")
+  submissionProficiencyBadgeFields SubmissionProficiencyBadgeField[]
 }
 
-// =============================================================================
-// INSTRUCTOR APPLICATIONS (PWD, PHM)
-// =============================================================================
-
-model InstructorApplication {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  candidateUuid String @db.Uuid
-  candidate     User   @relation(fields: [candidateUuid], references: [uuid], onDelete: Restrict)
-
-  templateUuid String              @db.Uuid
-  template     RequirementTemplate @relation(fields: [templateUuid], references: [uuid], onDelete: Restrict)
-
-  status ApplicationStatus @default(DRAFT)
-
-  targetDegree    InstructorRank?
-  plannedFinishAt DateTime?       @db.Date
-
-  // === Candidate state at application time (per-application, will be snapshotted) ===
-  teamFunction      String?         @db.VarChar(64)
-  hufiecFunction    String?         @db.VarChar(64)
-  openTrialForRank  InstructorRank?
-  openTrialDeadline DateTime?       @db.Date
-
-  // === PWD-specific (nullable for PHM) ===
-  hufcowyPresence               PresenceType?
-  hufcowyPresenceAttachmentUuid String?       @db.Uuid
-  hufcowyPresenceAttachment     Attachment?   @relation("HufcowyPresence", fields: [hufcowyPresenceAttachmentUuid], references: [uuid], onDelete: SetNull)
-
-  // === Service history (PWD & PHM) ===
-  functionsHistory String? @db.Text
-  coursesHistory   String? @db.Text
-  campsHistory     String? @db.Text
-  successes        String? @db.Text
-  failures         String? @db.Text
-
-  // === Supervisor data ===
-  supervisorFirstName          String?         @db.VarChar(32)
-  supervisorSecondName         String?         @db.VarChar(32)
-  supervisorSurname            String?         @db.VarChar(32)
-  supervisorInstructorRank     InstructorRank?
-  supervisorInstructorFunction String?         @db.VarChar(64)
-
-  // === Final report (attachment uploaded after APPROVED, before ARCHIVED) ===
-  finalReportAttachmentUuid String?     @db.Uuid
-  finalReportAttachment     Attachment? @relation("InstructorFinalReport", fields: [finalReportAttachmentUuid], references: [uuid], onDelete: SetNull)
-
-  // === Timestamps ===
-  lastSubmittedAt DateTime? @db.Timestamptz
-  approvedAt      DateTime? @db.Timestamptz
-  archivedAt      DateTime? @db.Timestamptz
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  // === Relations ===
-  snapshots     InstructorApplicationSnapshot[]
-  requirements  InstructorApplicationRequirement[]
-  attachments   Attachment[]                        @relation("InstructorAppAttachment")
-  comments      ApplicationComment[]                @relation("InstructorAppComment")
-  registrations MeetingRegistration[]               @relation("InstructorAppRegistration")
-
-  @@index([candidateUuid, status, updatedAt(sort: Desc)])
-  @@index([status, updatedAt(sort: Desc)])
-  @@index([templateUuid])
+model SubmissionProficiencyBadgeField {
+  id           String                @id @default(uuid()) @db.Uuid
+  submissionId String                @db.Uuid
+  fieldId      String                @db.Uuid
+  // Field data
+  isCompleted  Boolean               @default(false)
+  description  String?
+  comment      String?
+  // Timestamps
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  // Relations
+  submission   Submission            @relation(fields: [submissionId], references: [id])
+  field        ProficiencyBadgeField @relation(fields: [fieldId], references: [id])
+  comments     Comment[]
+  attachments  Attachment[]
 }
 
-model InstructorApplicationSnapshot {
-  uuid            String                @id @default(uuid()) @db.Uuid
-  applicationUuid String                @db.Uuid
-  application     InstructorApplication @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
-
-  revision    Int      @default(1)
-  submittedAt DateTime @default(now()) @db.Timestamptz
-
-  // === Reference to template version (immutable structure) ===
-  templateUuid    String @db.Uuid
-  templateVersion Int
-
-  // === Snapshots of VARIABLE data ===
-  candidateSnapshot       Json @db.JsonB
-  requirementsSnapshot    Json @db.JsonB
-  attachmentsMetadata     Json @db.JsonB
-  applicationDataSnapshot Json @db.JsonB
-
-  // === Denormalized fields for fast search ===
-  candidateFirstName     String            @db.VarChar(32)
-  candidateSurname       String            @db.VarChar(32)
-  candidateEmailAtSubmit String            @db.VarChar(320)
-  hufiecCodeAtSubmit     String?           @db.VarChar(32)
-  druzynaCodeAtSubmit    String?           @db.VarChar(32)
-  statusAtSubmit         ApplicationStatus
-
-  @@unique([applicationUuid, revision])
-  @@index([applicationUuid, submittedAt(sort: Desc)])
-  @@index([templateUuid, templateVersion])
-  @@index([statusAtSubmit])
-  @@index([candidateSurname, candidateFirstName])
-  @@index([candidateEmailAtSubmit])
+model Comment {
+  id                String                           @id @default(uuid()) @db.Uuid
+  authorId          String                           @db.Uuid
+  submissionId      String?                          @db.Uuid
+  submissionFieldId String?                          @db.Uuid
+  // Comment data
+  content           String
+  // Timestamps
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+  // Relations
+  author            User                             @relation(fields: [authorId], references: [id])
+  submission        Submission?                      @relation(fields: [submissionId], references: [id])
+  submissionField   SubmissionProficiencyBadgeField? @relation(fields: [submissionFieldId], references: [id])
 }
-
-model InstructorApplicationRequirement {
-  uuid            String                @id @default(uuid()) @db.Uuid
-  applicationUuid String                @db.Uuid
-  application     InstructorApplication @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
-
-  requirementDefinitionUuid String                @db.Uuid
-  requirementDefinition     RequirementDefinition @relation(fields: [requirementDefinitionUuid], references: [uuid], onDelete: Restrict)
-
-  state RequirementState
-
-  actionDescription String @db.Text
-
-  // Verification logic:
-  verificationText String? @db.Text
-
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  attachments Attachment[]         @relation("InstructorReqAttachment")
-  comments    ApplicationComment[] @relation("InstructorReqComment")
-
-  @@unique([applicationUuid, requirementDefinitionUuid])
-  @@index([applicationUuid])
-}
-
-// =============================================================================
-// SCOUT APPLICATIONS (HO, HR)
-// =============================================================================
-
-model ScoutApplication {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  candidateUuid String @db.Uuid
-  candidate     User   @relation(fields: [candidateUuid], references: [uuid], onDelete: Restrict)
-
-  templateUuid String              @db.Uuid
-  template     RequirementTemplate @relation(fields: [templateUuid], references: [uuid], onDelete: Restrict)
-
-  status ApplicationStatus @default(DRAFT)
-
-  targetRank      ScoutRank?
-  plannedFinishAt DateTime?  @db.Date
-
-  function   String? @db.VarChar(64)
-
-  whatIsExploit String? @db.Text
-  whatIsService String? @db.Text
-
-  changesLog String? @db.Text
-
-  supervisorFirstName      String?         @db.VarChar(32)
-  supervisorSecondName     String?         @db.VarChar(32)
-  supervisorSurname        String?         @db.VarChar(32)
-  supervisorInstructorRank InstructorRank?
-
-  finalReportAttachmentUuid String?     @db.Uuid
-  finalReportAttachment     Attachment? @relation("ScoutFinalReport", fields: [finalReportAttachmentUuid], references: [uuid], onDelete: SetNull)
-
-  // === Timestamps ===
-  lastSubmittedAt DateTime? @db.Timestamptz
-  approvedAt      DateTime? @db.Timestamptz
-  archivedAt      DateTime? @db.Timestamptz
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  // === Relations ===
-  snapshots     ScoutApplicationSnapshot[]
-  requirements  ScoutApplicationRequirement[]
-  attachments   Attachment[]                  @relation("ScoutAppAttachment")
-  comments      ApplicationComment[]          @relation("ScoutAppComment")
-  registrations MeetingRegistration[]         @relation("ScoutAppRegistration")
-
-  @@index([candidateUuid, status, updatedAt(sort: Desc)])
-  @@index([status, updatedAt(sort: Desc)])
-  @@index([templateUuid])
-}
-
-model ScoutApplicationSnapshot {
-  uuid            String           @id @default(uuid()) @db.Uuid
-  applicationUuid String           @db.Uuid
-  application     ScoutApplication @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
-
-  revision    Int      @default(1)
-  submittedAt DateTime @default(now()) @db.Timestamptz
-
-  // === Reference to template version ===
-  templateUuid    String @db.Uuid
-  templateVersion Int
-
-  // === Snapshots of VARIABLE data ===
-  candidateSnapshot       Json @db.JsonB
-  requirementsSnapshot    Json @db.JsonB
-  attachmentsMetadata     Json @db.JsonB
-  applicationDataSnapshot Json @db.JsonB
-
-  // === Denormalized fields for fast search ===
-  candidateFirstName     String            @db.VarChar(32)
-  candidateSurname       String            @db.VarChar(32)
-  candidateEmailAtSubmit String            @db.VarChar(320)
-  hufiecCodeAtSubmit     String?           @db.VarChar(32)
-  druzynaCodeAtSubmit    String?           @db.VarChar(32)
-  statusAtSubmit         ApplicationStatus
-
-  @@unique([applicationUuid, revision])
-  @@index([applicationUuid, submittedAt(sort: Desc)])
-  @@index([templateUuid, templateVersion])
-  @@index([statusAtSubmit])
-  @@index([candidateSurname, candidateFirstName])
-  @@index([candidateEmailAtSubmit])
-}
-
-model ScoutApplicationRequirement {
-  uuid            String           @id @default(uuid()) @db.Uuid
-  applicationUuid String           @db.Uuid
-  application     ScoutApplication @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
-
-  requirementDefinitionUuid String                @db.Uuid
-  requirementDefinition     RequirementDefinition @relation(fields: [requirementDefinitionUuid], references: [uuid], onDelete: Restrict)
-
-  state RequirementState
-
-  actionDescription String @db.Text
-
-  // === HO/HR-specific: "Weryfikator" ===
-  verificationMethod String @db.Text
-
-  verificationText String? @db.Text
-
-  // Time range
-  plannedStartDate DateTime? @db.Date
-  plannedEndDate   DateTime? @db.Date
-
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  attachments Attachment[]         @relation("ScoutReqAttachment")
-  comments    ApplicationComment[] @relation("ScoutReqComment")
-
-  @@unique([applicationUuid, requirementDefinitionUuid])
-  @@index([applicationUuid])
-}
-
-// =============================================================================
-// ATTACHMENTS - Polymorphic
-// =============================================================================
 
 model Attachment {
-  uuid String @id @default(uuid()) @db.Uuid
+  id                String                           @id @default(uuid()) @db.Uuid
+  // ownership (jedno z dwóch)
+  submissionId      String?                          @db.Uuid
+  submissionFieldId String?                          @db.Uuid
+  // MinIO
+  bucket            String
+  objectKey         String                           @unique
+  // meta
+  originalName      String
+  mimeType          String
+  sizeBytes         BigInt
+  status            AttachmentStatus                 @default(UPLOADING)
+  // Timestamps
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+  // Relations
+  submission        Submission?                      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionField   SubmissionProficiencyBadgeField? @relation(fields: [submissionFieldId], references: [id], onDelete: Cascade)
 
-  // === Polymorphic relations ===
-  instructorApplicationUuid String?                @db.Uuid
-  instructorApplication     InstructorApplication? @relation("InstructorAppAttachment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
-
-  scoutApplicationUuid String?          @db.Uuid
-  scoutApplication     ScoutApplication? @relation("ScoutAppAttachment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
-
-  instructorRequirementUuid String?                           @db.Uuid
-  instructorRequirement     InstructorApplicationRequirement? @relation("InstructorReqAttachment", fields: [instructorRequirementUuid], references: [uuid], onDelete: Restrict)
-
-  scoutRequirementUuid String?                      @db.Uuid
-  scoutRequirement     ScoutApplicationRequirement? @relation("ScoutReqAttachment", fields: [scoutRequirementUuid], references: [uuid], onDelete: Restrict)
-
-  hufcowyPresenceApplications InstructorApplication[] @relation("HufcowyPresence")
-
-  instructorFinalReports InstructorApplication[] @relation("InstructorFinalReport")
-  scoutFinalReports      ScoutApplication[]      @relation("ScoutFinalReport")
-
-  objectKey        String @unique @db.Text
-  originalFilename String @db.Text
-  contentType      String @db.VarChar(255)
-  sizeBytes        BigInt
-
-  checksum          String? @db.VarChar(128)
-  checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
-
-  uploadedAt DateTime @default(now()) @db.Timestamptz
-}
-
-// =============================================================================
-// COMMENTS - Polymorphic
-// =============================================================================
-
-model ApplicationComment {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  // === Polymorphic: application ===
-  instructorApplicationUuid String?                @db.Uuid
-  instructorApplication     InstructorApplication? @relation("InstructorAppComment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Cascade)
-
-  scoutApplicationUuid String?          @db.Uuid
-  scoutApplication     ScoutApplication? @relation("ScoutAppComment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Cascade)
-
-  // === Polymorphic: requirement ===
-  instructorRequirementUuid String?                           @db.Uuid
-  instructorRequirement     InstructorApplicationRequirement? @relation("InstructorReqComment", fields: [instructorRequirementUuid], references: [uuid], onDelete: Cascade)
-
-  scoutRequirementUuid String?                      @db.Uuid
-  scoutRequirement     ScoutApplicationRequirement? @relation("ScoutReqComment", fields: [scoutRequirementUuid], references: [uuid], onDelete: Cascade)
-
-  body String @db.Text
-
-  authorUuid String @db.Uuid
-  author     User   @relation(fields: [authorUuid], references: [uuid], onDelete: Restrict)
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-
-  @@index([instructorApplicationUuid, createdAt(sort: Desc)])
-  @@index([scoutApplicationUuid, createdAt(sort: Desc)])
-  @@index([instructorRequirementUuid])
-  @@index([scoutRequirementUuid])
-  @@index([authorUuid])
-}
-
-// =============================================================================
-// COMMISSION MEETINGS
-// =============================================================================
-
-model CommissionMeeting {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  commissionUuid String     @db.Uuid
-  commission     Commission @relation(fields: [commissionUuid], references: [uuid], onDelete: Restrict)
-
-  createdByUuid String @db.Uuid
-  createdBy     User   @relation("MeetingCreatedBy", fields: [createdByUuid], references: [uuid], onDelete: Restrict)
-
-  date     DateTime      @db.Date
-  slotMode SlotMode
-  status   MeetingStatus @default(DRAFT)
-  notes    String?       @db.Text
-
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  slots         MeetingSlot[]
-  registrations MeetingRegistration[]
-  documents     CommissionDocument[]
-
-  @@index([commissionUuid, date, status])
-  @@index([status])
+  @@index([submissionId])
+  @@index([submissionFieldId])
 }
 
 model MeetingSlot {
-  uuid        String            @id @default(uuid()) @db.Uuid
-  meetingUuid String            @db.Uuid
-  meeting     CommissionMeeting @relation(fields: [meetingUuid], references: [uuid], onDelete: Cascade)
+  id String @id @default(uuid()) @db.Uuid
 
-  startTime DateTime @db.Timestamptz
-  endTime   DateTime @db.Timestamptz
-  sortOrder Int
+  batchId String @db.Uuid
 
-  registrations MeetingRegistration[]
+  unitId      String? @db.Uuid
+  createdById String  @db.Uuid
 
-  @@index([meetingUuid, sortOrder])
+  title       String
+  description String?
+  kind        MeetingSlotKind
+  timezone    String          @default("Europe/Warsaw")
+
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt   DateTime @db.Timestamptz(3)
+
+  capacity Int    @default(1)
+  status   Status @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit      ScoutUnit? @relation(fields: [unitId], references: [id])
+  createdBy User       @relation("MeetingSlotCreatedBy", fields: [createdById], references: [id])
+
+  signups MeetingSignup[]
+
+  @@index([batchId])
+  @@index([unitId])
+  @@index([startsAt])
 }
 
-model MeetingRegistration {
-  uuid String @id @default(uuid()) @db.Uuid
+model MeetingSignup {
+  id     String @id @default(uuid()) @db.Uuid
+  slotId String @db.Uuid
+  userId String @db.Uuid
 
-  meetingUuid String            @db.Uuid
-  meeting     CommissionMeeting @relation(fields: [meetingUuid], references: [uuid], onDelete: Cascade)
+  status MeetingSignupStatus @default(REQUESTED)
+  note   String?
 
-  // === Polymorphic: application ===
-  instructorApplicationUuid String?                @db.Uuid
-  instructorApplication     InstructorApplication? @relation("InstructorAppRegistration", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
+  // używane tylko gdy slot.kind=DAY (admin przypisuje godzinę)
+  assignedStartsAt DateTime? @db.Timestamptz(3)
+  assignedEndsAt   DateTime? @db.Timestamptz(3)
+  assignedById     String?   @db.Uuid
 
-  scoutApplicationUuid String?          @db.Uuid
-  scoutApplication     ScoutApplication? @relation("ScoutAppRegistration", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  candidateUuid String @db.Uuid
-  candidate     User   @relation(fields: [candidateUuid], references: [uuid], onDelete: Restrict)
+  slot       MeetingSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  user       User        @relation("MeetingSignupUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User?       @relation("MeetingSignupAssignedBy", fields: [assignedById], references: [id])
 
-  // === SLOTS mode ===
-  slotUuid String?      @db.Uuid
-  slot     MeetingSlot? @relation(fields: [slotUuid], references: [uuid], onDelete: SetNull)
-
-  // === DAY_ONLY mode ===
-  assignedTime DateTime? @db.Timestamptz
-
-  status RegistrationStatus @default(REGISTERED)
-
-  registeredAt DateTime @default(now()) @db.Timestamptz
-  updatedAt    DateTime @updatedAt @db.Timestamptz
-
-  @@index([meetingUuid, status])
-  @@index([candidateUuid, status])
-  @@index([instructorApplicationUuid])
-  @@index([scoutApplicationUuid])
-  @@index([slotUuid, status])
-}
-
-// =============================================================================
-// COMMISSION DOCUMENTS
-// =============================================================================
-
-model CommissionDocument {
-  uuid String @id @default(uuid()) @db.Uuid
-
-  uploadedByUuid String @db.Uuid
-  uploadedBy     User   @relation(fields: [uploadedByUuid], references: [uuid], onDelete: Restrict)
-
-  meetingUuid String?            @db.Uuid
-  meeting     CommissionMeeting? @relation(fields: [meetingUuid], references: [uuid], onDelete: SetNull)
-
-  documentType DocumentType
-  description  String?      @db.Text
-
-  // === MinIO storage ===
-  objectKey        String @unique @db.Text
-  originalFilename String @db.Text
-  contentType      String @db.VarChar(255)
-  sizeBytes        BigInt
-
-  checksum          String? @db.VarChar(128)
-  checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
-
-  uploadedAt DateTime @default(now()) @db.Timestamptz
-
-  @@index([meetingUuid])
-  @@index([documentType])
-  @@index([uploadedByUuid])
+  @@unique([slotId, userId])
+  @@index([slotId])
+  @@index([userId])
 }

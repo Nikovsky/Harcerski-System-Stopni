@@ -94,7 +94,7 @@
       "enabled": true,
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "${KEYCLOAK_hss_WEB_CLIENT_SECRET}",
+      "secret": "${KEYCLOAK_HSS_WEB_CLIENT_SECRET}",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
@@ -105,6 +105,26 @@
       ],
       "attributes": {
         "post.logout.redirect.uris": "https://hss.local/*"
+      }
+    },
+    {
+      "clientId": "hss-api",
+      "name": "hss API (NestJS)",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_HSS_API_CLIENT_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "client_credentials.use_refresh_token": "false"
       }
     }
   ]
