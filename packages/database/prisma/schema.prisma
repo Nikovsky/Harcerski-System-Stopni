@@ -119,21 +119,28 @@ enum DegreeType {
   SCOUT
 }
 
+enum Status {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  PENDING_DELETION
+}
+
 // =============================================================================
 // USER - Unified model for candidates and commission members
 // =============================================================================
 
 model User {
-  uuid         String   @id @default(uuid()) @db.Uuid
-  keycloakUuid String   @unique @db.Uuid
+  uuid         String @id @default(uuid()) @db.Uuid
+  keycloakUuid String @unique @db.Uuid
 
   // === Personal data ===
-  firstName  String   @db.VarChar(32)
-  secondName String?  @db.VarChar(32)
-  surname    String   @db.VarChar(32)
-  email      String   @unique @db.VarChar(320)
-  phone      String   @db.VarChar(16)
-  birthDate  DateTime @db.Date
+  firstName  String?   @db.VarChar(32)
+  secondName String?   @db.VarChar(32)
+  surname    String?   @db.VarChar(32)
+  email      String    @unique @db.VarChar(320)
+  phone      String?   @db.VarChar(16)
+  birthDate  DateTime? @db.Date
 
   role UserRole @default(USER)
 
@@ -159,7 +166,7 @@ model User {
   // === Timestamps ===
   createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
-  isDeleted Boolean  @default(false)
+  status    Status   @default(ACTIVE)
 
   // === Relations: as candidate ===
   instructorApplications InstructorApplication[]
@@ -167,7 +174,7 @@ model User {
 
   // === Relations: as commission member ===
   commissionMemberships CommissionMember[]
-  createdMeetings       CommissionMeeting[]  @relation("MeetingCreatedBy")
+  createdMeetings       CommissionMeeting[]   @relation("MeetingCreatedBy")
   uploadedDocuments     CommissionDocument[]
   comments              ApplicationComment[]
   meetingRegistrations  MeetingRegistration[]
@@ -176,7 +183,7 @@ model User {
   @@index([druzynaCode])
   @@index([email])
   @@index([keycloakUuid])
-  @@index([isDeleted])
+  @@index([status])
 }
 
 // =============================================================================
@@ -263,6 +270,7 @@ model RequirementTemplate {
   description String? @db.Text
 
   createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
 
   definitions            RequirementDefinition[]
   instructorApplications InstructorApplication[]
@@ -286,6 +294,9 @@ model RequirementDefinition {
   parentId String?                 @db.Uuid
   parent   RequirementDefinition?  @relation("RequirementHierarchy", fields: [parentId], references: [uuid], onDelete: Cascade)
   children RequirementDefinition[] @relation("RequirementHierarchy")
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
 
   instructorRequirements InstructorApplicationRequirement[]
   scoutRequirements      ScoutApplicationRequirement[]
@@ -353,9 +364,9 @@ model InstructorApplication {
   // === Relations ===
   snapshots     InstructorApplicationSnapshot[]
   requirements  InstructorApplicationRequirement[]
-  attachments   Attachment[]                        @relation("InstructorAppAttachment")
-  comments      ApplicationComment[]                @relation("InstructorAppComment")
-  registrations MeetingRegistration[]               @relation("InstructorAppRegistration")
+  attachments   Attachment[]                       @relation("InstructorAppAttachment")
+  comments      ApplicationComment[]               @relation("InstructorAppComment")
+  registrations MeetingRegistration[]              @relation("InstructorAppRegistration")
 
   @@index([candidateUuid, status, updatedAt(sort: Desc)])
   @@index([status, updatedAt(sort: Desc)])
@@ -388,6 +399,9 @@ model InstructorApplicationSnapshot {
   druzynaCodeAtSubmit    String?           @db.VarChar(32)
   statusAtSubmit         ApplicationStatus
 
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
   @@unique([applicationUuid, revision])
   @@index([applicationUuid, submittedAt(sort: Desc)])
   @@index([templateUuid, templateVersion])
@@ -411,6 +425,7 @@ model InstructorApplicationRequirement {
   // Verification logic:
   verificationText String? @db.Text
 
+  createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
 
   attachments Attachment[]         @relation("InstructorReqAttachment")
@@ -438,7 +453,7 @@ model ScoutApplication {
   targetRank      ScoutRank?
   plannedFinishAt DateTime?  @db.Date
 
-  function   String? @db.VarChar(64)
+  function String? @db.VarChar(64)
 
   whatIsExploit String? @db.Text
   whatIsService String? @db.Text
@@ -499,6 +514,9 @@ model ScoutApplicationSnapshot {
   druzynaCodeAtSubmit    String?           @db.VarChar(32)
   statusAtSubmit         ApplicationStatus
 
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
   @@unique([applicationUuid, revision])
   @@index([applicationUuid, submittedAt(sort: Desc)])
   @@index([templateUuid, templateVersion])
@@ -528,6 +546,7 @@ model ScoutApplicationRequirement {
   plannedStartDate DateTime? @db.Date
   plannedEndDate   DateTime? @db.Date
 
+  createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
 
   attachments Attachment[]         @relation("ScoutReqAttachment")
@@ -548,7 +567,7 @@ model Attachment {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppAttachment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppAttachment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
 
   instructorRequirementUuid String?                           @db.Uuid
@@ -571,6 +590,8 @@ model Attachment {
   checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
 
   uploadedAt DateTime @default(now()) @db.Timestamptz
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
 }
 
 // =============================================================================
@@ -584,7 +605,7 @@ model ApplicationComment {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppComment", fields: [instructorApplicationUuid], references: [uuid], onDelete: Cascade)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppComment", fields: [scoutApplicationUuid], references: [uuid], onDelete: Cascade)
 
   // === Polymorphic: requirement ===
@@ -600,6 +621,7 @@ model ApplicationComment {
   author     User   @relation(fields: [authorUuid], references: [uuid], onDelete: Restrict)
 
   createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
 
   @@index([instructorApplicationUuid, createdAt(sort: Desc)])
   @@index([scoutApplicationUuid, createdAt(sort: Desc)])
@@ -646,6 +668,9 @@ model MeetingSlot {
   endTime   DateTime @db.Timestamptz
   sortOrder Int
 
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
   registrations MeetingRegistration[]
 
   @@index([meetingUuid, sortOrder])
@@ -661,7 +686,7 @@ model MeetingRegistration {
   instructorApplicationUuid String?                @db.Uuid
   instructorApplication     InstructorApplication? @relation("InstructorAppRegistration", fields: [instructorApplicationUuid], references: [uuid], onDelete: Restrict)
 
-  scoutApplicationUuid String?          @db.Uuid
+  scoutApplicationUuid String?           @db.Uuid
   scoutApplication     ScoutApplication? @relation("ScoutAppRegistration", fields: [scoutApplicationUuid], references: [uuid], onDelete: Restrict)
 
   candidateUuid String @db.Uuid
@@ -712,6 +737,7 @@ model CommissionDocument {
   checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
 
   uploadedAt DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
 
   @@index([meetingUuid])
   @@index([documentType])

@@ -664,4 +664,4 @@ CREATE INDEX "Attachment_instructorRequirementUuid_not_null_idx"
 
 CREATE INDEX "Attachment_scoutRequirementUuid_not_null_idx"
   ON "Attachment" ("scoutRequirementUuid")
-  WHERE "scoutRequirementUuid" IS NOT NULL;
+65
