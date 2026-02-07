@@ -40,16 +40,19 @@ CREATE TYPE "CommissionRole" AS ENUM ('CHAIRMAN', 'SECRETARY', 'MEMBER');
 -- CreateEnum
 CREATE TYPE "DegreeType" AS ENUM ('INSTRUCTOR', 'SCOUT');
 
+-- CreateEnum
+CREATE TYPE "Status" AS ENUM ('ACTIVE', 'INACTIVE', 'ARCHIVED', 'PENDING_DELETION');
+
 -- CreateTable
 CREATE TABLE "User" (
     "uuid" UUID NOT NULL,
     "keycloakUuid" UUID NOT NULL,
-    "firstName" VARCHAR(32) NOT NULL,
+    "firstName" VARCHAR(32),
     "secondName" VARCHAR(32),
-    "surname" VARCHAR(32) NOT NULL,
-    "email" VARCHAR(320) NOT NULL,
-    "phone" VARCHAR(16) NOT NULL,
-    "birthDate" DATE NOT NULL,
+    "surname" VARCHAR(32),
+    "email" VARCHAR(320),
+    "phone" VARCHAR(16),
+    "birthDate" DATE,
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "hufiecCode" VARCHAR(32),
     "druzynaCode" VARCHAR(32),
@@ -62,7 +65,7 @@ CREATE TABLE "User" (
     "oathDate" DATE,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ NOT NULL,
-    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("uuid")
 );
@@ -70,12 +73,13 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "ScoutUnit" (
     "uuid" UUID NOT NULL,
-    "code" VARCHAR(32) NOT NULL,
-    "name" VARCHAR(128) NOT NULL,
-    "type" "UnitType" NOT NULL,
+    "code" VARCHAR(32),
+    "name" VARCHAR(128),
+    "type" "UnitType",
     "parentHufiecCode" VARCHAR(32),
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ NOT NULL,
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
 
     CONSTRAINT "ScoutUnit_pkey" PRIMARY KEY ("uuid")
 );
@@ -83,9 +87,9 @@ CREATE TABLE "ScoutUnit" (
 -- CreateTable
 CREATE TABLE "Commission" (
     "uuid" UUID NOT NULL,
-    "name" VARCHAR(128) NOT NULL,
-    "type" "CommissionType" NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "name" VARCHAR(128),
+    "type" "CommissionType",
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ NOT NULL,
 
@@ -100,6 +104,7 @@ CREATE TABLE "CommissionMember" (
     "role" "CommissionRole" NOT NULL DEFAULT 'MEMBER',
     "joinedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "leftAt" TIMESTAMPTZ,
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
 
     CONSTRAINT "CommissionMember_pkey" PRIMARY KEY ("uuid")
 );
@@ -110,9 +115,10 @@ CREATE TABLE "RequirementTemplate" (
     "degreeType" "DegreeType" NOT NULL,
     "degreeCode" VARCHAR(32) NOT NULL,
     "version" INTEGER NOT NULL DEFAULT 1,
-    "isActive" BOOLEAN NOT NULL DEFAULT false,
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
     "name" VARCHAR(128),
     "description" TEXT,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "RequirementTemplate_pkey" PRIMARY KEY ("uuid")
@@ -127,6 +133,8 @@ CREATE TABLE "RequirementDefinition" (
     "isGroup" BOOLEAN NOT NULL DEFAULT false,
     "sortOrder" INTEGER NOT NULL,
     "parentId" UUID,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "RequirementDefinition_pkey" PRIMARY KEY ("uuid")
 );
@@ -183,6 +191,8 @@ CREATE TABLE "InstructorApplicationSnapshot" (
     "hufiecCodeAtSubmit" VARCHAR(32),
     "druzynaCodeAtSubmit" VARCHAR(32),
     "statusAtSubmit" "ApplicationStatus" NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "InstructorApplicationSnapshot_pkey" PRIMARY KEY ("uuid")
 );
@@ -195,6 +205,7 @@ CREATE TABLE "InstructorApplicationRequirement" (
     "state" "RequirementState" NOT NULL,
     "actionDescription" TEXT NOT NULL,
     "verificationText" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "InstructorApplicationRequirement_pkey" PRIMARY KEY ("uuid")
@@ -244,6 +255,8 @@ CREATE TABLE "ScoutApplicationSnapshot" (
     "hufiecCodeAtSubmit" VARCHAR(32),
     "druzynaCodeAtSubmit" VARCHAR(32),
     "statusAtSubmit" "ApplicationStatus" NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "ScoutApplicationSnapshot_pkey" PRIMARY KEY ("uuid")
 );
@@ -259,6 +272,7 @@ CREATE TABLE "ScoutApplicationRequirement" (
     "verificationText" TEXT,
     "plannedStartDate" DATE,
     "plannedEndDate" DATE,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "ScoutApplicationRequirement_pkey" PRIMARY KEY ("uuid")
@@ -278,6 +292,8 @@ CREATE TABLE "Attachment" (
     "checksum" VARCHAR(128),
     "checksumAlgorithm" VARCHAR(16) DEFAULT 'SHA256',
     "uploadedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "Status" NOT NULL DEFAULT 'ACTIVE',
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "Attachment_pkey" PRIMARY KEY ("uuid")
 );
@@ -292,6 +308,7 @@ CREATE TABLE "ApplicationComment" (
     "body" TEXT NOT NULL,
     "authorUuid" UUID NOT NULL,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "ApplicationComment_pkey" PRIMARY KEY ("uuid")
 );
@@ -318,6 +335,8 @@ CREATE TABLE "MeetingSlot" (
     "startTime" TIMESTAMPTZ NOT NULL,
     "endTime" TIMESTAMPTZ NOT NULL,
     "sortOrder" INTEGER NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "MeetingSlot_pkey" PRIMARY KEY ("uuid")
 );
@@ -352,6 +371,7 @@ CREATE TABLE "CommissionDocument" (
     "checksum" VARCHAR(128),
     "checksumAlgorithm" VARCHAR(16) DEFAULT 'SHA256',
     "uploadedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT "CommissionDocument_pkey" PRIMARY KEY ("uuid")
 );
@@ -375,7 +395,7 @@ CREATE INDEX "User_email_idx" ON "User"("email");
 CREATE INDEX "User_keycloakUuid_idx" ON "User"("keycloakUuid");
 
 -- CreateIndex
-CREATE INDEX "User_isDeleted_idx" ON "User"("isDeleted");
+CREATE INDEX "User_status_idx" ON "User"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ScoutUnit_code_key" ON "ScoutUnit"("code");
@@ -387,7 +407,7 @@ CREATE INDEX "ScoutUnit_type_idx" ON "ScoutUnit"("type");
 CREATE INDEX "ScoutUnit_parentHufiecCode_idx" ON "ScoutUnit"("parentHufiecCode");
 
 -- CreateIndex
-CREATE INDEX "Commission_type_isActive_idx" ON "Commission"("type", "isActive");
+CREATE INDEX "Commission_type_status_idx" ON "Commission"("type", "status");
 
 -- CreateIndex
 CREATE INDEX "CommissionMember_userUuid_idx" ON "CommissionMember"("userUuid");
@@ -399,7 +419,7 @@ CREATE INDEX "CommissionMember_commissionUuid_idx" ON "CommissionMember"("commis
 CREATE UNIQUE INDEX "CommissionMember_commissionUuid_userUuid_key" ON "CommissionMember"("commissionUuid", "userUuid");
 
 -- CreateIndex
-CREATE INDEX "RequirementTemplate_degreeType_degreeCode_isActive_idx" ON "RequirementTemplate"("degreeType", "degreeCode", "isActive");
+CREATE INDEX "RequirementTemplate_degreeType_degreeCode_status_idx" ON "RequirementTemplate"("degreeType", "degreeCode", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RequirementTemplate_degreeType_degreeCode_version_key" ON "RequirementTemplate"("degreeType", "degreeCode", "version");
@@ -649,19 +669,3 @@ ALTER TABLE "CommissionDocument" ADD CONSTRAINT "CommissionDocument_uploadedByUu
 
 -- AddForeignKey
 ALTER TABLE "CommissionDocument" ADD CONSTRAINT "CommissionDocument_meetingUuid_fkey" FOREIGN KEY ("meetingUuid") REFERENCES "CommissionMeeting"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
-
-CREATE INDEX "Attachment_instructorApplicationUuid_not_null_idx"
-  ON "Attachment" ("instructorApplicationUuid")
-  WHERE "instructorApplicationUuid" IS NOT NULL;
-
-CREATE INDEX "Attachment_scoutApplicationUuid_not_null_idx"
-  ON "Attachment" ("scoutApplicationUuid")
-  WHERE "scoutApplicationUuid" IS NOT NULL;
-
-CREATE INDEX "Attachment_instructorRequirementUuid_not_null_idx"
-  ON "Attachment" ("instructorRequirementUuid")
-  WHERE "instructorRequirementUuid" IS NOT NULL;
-
-CREATE INDEX "Attachment_scoutRequirementUuid_not_null_idx"
-  ON "Attachment" ("scoutRequirementUuid")
-65

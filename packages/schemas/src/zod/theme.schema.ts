@@ -3,11 +3,14 @@ import { z } from "zod";
 
 export const uiThemeSchema = z.enum([
   "main",
-  "danger",
-  "warning",
+  "primary",
+  "secondary",
   "success",
   "info",
-  "secondary",
+  "warning",
+  "danger",
+  "light",
+  "dark",
 ]);
 
 export type UITheme = z.infer<typeof uiThemeSchema>;

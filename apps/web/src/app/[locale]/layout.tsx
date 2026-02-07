@@ -43,7 +43,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} data-theme="dark" data-contrast="normal">
+    <html lang={locale} data-theme={theme} data-contrast={contrast}>
       <body className='flex min-h-screen flex-col'>
         <NextIntlClientProvider messages={messages}>
           <Navbar />
