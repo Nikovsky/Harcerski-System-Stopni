@@ -8,6 +8,6 @@ type Props = ComponentPropsWithoutRef<"button"> & {
   theme?: UITheme;
 };
 
-export function Button({ theme = "main", className = "", ...rest }: Props) {
+export function Button({ theme = "main", className = "px-10 py-2 border border-border", ...rest }: Props) {
   return <button {...rest} className={`ui-theme ui-theme-${theme} ${className}`.trim()} />;
 }
