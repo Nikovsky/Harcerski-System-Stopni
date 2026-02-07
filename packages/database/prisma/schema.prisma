@@ -198,6 +198,7 @@ model ScoutUnit {
   // Timestamps
   createdAt        DateTime    @default(now()) @db.Timestamptz
   updatedAt        DateTime    @updatedAt @db.Timestamptz
+  status           Status      @default(ACTIVE)
 
   @@index([type])
   @@index([parentHufiecCode])
@@ -211,7 +212,7 @@ model Commission {
   uuid      String              @id @default(uuid()) @db.Uuid
   name      String?             @db.VarChar(128)
   type      CommissionType?
-  isActive  Boolean             @default(true)
+  status    Status              @default(ACTIVE)
   // Timestamps
   createdAt DateTime            @default(now()) @db.Timestamptz
   updatedAt DateTime            @updatedAt @db.Timestamptz
@@ -219,7 +220,7 @@ model Commission {
   members   CommissionMember[]
   meetings  CommissionMeeting[]
 
-  @@index([type, isActive])
+  @@index([type, status])
 }
 
 model CommissionMember {
@@ -231,6 +232,7 @@ model CommissionMember {
   role           CommissionRole @default(MEMBER)
   joinedAt       DateTime       @default(now()) @db.Timestamptz
   leftAt         DateTime?      @db.Timestamptz
+  status         Status         @default(ACTIVE)
 
   @@unique([commissionUuid, userUuid])
   @@index([userUuid])
@@ -246,7 +248,7 @@ model RequirementTemplate {
   degreeType  DegreeType
   degreeCode  String     @db.VarChar(32)
   version     Int        @default(1)
-  isActive    Boolean    @default(false)
+  status      Status     @default(ACTIVE)
   name        String?    @db.VarChar(128)
   description String?    @db.Text
   // Timestamps
@@ -259,7 +261,7 @@ model RequirementTemplate {
   scoutApplications      ScoutApplication[]
 
   @@unique([degreeType, degreeCode, version])
-  @@index([degreeType, degreeCode, isActive])
+  @@index([degreeType, degreeCode, status])
 }
 
 model RequirementDefinition {
@@ -558,7 +560,7 @@ model Attachment {
   checksumAlgorithm String? @default("SHA256") @db.VarChar(16)
 
   uploadedAt DateTime @default(now()) @db.Timestamptz
-  createdAt  DateTime @default(now()) @db.Timestamptz
+  status     Status   @default(ACTIVE)
   updatedAt  DateTime @updatedAt @db.Timestamptz
 }
 
