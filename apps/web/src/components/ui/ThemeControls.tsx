@@ -3,48 +3,53 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { MoonStars, Sun, CircleHalf } from "react-bootstrap-icons";
+import { MoonStars, Sun } from "react-bootstrap-icons";
 
 type AppTheme = "dark" | "light";
-type Contrast = "normal" | "high";
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function getCookie(name: string): string | null {
-  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  const m = document.cookie.match(
+    new RegExp(`(?:^|; )${escapeRegExp(name)}=([^;]*)`)
+  );
   return m ? decodeURIComponent(m[1]) : null;
 }
 
 function setCookie(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=31536000; Path=/; SameSite=Lax`;
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:";
+  document.cookie =
+    `${name}=${encodeURIComponent(value)}; ` +
+    `Max-Age=31536000; Path=/; SameSite=Lax` +
+    (secure ? "; Secure" : "");
+}
+
+function resolveInitialTheme(): AppTheme {
+  const root = document.documentElement;
+
+  const cookieTheme = getCookie("ui_theme") as AppTheme | null;
+  if (cookieTheme === "light" || cookieTheme === "dark") return cookieTheme;
+
+  const dataTheme = root.dataset.theme as AppTheme | undefined;
+  if (dataTheme === "light" || dataTheme === "dark") return dataTheme;
+
+  // optional fallback: system preference (only if nothing else is set)
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function ThemeControls() {
-  const [theme, setTheme] = useState<AppTheme>("dark");
-  const [contrast, setContrast] = useState<Contrast>("normal");
+  // keep default consistent with SSR fallback (layout.tsx -> "light" when missing cookie)
+  const [theme, setTheme] = useState<AppTheme>("light");
 
-  const label = useMemo(() => {
-    const t = theme === "dark" ? "Dark" : "Light";
-    const c = contrast === "high" ? "HC: On" : "HC: Off";
-    return `${t} • ${c}`;
-  }, [theme, contrast]);
+  const label = useMemo(() => (theme === "dark" ? "Dark" : "Light"), [theme]);
 
   useEffect(() => {
-    const root = document.documentElement;
-
-    const cookieTheme =
-      (getCookie("ui_theme") as AppTheme | null) ??
-      (root.dataset.theme as AppTheme | undefined) ??
-      "dark";
-
-    const cookieContrast =
-      (getCookie("ui_contrast") as Contrast | null) ??
-      (root.dataset.contrast as Contrast | undefined) ??
-      "normal";
-
-    root.dataset.theme = cookieTheme;
-    root.dataset.contrast = cookieContrast;
-
-    setTheme(cookieTheme);
-    setContrast(cookieContrast);
+    const initial = resolveInitialTheme();
+    document.documentElement.dataset.theme = initial;
+    setCookie("ui_theme", initial);
+    setTheme(initial);
   }, []);
 
   function toggleTheme() {
@@ -54,42 +59,23 @@ export function ThemeControls() {
     setTheme(next);
   }
 
-  function toggleContrast() {
-    const next: Contrast = contrast === "high" ? "normal" : "high";
-    document.documentElement.dataset.contrast = next;
-    setCookie("ui_contrast", next);
-    setContrast(next);
-  }
-
   // show "what you switch to"
   const ThemeIcon = theme === "dark" ? Sun : MoonStars;
+  const nextLabel = theme === "dark" ? "Light" : "Dark";
 
   return (
     <div className="flex items-center gap-2">
       <span className="hidden text-xs text-foreground/70 md:inline">{label}</span>
 
       <Button
-        theme="secondary"
         onClick={toggleTheme}
-        className="rounded border border-border px-3 py-1.5 text-sm inline-flex items-center gap-2"
+        className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm"
         type="button"
-        aria-label="Toggle theme"
-        title="Toggle theme"
+        aria-label={`Switch to ${nextLabel} theme`}
+        title={`Switch to ${nextLabel} theme`}
       >
         <ThemeIcon size={16} />
         Theme
-      </Button>
-
-      <Button
-        theme="warning"
-        onClick={toggleContrast}
-        className="rounded border border-border px-3 py-1.5 text-sm inline-flex items-center gap-2"
-        type="button"
-        aria-label="Toggle high contrast"
-        title="Toggle high contrast"
-      >
-        <CircleHalf size={16} />
-        Contrast
       </Button>
     </div>
   );

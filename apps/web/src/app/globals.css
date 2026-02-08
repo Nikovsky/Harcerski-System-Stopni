@@ -1,380 +1,76 @@
 /* @file: apps/web/src/app/globals.css */
 
 @import "tailwindcss";
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css" layer(utilities);
 
-/* Tailwind v4 theme bridge (optional) */
+/* Tailwind v4 theme tokens (optional bridge) */
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-border: hsl(var(--border));
-
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-fg));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-fg));
-
-  --color-success: hsl(var(--success));
-  --color-success-foreground: hsl(var(--success-fg));
-  --color-warning: hsl(var(--warning));
-  --color-warning-foreground: hsl(var(--warning-fg));
-  --color-danger: hsl(var(--danger));
-  --color-danger-foreground: hsl(var(--danger-fg));
-  --color-info: hsl(var(--info));
-  --color-info-foreground: hsl(var(--info-fg));
-
-  --color-light: hsl(var(--light));
-  --color-light-foreground: hsl(var(--light-fg));
-  --color-dark: hsl(var(--dark));
-  --color-dark-foreground: hsl(var(--dark-fg));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-ring: hsl(var(--ring));
 }
 
 /* ===================== */
-/* TOKENS (HSL triplets) */
+/* LIGHT (default)       */
 /* ===================== */
 :root {
-  /* page background: slightly grey (so components stand out) */
+  color-scheme: light;
+
+  /* page */
   --background: 210 40% 98%;
-  /* ~ slate-100 */
-
-  /* surface: white (used by main) */
-  --surface: 0 0% 90%;
-  --surface-hover: 210 40% 91%;
-  /* light hover */
-  --surface-active: 210 40% 89%;
-  /* pressed */
-
   --foreground: 222 47% 11%;
+
+  /* surfaces */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  /* subtle UI */
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  /* borders */
   --border: 214 32% 91%;
 
-  /* UI sizing */
-  --ui-border-width: 1px;
-  --ui-ring-width: 2px;
-  --ui-ring-offset: 2px;
+  /* accent (primary) */
+  --accent: 216 98% 52%;
+  --accent-foreground: 0 0% 100%;
 
-  /* Bootstrap 5.3 theme colors (base) */
-  --primary: 216 98% 52%;
-  /* #0d6efd */
-  --primary-fg: 0 0% 100%;
-  --primary-hover: 216 90% 47%;
-  --primary-active: 216 90% 42%;
-
-  --secondary: 208 7% 46%;
-  /* #6c757d */
-  --secondary-fg: 0 0% 100%;
-  --secondary-hover: 208 7% 41%;
-  --secondary-active: 208 7% 36%;
-
-  --success: 152 69% 31%;
-  /* #198754 */
-  --success-fg: 0 0% 100%;
-  --success-hover: 152 69% 28%;
-  --success-active: 152 69% 24%;
-
-  --info: 190 90% 50%;
-  /* #0dcaf0 */
-  --info-fg: 0 0% 0%;
-  --info-hover: 190 89% 45%;
-  --info-active: 190 89% 39%;
-
-  --warning: 45 100% 51%;
-  /* #ffc107 */
-  --warning-fg: 0 0% 0%;
-  --warning-hover: 45 95% 46%;
-  --warning-active: 45 95% 41%;
-
-  --danger: 354 70% 54%;
-  /* #dc3545 */
-  --danger-fg: 0 0% 100%;
-  --danger-hover: 354 61% 48%;
-  --danger-active: 354 61% 42%;
-
-  /* Bootstrap theme-colors: light + dark (accent colors, not app mode) */
-  --light: 210 17% 98%;
-  /* #f8f9fa */
-  --light-fg: 222 47% 11%;
-  /* readable dark text */
-  --light-hover: 210 17% 95%;
-  --light-active: 210 17% 92%;
-
-  --dark: 210 11% 15%;
-  /* #212529 */
-  --dark-fg: 0 0% 100%;
-  --dark-hover: 210 11% 12%;
-  --dark-active: 210 11% 10%;
-
-  /* enum "main" => neutral/surface */
-  --main: var(--surface);
-  --main-fg: var(--foreground);
-  --main-hover: var(--surface-hover);
-  --main-active: var(--surface-active);
-
-  /* optional shadow similar to #11111111 */
-  --shadow-rgb: 17 17 17;
-  --shadow-alpha: 0.067;
+  /* focus ring */
+  --ring: 216 98% 52%;
 }
 
-/* App dark mode (surfaces only) */
+/* ===================== */
+/* DARK                  */
+/* ===================== */
 [data-theme="dark"] {
+  color-scheme: dark;
+
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
+
+  --card: 217 19% 16%;
+  --card-foreground: 210 40% 98%;
+
+  --muted: 217 19% 20%;
+  --muted-foreground: 215 20% 65%;
+
   --border: 217 19% 27%;
 
-  --surface: 217 19% 18%;
-  --surface-hover: 217 19% 22%;
-  --surface-active: 217 19% 15%;
+  --accent: 216 98% 60%;
+  --accent-foreground: 222 47% 11%;
+
+  --ring: 216 98% 60%;
 }
 
-/* High contrast: thicker border/ring + stronger contour color */
-[data-contrast="high"] {
-  --ui-border-width: 2px;
-  --ui-ring-width: 3px;
-}
-
-/* high-contrast contour */
-[data-theme="light"][data-contrast="high"] {
-  --border: 0 0% 10%;
-}
-
-[data-theme="dark"][data-contrast="high"] {
-  --border: 0 0% 92%;
-}
-
-/* Optional: bold ONLY for interactive UI */
-[data-contrast="high"] .ui-theme {
-  font-weight: 700;
-}
-
-/* App LIGHT: dark text + dark border (classic Bootstrap outline-dark) */
-[data-theme="light"] .ui-theme-dark.ui-outline {
-  --ui-outline-bd: var(--dark);
-  --ui-outline-fg: var(--dark);
-  /* <- ciemny tekst, widoczny na jasnym tle */
-  --ui-outline-hover-bg: var(--dark-hover);
-  --ui-outline-active-bg: var(--dark-active);
-}
-
-/* App DARK: light text + light border (so it doesn't disappear) */
-[data-theme="dark"] .ui-theme-dark.ui-outline {
-  --ui-outline-bd: 0 0% 85%;
-  /* jaśniejszy kontur niż --border */
-  --ui-outline-fg: 0 0% 95%;
-  /* jasny tekst */
-  --ui-outline-hover-bg: var(--dark-hover);
-  --ui-outline-active-bg: var(--dark-active);
-}
-
-/* Base page */
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-/* ============================ */
-/* THEME APPLIER + VARIANTS     */
-/* ============================ */
-@layer components {
-
-  /* REQUIRED: base .ui-theme (you were missing it) */
-  .ui-theme {
-    /* safe defaults (even if variant missing) */
-    --ui-bg: var(--surface);
-    --ui-fg: var(--foreground);
-    --ui-bd: var(--border);
-    --ui-hover: var(--surface-hover);
-    --ui-active: var(--surface-active);
-    --ui-ring: var(--foreground);
-
-    background-color: hsl(var(--ui-bg));
-    color: hsl(var(--ui-fg));
-    border-color: hsl(var(--ui-bd));
-  }
-
-  /* hover/active with optional separate border shades */
-  .ui-theme:hover {
-    background-color: hsl(var(--ui-hover));
-    border-color: hsl(var(--ui-bd-hover, var(--ui-bd)));
-  }
-
-  .ui-theme:active {
-    background-color: hsl(var(--ui-active));
-    border-color: hsl(var(--ui-bd-active, var(--ui-bd)));
-  }
-
-  /* High contrast: keep fill, force neutral contour border */
-  [data-contrast="high"] .ui-theme {
-    --ui-bd: var(--border);
-    border-color: hsl(var(--ui-bd));
-  }
-
-  /* --------- Variants (UITheme enum) --------- */
-
-  /* main = neutral surface */
-  .ui-theme-main {
-    --ui-bg: var(--main);
-    --ui-fg: var(--main-fg);
-    --ui-bd: var(--border);
-    --ui-hover: var(--main-hover);
-    --ui-active: var(--main-active);
-    --ui-ring: var(--foreground);
-  }
-
-  .ui-theme-primary {
-    --ui-bg: var(--primary);
-    --ui-fg: var(--primary-fg);
-    --ui-bd: var(--primary);
-    --ui-hover: var(--primary-hover);
-    --ui-active: var(--primary-active);
-    --ui-bd-hover: var(--primary-hover);
-    --ui-bd-active: var(--primary-active);
-    --ui-ring: var(--primary);
-  }
-
-  .ui-theme-secondary {
-    --ui-bg: var(--secondary);
-    --ui-fg: var(--secondary-fg);
-    --ui-bd: var(--secondary);
-    --ui-hover: var(--secondary-hover);
-    --ui-active: var(--secondary-active);
-    --ui-bd-hover: var(--secondary-hover);
-    --ui-bd-active: var(--secondary-active);
-    --ui-ring: var(--secondary);
-  }
-
-  .ui-theme-success {
-    --ui-bg: var(--success);
-    --ui-fg: var(--success-fg);
-    --ui-bd: var(--success);
-    --ui-hover: var(--success-hover);
-    --ui-active: var(--success-active);
-    --ui-bd-hover: var(--success-hover);
-    --ui-bd-active: var(--success-active);
-    --ui-ring: var(--success);
-  }
-
-  .ui-theme-info {
-    --ui-bg: var(--info);
-    --ui-fg: var(--info-fg);
-    --ui-bd: var(--info);
-    --ui-hover: var(--info-hover);
-    --ui-active: var(--info-active);
-    --ui-bd-hover: var(--info-hover);
-    --ui-bd-active: var(--info-active);
-    --ui-ring: var(--info);
-  }
-
-  .ui-theme-warning {
-    --ui-bg: var(--warning);
-    --ui-fg: var(--warning-fg);
-    --ui-bd: var(--warning);
-    --ui-hover: var(--warning-hover);
-    --ui-active: var(--warning-active);
-    --ui-bd-hover: var(--warning-hover);
-    --ui-bd-active: var(--warning-active);
-    --ui-ring: var(--warning);
-  }
-
-  .ui-theme-danger {
-    --ui-bg: var(--danger);
-    --ui-fg: var(--danger-fg);
-    --ui-bd: var(--danger);
-    --ui-hover: var(--danger-hover);
-    --ui-active: var(--danger-active);
-    --ui-bd-hover: var(--danger-hover);
-    --ui-bd-active: var(--danger-active);
-    --ui-ring: var(--danger);
-  }
-
-  /* Bootstrap theme-colors: light + dark (button accents) */
-  .ui-theme-light {
-    --ui-bg: var(--light);
-    --ui-fg: var(--light-fg);
-    --ui-bd: var(--border);
-    /* nicer contour */
-    --ui-hover: var(--light-hover);
-    --ui-active: var(--light-active);
-    --ui-ring: var(--foreground);
-  }
-
-  .ui-theme-dark {
-    --ui-bg: var(--dark);
-    --ui-fg: var(--dark-fg);
-    --ui-bd: var(--dark);
-    --ui-hover: var(--dark-hover);
-    --ui-active: var(--dark-active);
-    --ui-bd-hover: var(--dark-hover);
-    --ui-bd-active: var(--dark-active);
-    --ui-ring: var(--dark);
-  }
-
-  /* utility */
-  .ui-elevated {
-    box-shadow: 0 1px 2px rgb(var(--shadow-rgb) / var(--shadow-alpha));
-  }
-
-  .ui-outline {
-    --ui-outline-bd: var(--border);
-    --ui-outline-fg: var(--foreground);
-    --ui-outline-hover-bg: var(--surface-hover);
-    --ui-outline-active-bg: var(--surface-active);
-  }
-
-  /* Make outline match each theme */
-  .ui-theme-primary.ui-outline {
-    --ui-outline-bd: var(--primary);
-    --ui-outline-fg: var(--primary);
-    --ui-outline-hover-bg: var(--primary-hover);
-    --ui-outline-active-bg: var(--primary-active);
-  }
-
-  .ui-theme-secondary.ui-outline {
-    --ui-outline-bd: var(--secondary);
-    --ui-outline-fg: var(--secondary);
-    --ui-outline-hover-bg: var(--secondary-hover);
-    --ui-outline-active-bg: var(--secondary-active);
-  }
-
-  .ui-theme-success.ui-outline {
-    --ui-outline-bd: var(--success);
-    --ui-outline-fg: var(--success);
-    --ui-outline-hover-bg: var(--success-hover);
-    --ui-outline-active-bg: var(--success-active);
-  }
-
-  .ui-theme-info.ui-outline {
-    --ui-outline-bd: var(--info);
-    --ui-outline-fg: var(--info);
-    --ui-outline-hover-bg: var(--info-hover);
-    --ui-outline-active-bg: var(--info-active);
-  }
-
-  .ui-theme-warning.ui-outline {
-    --ui-outline-bd: var(--warning);
-    --ui-outline-fg: var(--warning);
-    --ui-outline-hover-bg: var(--warning-hover);
-    --ui-outline-active-bg: var(--warning-active);
-  }
-
-  .ui-theme-danger.ui-outline {
-    --ui-outline-bd: var(--danger);
-    --ui-outline-fg: var(--danger);
-    --ui-outline-hover-bg: var(--danger-hover);
-    --ui-outline-active-bg: var(--danger-active);
-  }
-
-  .ui-theme-dark.ui-outline {
-    --ui-outline-bd: var(--dark);
-    --ui-outline-fg: var(--dark);
-    --ui-outline-hover-bg: var(--dark-hover);
-    --ui-outline-active-bg: var(--dark-active);
-  }
-
-  /* When hovering/active over colored bg, keep label readable */
-  .ui-outline:hover,
-  .ui-outline:active {
-    color: hsl(var(--ui-fg));
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
