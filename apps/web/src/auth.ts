@@ -13,31 +13,27 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id_token?: string;
-    access_token?: string;
+    // access_token?: string;
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
+  // debug: process.env.NODE_ENV === "development",
   providers: [
     Keycloak({
       issuer: process.env.AUTH_KEYCLOAK_ISSUER!,
       clientId: process.env.AUTH_KEYCLOAK_ID!,
       clientSecret: process.env.AUTH_KEYCLOAK_SECRET!,
+      authorization: { params: { scope: "openid profile email" } },
     }),
   ],
-  // callbacks: {
-  //   async jwt({ token, account }) {
-  //     if (account) {
-  //       // available on initial sign-in
-  //       token.id_token = account.id_token;
-  //       token.access_token = account.access_token;
-  //     }
-  //     return token;
-  //   },
-  //   async session({ session, token }) {
-  //     session.idToken = token.id_token as string | undefined;
-  //     session.accessToken = token.access_token as string | undefined;
-  //     return session;
-  //   },
-  // },
+  callbacks: {
+    async jwt({ token, account }) {
+      // keep id_token server-side (useful for Keycloak logout hint)
+      if (account?.id_token) token.idToken = account.id_token;
+      return token;
+    },
+  },
 })

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "cross-env NODE_EXTRA_CA_CERTS=..\\..\\docker\\certs\\rootCA.pem next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -11,7 +11,7 @@
   "dependencies": {
     "@hss/schemas": "workspace:*",
     "next": "16.1.6",
-    "next-auth": "^4.24.13",
+    "next-auth": "5.0.0-beta.30",
     "next-intl": "^4.8.1",
     "react": "19.2.3",
     "react-bootstrap-icons": "^1.11.6",

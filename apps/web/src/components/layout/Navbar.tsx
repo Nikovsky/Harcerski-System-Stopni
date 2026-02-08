@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ThemeControls } from "@/components/ui/ThemeControls";
+import { AuthNav } from "@/components/ui/AuthNav";
 
 type NavItem = { label: string; href: string };
 
@@ -35,7 +36,9 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <ThemeControls />
+          <AuthNav />
         </div>
+
       </div>
 
       {/* Mobile nav (simple) */}

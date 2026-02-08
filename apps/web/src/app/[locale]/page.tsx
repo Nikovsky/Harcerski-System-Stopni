@@ -7,7 +7,7 @@ export default function Page() {
       <div className="p-6">
         <Button>Click me</Button>
         <br />
-        <Button colorClass="bg-red-600 text-white border-red-700">
+        <Button colorClass="bg-green-600 text-white border-green-700">
           Deploy
         </Button>
       </div>

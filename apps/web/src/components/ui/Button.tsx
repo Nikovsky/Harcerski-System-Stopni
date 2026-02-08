@@ -19,7 +19,7 @@ const BASE =
   [
     // layout
     "inline-flex items-center justify-center gap-2",
-    "h-10 px-4 rounded-md",
+    "h-8 px-2 rounded-md",
     "text-sm font-semibold whitespace-nowrap select-none",
 
     // border + shadow

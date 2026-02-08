@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "pnpm powershell:cls && (pnpm stack:is-running || pnpm stack:up) && turbo dev",
+    "dev": "pnpm powershell:cls && (pnpm stack:is-running || pnpm stack:up) && cross-env NODE_EXTRA_CA_CERTS=.\\docker\\certs\\rootCA.pem turbo dev",
     "start:warm": "pnpm dev",
     "start:cold": "pnpm install && pnpm stack:up && pnpm dev",
     "restart:project": "pnpm stack:down && pnpm clean && pnpm start:cold",
@@ -47,8 +47,9 @@
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
-    "turbo": "^2.8.0",
-    "dotenv": "^17.2.3"
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.2.3",
+    "turbo": "^2.8.0"
   },
   "dependencies": {
     "dotenv": "^17.2.3"
