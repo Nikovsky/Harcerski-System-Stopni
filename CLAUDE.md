@@ -35,16 +35,6 @@ All services run via `docker/docker-compose.yml`:
 - **PostgreSQL 18** - Two databases: `hss` (app) + `keycloak` (auth)
 - **MinIO** - S3-compatible storage at https://s3.hss.local, console at http://localhost:9001
 
-Host entries required in `C:\Windows\System32\drivers\etc\hosts`:
-```
-127.0.0.1 hss.local
-127.0.0.1 api.hss.local
-127.0.0.1 auth.hss.local
-127.0.0.1 authconsole.hss.local
-127.0.0.1 s3.hss.local
-127.0.0.1 s3console.hss.local
-```
-
 ### Database Architecture
 
 **Key design patterns:**
@@ -217,21 +207,6 @@ Key task dependencies (see `turbo.json`):
 - `@hss/database#dev` depends on `db:migrate`
 - `web#dev` and `api#dev` depend on `@hss/database#db:migrate` + `^build`
 - Database tasks have `cache: false` (always run fresh)
-
-## Environment Variables
-
-Environment files are gitignored (`.env*` except `.env.example`).
-
-**Required setup:**
-1. Create `docker/.env` from example files
-2. Set passwords for: POSTGRES, KEYCLOAK, MINIO
-3. Set Keycloak client secrets: `KEYCLOAK_HSS_WEB_CLIENT_SECRET`, `KEYCLOAK_HSS_API_CLIENT_SECRET`
-
-**Key environment variables:**
-- `DATABASE_URL` - Prisma connection string (PostgreSQL)
-- Next.js: See `apps/web/.env.example`
-- NestJS: See `apps/api/.env.example`
-- Docker: See `docker/.env.example`
 
 ## Important Notes
 
