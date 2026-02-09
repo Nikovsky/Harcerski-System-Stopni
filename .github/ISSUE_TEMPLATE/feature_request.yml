@@ -1,0 +1,104 @@
+name: Feature Request
+description: Propose a new feature for HSS
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Request Template
+        Use this template to propose new features for the HSS system.
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: "Format: As a [persona], I want to [action] so that [benefit]."
+      placeholder: "As a candidate, I want to upload attachments to my application so that I can provide evidence for requirements."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this feature to be considered complete
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-tasks
+    attributes:
+      label: Technical Tasks
+      description: Break down the implementation into technical tasks
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+        - [ ] Task 3
+    validations:
+      required: false
+
+  - type: textarea
+    id: api-endpoints
+    attributes:
+      label: API Endpoints (if applicable)
+      description: List any new or modified API endpoints
+      placeholder: |
+        - `POST /api/...` - Description
+        - `GET /api/...` - Description
+    validations:
+      required: false
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to Create/Modify
+      description: List the files that will need to be created or modified
+      placeholder: |
+        - `apps/api/src/...`
+        - `apps/web/src/...`
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any blocking or blocked issues
+      placeholder: |
+        - Blocks: #
+        - Blocked by: #
+    validations:
+      required: false
+
+  - type: dropdown
+    id: story-points
+    attributes:
+      label: Story Points
+      description: Estimate the complexity/effort
+      options:
+        - "1 (xs - trivial)"
+        - "2 (xs - simple)"
+        - "3 (s - small)"
+        - "5 (s - medium)"
+        - "8 (m - large)"
+        - "13 (l - very large)"
+        - "21+ (xl - needs breakdown)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: Check when complete
+      options:
+        - label: Code implemented and reviewed
+        - label: Unit tests passing
+        - label: Integration tests passing (if applicable)
+        - label: Documentation updated
+        - label: Deployed to dev and verified
