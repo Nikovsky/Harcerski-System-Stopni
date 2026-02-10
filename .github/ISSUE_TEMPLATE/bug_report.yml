@@ -1,0 +1,92 @@
+name: Bug Report
+description: Report a bug in HSS
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report Template
+        Use this template to report bugs in the HSS system.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Clear description of the bug
+      placeholder: What's wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the issue
+      placeholder: |
+        1. Step 1
+        2. Step 2
+        3. Step 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: Describe the expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: Describe what actually happens
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: "Format: Browser/OS, User role, Application version"
+      placeholder: "Chrome 120/Windows 11, Commission Member, v1.0.0"
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots/Logs
+      description: Attach screenshots or paste error logs
+      placeholder: Drag and drop images or paste logs here
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - "Critical (blocks usage)"
+        - "High (major feature broken)"
+        - "Medium (workaround exists)"
+        - "Low (cosmetic)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is the fix?
+      options:
+        - "Must fix for MVP"
+        - "Should fix soon"
+        - "Can wait"
+    validations:
+      required: true

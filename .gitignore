@@ -8,6 +8,8 @@
 !**/.yarn/releases
 !**/.yarn/versions
 
+**/scripts/github/
+
 # pnpm store (if ever created locally)
 **/.pnpm-store/
 
