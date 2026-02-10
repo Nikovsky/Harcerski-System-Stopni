@@ -1,19 +1,13 @@
 // @file: apps/web/src/auth.ts
-import NextAuth from "next-auth"
-import Keycloak from "next-auth/providers/keycloak"
+import NextAuth from "next-auth";
+import Keycloak from "next-auth/providers/keycloak";
 import "next-auth/jwt";
-
-// declare module "next-auth" {
-//   interface Session {
-//     idToken?: string;
-//     accessToken?: string;
-//   }
-// }
 
 declare module "next-auth/jwt" {
   interface JWT {
     idToken?: string;
-    // refreshToken?: string;
+    accessToken?: string;
+    accessTokenExpiresAt?: number; // ms epoch (optional, useful later)
   }
 }
 
@@ -21,7 +15,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
   trustHost: true,
   session: { strategy: "jwt" },
-  // debug: process.env.NODE_ENV === "development",
   providers: [
     Keycloak({
       issuer: process.env.AUTH_KEYCLOAK_ISSUER!,
@@ -32,11 +25,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account }) {
-      // keep id_token server-side (useful for Keycloak logout hint)
       if (account) {
-        token.idToken = account.id_token;
+        token.idToken = (account as any).id_token;
+        token.accessToken = (account as any).access_token;
+        token.accessTokenExpiresAt =
+          typeof (account as any).expires_at === "number"
+            ? (account as any).expires_at * 1000
+            : undefined;
       }
       return token;
     },
   },
-})
+});

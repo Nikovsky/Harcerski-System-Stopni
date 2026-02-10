@@ -33,11 +33,11 @@ export function SignOutButton() {
               </Button>
 
               {/* Full logout (Keycloak + Auth.js cookies cleanup) */}
-              <a href="/api/auth/logout">
-                <Button className="bg-red-500 text-white border-red-600" type="button">
+              <form method="post" action="/api/auth/logout">
+                <Button className="bg-red-500 text-white border-red-600" type="submit">
                   LOGOUT
                 </Button>
-              </a>
+              </form>
             </div>
           </div>
         </Popup>

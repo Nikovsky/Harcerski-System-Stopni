@@ -12,6 +12,8 @@ pnpm -C apps/api add @prisma/adapter-pg pg
 pnpm -C apps/api add @nestjs/config
 pnpm -C apps/api add zod
 pnpm -C apps/api add -D @nestjs/cli
+pnpm -C apps/api add @nestjs/passport passport passport-jwt jwks-rsa
+pnpm -C apps/api add -D @types/passport-jwt
 ```
 
 

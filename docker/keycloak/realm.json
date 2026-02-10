@@ -119,7 +119,20 @@
       ],
       "attributes": {
         "post.logout.redirect.uris": "https://hss.local/*"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "aud-hss-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "hss-web",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     },
     {
       "clientId": "hss-api",
