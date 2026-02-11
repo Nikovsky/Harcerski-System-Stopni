@@ -9,6 +9,7 @@
 !**/.yarn/versions
 
 **/scripts/github/
+**/docker/certs/
 
 # pnpm store (if ever created locally)
 **/.pnpm-store/
