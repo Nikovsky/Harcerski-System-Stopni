@@ -22,6 +22,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jw
       algorithms: ["RS256"],
       issuer: process.env.KEYCLOAK_ISSUER,
       audience: process.env.KEYCLOAK_AUDIENCE,
+      ignoreExpiration: false,
       secretOrKeyProvider: passportJwtSecret({
         cache: true,
         rateLimit: true,
@@ -32,6 +33,12 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jw
   }
 
   async validate(payload: KeycloakClaims) {
-    return payload;
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      preferredUsername: payload.preferred_username,
+      realmRoles: payload.realm_access?.roles ?? [],
+      clientRoles: payload.resource_access?.[process.env.KEYCLOAK_AUDIENCE!]?.roles ?? [],
+    };
   }
 }

@@ -22,25 +22,25 @@
   "roles": {
     "realm": [
       {
-        "name": "ROOT"
+        "name": "ROOT",
+        "composite": true,
+        "composites": { "realm": ["ADMIN"] }
       },
       {
         "name": "SYSTEM"
       },
       {
-        "name": "ADMIN"
-      },
-      {
-        "name": "COMMISSION_CHAIR"
-      },
-      {
-        "name": "COMMISSION_SECRETARY"
+        "name": "ADMIN",
+        "composite": true,
+        "composites": { "realm": ["COMMISSION_MEMBER", "SCOUT", "USER"] }
       },
       {
         "name": "COMMISSION_MEMBER"
       },
       {
-        "name": "SCOUT"
+        "name": "SCOUT",
+        "composite": true,
+        "composites": { "realm": ["USER"] }
       },
       {
         "name": "USER"
@@ -64,18 +64,6 @@
       "name": "commission-members",
       "realmRoles": [
         "COMMISSION_MEMBER"
-      ]
-    },
-    {
-      "name": "commission-secretaries",
-      "realmRoles": [
-        "COMMISSION_SECRETARY"
-      ]
-    },
-    {
-      "name": "commission-chairs",
-      "realmRoles": [
-        "COMMISSION_CHAIR"
       ]
     },
     {
@@ -118,7 +106,8 @@
         "https://hss.local"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "https://hss.local/*"
+        "post.logout.redirect.uris": "https://hss.local/*",
+        "pkce.code.challenge.method": "S256"
       },
       "protocolMappers": [
         {
@@ -127,9 +116,23 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "hss-web",
+            "included.client.audience": "hss-api",
             "access.token.claim": "true",
             "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
           }
         }
       ]
