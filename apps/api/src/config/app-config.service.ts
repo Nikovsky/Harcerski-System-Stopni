@@ -36,6 +36,8 @@ export class AppConfigService {
     if (list?.length) return list;
 
     const single = this.cfg.get("CORS_ORIGIN");
-    return single ? [single] : [];
+    return single
+      ? single.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
   }
 }
