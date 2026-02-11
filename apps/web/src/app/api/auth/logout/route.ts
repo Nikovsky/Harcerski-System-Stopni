@@ -19,82 +19,53 @@ function getPublicOrigin(req: NextRequest): string {
 }
 
 /**
- * Build a safe "returnTo" URL.
- * - Accepts absolute or relative values (we read it from query string).
- * - Enforces same-origin with the app base URL to prevent open redirects.
+ * Serialize a Set-Cookie header string that expires (deletes) the given cookie.
  */
-function safeReturnTo(raw: string | null, appUrl: string): string {
-  const fallback = `${appUrl}/`;
-  if (!raw) return fallback;
-
-  try {
-    const target = new URL(raw, appUrl);
-    const appOrigin = new URL(appUrl).origin;
-    return target.origin === appOrigin ? target.toString() : fallback;
-  } catch {
-    return fallback;
-  }
+function expireCookie(name: string, secure: boolean): string {
+  const parts = [
+    `${name}=`,
+    "Path=/",
+    "Max-Age=0",
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
 }
 
 /**
- * Clear Auth.js / NextAuth cookies.
- * Note: cookie names can differ between versions and deployments,
- * so we clear a known superset (safe no-op if a cookie doesn't exist).
+ * Prefixes that identify Auth.js / NextAuth cookies.
+ * NextAuth v5 uses chunked cookies for large JWTs — e.g.
+ * `__Secure-authjs.session-token.0`, `.1`, `.2`, etc.
+ * Matching by prefix catches both base names AND chunks.
  */
-function clearAuthCookies(res: NextResponse, opts: { secure: boolean }): void {
-  const common = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    path: "/",
-    secure: opts.secure,
-    maxAge: 0,
-  };
+const AUTH_COOKIE_PREFIXES = [
+  // Auth.js / NextAuth v5
+  "authjs.",
+  "__Secure-authjs.",
+  "__Host-authjs.",
+  // NextAuth v4 leftovers
+  "next-auth.",
+  "__Secure-next-auth.",
+  "__Host-next-auth.",
+];
 
-  const names = [
-    // Auth.js / NextAuth v5
-    "__Secure-authjs.session-token",
-    "authjs.session-token",
-    "__Host-authjs.session-token",
-
-    "__Host-authjs.csrf-token",
-    "__Secure-authjs.csrf-token",
-    "authjs.csrf-token",
-
-    "__Secure-authjs.callback-url",
-    "authjs.callback-url",
-    "__Host-authjs.callback-url",
-
-    "__Secure-authjs.pkce.code_verifier",
-    "authjs.pkce.code_verifier",
-
-    "__Secure-authjs.state",
-    "authjs.state",
-
-    "__Secure-authjs.nonce",
-    "authjs.nonce",
-
-    // NextAuth v4 leftovers (safe to clear)
-    "__Secure-next-auth.session-token",
-    "next-auth.session-token",
-
-    "__Host-next-auth.csrf-token",
-    "next-auth.csrf-token",
-
-    "__Secure-next-auth.callback-url",
-    "next-auth.callback-url",
-  ];
-
-  for (const name of names) {
-    res.cookies.set(name, "", common);
+/**
+ * Read cookie names from the request and return those matching auth prefixes.
+ * This dynamically catches chunked cookies (.0, .1, .2, …).
+ */
+function getAuthCookieNames(req: NextRequest): string[] {
+  const names: string[] = [];
+  for (const cookie of req.cookies.getAll()) {
+    if (AUTH_COOKIE_PREFIXES.some((p) => cookie.name.startsWith(p))) {
+      names.push(cookie.name);
+    }
   }
+  return names;
 }
 
 /**
  * Build the Keycloak end-session logout URL.
- *
- * We use front-channel logout to ensure the Keycloak SSO session is actually ended.
- * The `id_token_hint` parameter can suppress the Keycloak "Do you want to log out?" page
- * (depends on Keycloak settings / client configuration).
  */
 function buildKeycloakLogoutUrl(params: {
   issuer: string;
@@ -110,23 +81,26 @@ function buildKeycloakLogoutUrl(params: {
 }
 
 /**
+ * Escape HTML special characters to prevent XSS in the redirect URL.
+ */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
  * Logout flow (single route, two modes):
  *
- * 1) /api/auth/logout
- *    - Builds a safe returnTo URL (same-origin).
+ * 1) /api/auth/logout  (START)
  *    - Reads id_token from Auth.js JWT (server-side).
- *    - Redirects the browser to Keycloak end-session endpoint with:
- *        - client_id
- *        - id_token_hint (optional)
- *        - post_logout_redirect_uri => /api/auth/logout?mode=finish&returnTo=...
+ *    - Returns a 200 HTML page with Set-Cookie headers that clear all auth cookies.
+ *    - The HTML page immediately redirects (via meta refresh + JS) to Keycloak
+ *      end-session endpoint.
+ *    - Why HTML instead of 302: Next.js / NGINX may strip Set-Cookie headers
+ *      from redirect responses. A 200 response guarantees cookie processing.
  *
- * 2) /api/auth/logout?mode=finish&returnTo=...
- *    - Clears Auth.js cookies (hard local logout).
- *    - Redirects back to `returnTo`.
- *
- * Why this design:
- * - Ensures Keycloak SSO session ends (not only local cookies).
- * - Still guarantees local hard logout (cookie cleanup) even if Keycloak UI/redirect changes.
+ * 2) /api/auth/logout?mode=finish  (FINISH — defense-in-depth)
+ *    - Clears Auth.js cookies again (belt-and-suspenders).
+ *    - Redirects to app root.
  */
 async function handler(req: NextRequest): Promise<NextResponse> {
   const publicOrigin = getPublicOrigin(req);
@@ -135,18 +109,21 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   const mode = req.nextUrl.searchParams.get("mode");
 
-  // --- FINISH MODE: clear local cookies and return to the app -------------------
-  if (mode === "finish") {
-    const returnToRaw = req.nextUrl.searchParams.get("returnTo");
-    const returnTo = safeReturnTo(returnToRaw, appUrl);
+  // Collect actual auth cookie names from the request (catches chunks .0, .1, …)
+  const cookiesToClear = getAuthCookieNames(req);
 
-    const res = NextResponse.redirect(returnTo, { status: 302 });
-    res.headers.set("Cache-Control", "no-store");
-    clearAuthCookies(res, { secure: isSecure });
-    return res;
+  // --- FINISH MODE: defense-in-depth cookie clear + redirect home ---------------
+  if (mode === "finish") {
+    const headers = new Headers();
+    headers.set("Location", `${appUrl}/`);
+    headers.set("Cache-Control", "no-store");
+    for (const name of cookiesToClear) {
+      headers.append("Set-Cookie", expireCookie(name, isSecure));
+    }
+    return new NextResponse(null, { status: 302, headers });
   }
 
-  // --- START MODE: redirect to Keycloak end-session ----------------------------
+  // --- START MODE: clear cookies + redirect to Keycloak via HTML ----------------
   const issuer = process.env.AUTH_KEYCLOAK_ISSUER;
   const clientId = process.env.AUTH_KEYCLOAK_ID;
   const authSecret = process.env.AUTH_SECRET;
@@ -155,38 +132,41 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
-  // Prefer explicit returnTo from POST form; fallback to Referer.
-  let returnToRaw: string | null = req.headers.get("referer");
-
-  if (req.method === "POST") {
-    try {
-      const form = await req.formData();
-      const rt = form.get("returnTo");
-      if (typeof rt === "string" && rt.trim()) returnToRaw = rt;
-    } catch {
-      // ignore malformed form-data
-    }
-  }
-
-  const returnTo = safeReturnTo(returnToRaw, appUrl);
-
-  // Read id_token server-side (stored in JWT in your NextAuth callbacks)
+  // Read id_token server-side (stored in JWT by NextAuth callbacks)
   const token = await getToken({ req, secret: authSecret });
   const idTokenHint = (token as any)?.idToken as string | undefined;
 
-  // Build our own finish URL
-  const finish = new URL(`${appUrl}/api/auth/logout`);
-  finish.searchParams.set("mode", "finish");
-  finish.searchParams.set("returnTo", returnTo);
+  const postLogoutUri = `${appUrl}/api/auth/logout?mode=finish`;
 
   const kcLogoutUrl = buildKeycloakLogoutUrl({
     issuer,
     clientId,
-    postLogoutRedirectUri: finish.toString(),
+    postLogoutRedirectUri: postLogoutUri,
     idTokenHint,
   });
 
-  return NextResponse.redirect(kcLogoutUrl, { status: 302 });
+  // Build a minimal HTML page that the browser renders (200 OK).
+  // The 200 response guarantees Set-Cookie headers are processed before redirect.
+  const html = [
+    "<!DOCTYPE html>",
+    "<html><head>",
+    `<meta http-equiv="refresh" content="0;url=${escapeHtml(kcLogoutUrl)}">`,
+    "</head><body>",
+    `<script>window.location.replace(${JSON.stringify(kcLogoutUrl)})</script>`,
+    "<noscript>Redirecting to logout&hellip;</noscript>",
+    "</body></html>",
+  ].join("");
+
+  const headers = new Headers();
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Cache-Control", "no-store");
+  // Set-Cookie headers directly on the Response — bypasses NextResponse.cookies
+  // which may be stripped by Next.js on certain response types.
+  for (const name of cookiesToClear) {
+    headers.append("Set-Cookie", expireCookie(name, isSecure));
+  }
+
+  return new NextResponse(html, { status: 200, headers });
 }
 
 export async function GET(req: NextRequest) {

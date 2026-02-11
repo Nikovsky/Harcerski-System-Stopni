@@ -16,6 +16,7 @@ declare module "next-auth/jwt" {
 declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
+    accessToken?: string;
   }
 }
 
@@ -112,6 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.sub) {
         session.user.id = token.sub;
       }
+      session.accessToken = token.accessToken;
       return session;
     },
   },

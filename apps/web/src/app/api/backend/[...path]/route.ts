@@ -1,8 +1,7 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import crypto from "crypto";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,11 +16,6 @@ function jsonNoStore(body: any, status: number) {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
   return res;
-}
-
-function secretFingerprint(secret: string) {
-  // nigdy nie loguj secreta, tylko krótki fingerprint
-  return crypto.createHash("sha256").update(secret).digest("hex").slice(0, 10);
 }
 
 function decodeJwtClaims(jwt: string): any {
@@ -91,49 +85,6 @@ function filterDownstreamHeaders(upstream: Response): Headers {
   return headers;
 }
 
-function cookieHas(cookieHeader: string, baseName: string): boolean {
-  // obsługa chunkowania: authjs.session-token.0=...
-  return (
-    cookieHeader.includes(`${baseName}=`) ||
-    cookieHeader.includes(`${baseName}.0=`) ||
-    cookieHeader.includes(`${baseName}.1=`) ||
-    cookieHeader.includes(`${baseName}.`)
-  );
-}
-
-async function readAuthToken(req: NextRequest, secret: string) {
-  // 1) spróbuj default (Auth.js sam dobiera nazwę wg secureCookie itp.)
-  const t0 = await getToken({ req, secret });
-  if (t0) return { token: t0, usedCookieName: "(default)" as const };
-
-  // 2) jeśli nie wyszło, spróbuj jawnie na typowych nazwach (v5 + v4)
-  const cookieHeader = req.headers.get("cookie") ?? "";
-
-  const candidates = [
-    "__Secure-authjs.session-token",
-    "__Host-authjs.session-token",
-    "authjs.session-token",
-
-    // v4 leftovers (jeśli coś miesza w środowisku)
-    "__Secure-next-auth.session-token",
-    "next-auth.session-token",
-  ] as const;
-
-  for (const name of candidates) {
-    if (!cookieHas(cookieHeader, name)) continue;
-
-    const t = await getToken({
-      req,
-      secret,
-      cookieName: name,
-    });
-
-    if (t) return { token: t, usedCookieName: name };
-  }
-
-  return { token: null as any, usedCookieName: null as any };
-}
-
 async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefined> {
   const m = req.method.toUpperCase();
   if (m === "GET" || m === "HEAD") return undefined;
@@ -154,32 +105,24 @@ async function handle(
 ): Promise<NextResponse> {
   const { path = [] } = await ctx.params;
 
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) return jsonNoStore({ error: "Server misconfigured (AUTH_SECRET)" }, 500);
+  // auth() triggers the full JWT callback chain — including silent token refresh
+  const session = await auth();
 
-  const cookieHeader = req.headers.get("cookie") ?? "";
-  dlog("cookie header:", { present: cookieHeader.length > 0, len: cookieHeader.length });
-  dlog("auth secret fingerprint:", { fp: secretFingerprint(secret), len: secret.length });
-
-  const { token, usedCookieName } = await readAuthToken(req, secret);
-
-  dlog("getToken:", {
-    hasToken: !!token,
-    tokenKeys: token ? Object.keys(token) : [],
-    usedCookieName,
+  dlog("session:", {
+    hasSession: !!session,
+    userId: session?.user?.id,
+    error: session?.error,
+    hasAccessToken: !!session?.accessToken,
   });
 
-  const accessToken = (token as any)?.accessToken as string | undefined;
-  dlog("accessToken:", { present: !!accessToken });
+  const accessToken = session?.accessToken;
 
   if (!accessToken) {
-    // To jest Twój przypadek: cookie jest, ale tokenu nie da się odczytać albo nie ma accessToken.
-    // Najczęściej: AUTH_SECRET mismatch albo nie ten cookieName / chunking.
     return jsonNoStore(
       {
-        error: "Unauthorized (BFF cannot read/decrypt session token or accessToken missing)",
-        hint:
-          "If hasToken=false => AUTH_SECRET mismatch OR cookieName mismatch. Ensure stable AUTH_SECRET, then hard logout + clear cookies + login again.",
+        error: session?.error === "RefreshTokenExpired"
+          ? "Session expired (refresh token invalid). Please log in again."
+          : "Unauthorized (no session or accessToken missing)",
       },
       401,
     );
