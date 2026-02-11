@@ -3,7 +3,7 @@ project:
   code: "HSS"
   name: "Harcerski System Stopni"
 status: "in development"
-last_updated: 2026-01-29
+last_updated: 2026-02-11
 ```
 
 # `H`arcerski `S`ystem `S`topni
@@ -33,22 +33,31 @@ last_updated: 2026-01-29
 
 Zobacz [`LICENSE`](./LICENSE)
 
+## Architektura (w skrócie)
+
+`web (Next.js)` <-> `api (NestJS)` <-> `PostgreSQL`
+
+Komponenty wspierające:
+- `Keycloak` (OIDC, auth/RBAC)
+- `MinIO` (S3-compatible object storage)
+- `nginx` (TLS termination, reverse proxy)
+
 ## Struktura repozytorium (wysokopoziomowo)
 
 - `apps/web` — aplikacja web
-- `apps/server` — API
+- `apps/api` — API
 - `packages/*` — współdzielone typy/schematy/UI/utility/database
 
 ## Stos technologiczny
 
-### Komponenty infrastuktury
+### Komponenty infrastruktury
 
-- `NGINX` -> proxy/edge cache/lba/limiter
+- `NGINX` -> reverse proxy, TLS termination
 - `NEXT` -> frontend/web
-- `NEST` -> backend/api/server
-- `KEYCLAOK` -> auth/rbac
+- `NEST` -> backend/api
+- `KEYCLOAK` -> auth/rbac (OIDC)
 - `POSTGRESQL` -> database engine (^v18)
-- `MINIO` -> s3/bucket
+- `MINIO` -> S3/bucket storage
 
 ### Technologie
 
@@ -70,6 +79,58 @@ W repozytorium wykorzystywane są następujące narzędzia i standardy pracy:
 - `Docker` – uruchamianie lokalnej infrastruktury i usług
 - `Turborepo` – orkiestracja monorepo, cache buildów, pipeline
 - `pnpm` – menedżer pakietów i workspace
+
+## Wymagania lokalne
+
+- Node.js `>= 24.12.0`
+- pnpm `>= 10.26.0`
+- Docker (wymagany do local infra)
+
+## Quick start (lokalnie)
+
+1. Instalacja zależności:
+   - `pnpm install`
+2. Uruchomienie lokalnej infrastruktury:
+   - `pnpm stack:up`
+3. Generacja/migracje bazy (zależnie od etapu projektu):
+   - `pnpm db:generate`
+   - `pnpm db:migrate`
+4. Uruchomienie aplikacji:
+   - `pnpm dev`
+
+Skrót dla czystego startu:
+- `pnpm start:cold`
+
+## Lokalne URL i porty (domyślne)
+
+- `https://hss.local` (web)
+- `https://api.hss.local` (api)
+- `https://auth.hss.local` (keycloak)
+- `https://authconsole.hss.local` (keycloak admin console)
+- `https://s3.hss.local` (minio api)
+- `https://s3console.hss.local` (minio console)
+
+Porty usług:
+- Next.js: `3000`
+- NestJS: `5000`
+- PostgreSQL: `5432`
+- Keycloak: `8080`
+- MinIO: `9000`
+- MinIO Console: `9001`
+
+## Zmienne środowiskowe i sekrety
+
+- Nie commituj `.env`, kluczy prywatnych, tokenów ani haseł.
+- Użyj `.env.example` jako punktu wyjścia.
+- Konfiguracja powinna być walidowana przy starcie (fail-fast).
+
+## Domyślne zasady bezpieczeństwa
+
+- RBAC egzekwowany po stronie API (server-side).
+- Walidacja wejścia na granicach (HTTP/form/config).
+- Brak tokenów w `localStorage`.
+- Bez logowania danych wrażliwych (tokeny, hasła, sekrety, PII).
+- Spójny kontrakt błędów i correlation/request ID.
 
 ## Dokumentacja
 
