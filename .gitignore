@@ -9,6 +9,7 @@
 !**/.yarn/versions
 
 **/scripts/github/
+**/.claude/*
 
 # pnpm store (if ever created locally)
 **/.pnpm-store/

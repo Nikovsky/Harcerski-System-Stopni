@@ -1,12 +1,13 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { decode } from "next-auth/jwt";
 import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEBUG_BFF = process.env.DEBUG_BFF === "1";
+const DEBUG_BFF = process.env.DEBUG_BFF === "1" && process.env.NODE_ENV !== "production";
 
 function dlog(...args: any[]) {
   if (DEBUG_BFF) console.log("[BFF]", ...args);
@@ -26,6 +27,48 @@ function decodeJwtClaims(jwt: string): any {
   } catch {
     return null;
   }
+}
+
+/**
+ * Read and decode the Auth.js session JWT directly from cookies.
+ *
+ * This bypasses the session callback, giving direct access to the full JWT
+ * (including accessToken) without exposing it to the client via /api/auth/session.
+ */
+async function readSessionJwt(
+  req: NextRequest,
+  secret: string,
+  isSecure: boolean,
+): Promise<Record<string, unknown> | null> {
+  const baseNames = isSecure
+    ? ["__Secure-authjs.session-token", "authjs.session-token"]
+    : ["authjs.session-token", "__Secure-authjs.session-token"];
+
+  for (const baseName of baseNames) {
+    let raw = req.cookies.get(baseName)?.value;
+
+    // Try chunked cookies (.0, .1, .2, …)
+    if (!raw) {
+      const chunks: string[] = [];
+      for (let i = 0; ; i++) {
+        const chunk = req.cookies.get(`${baseName}.${i}`)?.value;
+        if (!chunk) break;
+        chunks.push(chunk);
+      }
+      if (chunks.length > 0) raw = chunks.join("");
+    }
+
+    if (!raw) continue;
+
+    try {
+      const decoded = await decode({ token: raw, secret, salt: baseName });
+      if (decoded) return decoded as Record<string, unknown>;
+    } catch (e) {
+      dlog("JWT decode failed for", baseName, e);
+    }
+  }
+
+  return null;
 }
 
 const HOP_BY_HOP = new Set([
@@ -99,9 +142,11 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
   }
 }
 
+type RouteContext = { params: Promise<{ path?: string[] }> };
+
 async function handle(
   req: NextRequest,
-  ctx: { params: Promise<{ path?: string[] }> },
+  ctx: RouteContext,
 ): Promise<NextResponse> {
   const { path = [] } = await ctx.params;
 
@@ -112,10 +157,24 @@ async function handle(
     hasSession: !!session,
     userId: session?.user?.id,
     error: session?.error,
-    hasAccessToken: !!session?.accessToken,
   });
 
-  const accessToken = session?.accessToken;
+  // Read accessToken directly from JWT cookie (bypasses session callback).
+  // This prevents XSS — client never sees accessToken via /api/auth/session.
+  const authSecret = process.env.AUTH_SECRET;
+  if (!authSecret) {
+    return jsonNoStore({ error: "Server misconfigured (AUTH_SECRET)" }, 500);
+  }
+
+  const publicOrigin = req.nextUrl.origin;
+  const isSecure = publicOrigin.startsWith("https://");
+  const jwt = await readSessionJwt(req, authSecret, isSecure);
+  const accessToken = jwt?.accessToken as string | undefined;
+
+  dlog("jwt decoded:", {
+    hasJwt: !!jwt,
+    hasAccessToken: !!accessToken,
+  });
 
   if (!accessToken) {
     return jsonNoStore(
@@ -157,6 +216,7 @@ async function handle(
       body: body ? Buffer.from(body) : undefined,
       redirect: "manual",
       cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
     });
 
     dlog("upstream response:", {
@@ -181,21 +241,21 @@ async function handle(
   }
 }
 
-export async function GET(req: NextRequest, ctx: any) {
+export async function GET(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function POST(req: NextRequest, ctx: any) {
+export async function POST(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function PUT(req: NextRequest, ctx: any) {
+export async function PUT(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function PATCH(req: NextRequest, ctx: any) {
+export async function PATCH(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function DELETE(req: NextRequest, ctx: any) {
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function HEAD(req: NextRequest, ctx: any) {
+export async function HEAD(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }

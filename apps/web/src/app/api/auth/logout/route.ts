@@ -115,17 +115,24 @@ async function revokeKeycloakSession(params: {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
+  idToken?: string;
 }): Promise<void> {
   const logoutUrl = `${params.issuer.replace(/\/$/, "")}/protocol/openid-connect/logout`;
+
+  const body: Record<string, string> = {
+    client_id: params.clientId,
+    client_secret: params.clientSecret,
+    refresh_token: params.refreshToken,
+  };
+  if (params.idToken) {
+    body.id_token_hint = params.idToken;
+  }
 
   const res = await fetch(logoutUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: params.clientId,
-      client_secret: params.clientSecret,
-      refresh_token: params.refreshToken,
-    }),
+    body: new URLSearchParams(body),
+    signal: AbortSignal.timeout(5_000),
   });
 
   if (!res.ok) {
@@ -149,7 +156,14 @@ async function revokeKeycloakSession(params: {
  */
 async function handler(req: NextRequest): Promise<NextResponse> {
   const publicOrigin = getPublicOrigin(req);
-  const appUrl = (process.env.HSS_WEB_ORIGIN ?? process.env.AUTH_URL ?? publicOrigin).replace(/\/$/, "");
+  let appUrl = (process.env.HSS_WEB_ORIGIN ?? process.env.AUTH_URL ?? publicOrigin).replace(/\/$/, "");
+
+  // Validate appUrl against known origins to prevent open redirect / XSS in HTML redirect
+  const ALLOWED_ORIGINS = [process.env.HSS_WEB_ORIGIN, process.env.AUTH_URL].filter(Boolean) as string[];
+  if (ALLOWED_ORIGINS.length > 0 && !ALLOWED_ORIGINS.some((o) => appUrl.startsWith(o.replace(/\/$/, "")))) {
+    appUrl = ALLOWED_ORIGINS[0]!.replace(/\/$/, "");
+  }
+
   const isSecure = appUrl.startsWith("https://");
 
   const issuer = process.env.AUTH_KEYCLOAK_ISSUER;
@@ -164,11 +178,12 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   // --- Step 1: Decode JWT to extract refresh_token ---
   const jwt = await readSessionJwt(req, authSecret, isSecure);
   const refreshToken = jwt?.refreshToken as string | undefined;
+  const idToken = jwt?.idToken as string | undefined;
 
   // --- Step 2: Revoke Keycloak SSO session (server-side) ---
   if (refreshToken) {
     try {
-      await revokeKeycloakSession({ issuer, clientId, clientSecret, refreshToken });
+      await revokeKeycloakSession({ issuer, clientId, clientSecret, refreshToken, idToken });
     } catch (e) {
       console.error("[logout] Keycloak revocation error:", e);
     }
@@ -203,10 +218,25 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   return new NextResponse(html, { status: 200, headers });
 }
 
-export async function GET(req: NextRequest) {
-  return handler(req);
-}
+// GET intentionally removed — logout via GET enables CSRF attacks
+// (e.g. <img src="/api/auth/logout"> silently logs out the user).
 
 export async function POST(req: NextRequest) {
+  // Origin validation — prevents cross-site logout via form POST
+  // Check Origin header first (CORS requests), fallback to Referer (form submissions)
+  const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
+  const allowed = (
+    process.env.HSS_WEB_ORIGIN ?? process.env.AUTH_URL ?? ""
+  ).replace(/\/$/, "");
+
+  // Same-origin form POST may not send Origin, so check Referer as fallback
+  const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+
+  if (!requestOrigin || !allowed || !requestOrigin.startsWith(allowed)) {
+    console.warn("[logout] CSRF check failed:", { origin, referer, allowed });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return handler(req);
 }

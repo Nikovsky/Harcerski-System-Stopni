@@ -17,17 +17,30 @@ export type KeycloakClaims = {
 @Injectable()
 export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jwt") {
   constructor() {
+    const issuer = process.env.KEYCLOAK_ISSUER?.replace(/\/$/, "");
+    const audience = process.env.KEYCLOAK_AUDIENCE;
+    const jwksUri = process.env.KEYCLOAK_JWKS_URL;
+
+    if (!issuer || !audience || !jwksUri) {
+      throw new Error(
+        "[KeycloakJwtStrategy] Missing required env vars: " +
+          [!issuer && "KEYCLOAK_ISSUER", !audience && "KEYCLOAK_AUDIENCE", !jwksUri && "KEYCLOAK_JWKS_URL"]
+            .filter(Boolean)
+            .join(", "),
+      );
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       algorithms: ["RS256"],
-      issuer: process.env.KEYCLOAK_ISSUER,
-      audience: process.env.KEYCLOAK_AUDIENCE,
+      issuer,
+      audience,
       ignoreExpiration: false,
       secretOrKeyProvider: passportJwtSecret({
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 10,
-        jwksUri: process.env.KEYCLOAK_JWKS_URL!,
+        jwksUri,
       }),
     });
   }

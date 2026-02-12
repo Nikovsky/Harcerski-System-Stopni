@@ -11,6 +11,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Monorepo**: Turborepo + pnpm workspaces
 - **Primary language**: Polish (PL) with i18n support
 
+## Context and State Management
+
+**IMPORTANT:** To maintain efficient context usage and enable long-term work continuity:
+
+### After Completing Work Sessions
+
+When finishing any task, sprint, stage, or work session:
+
+1. **Update `.claude/current-state.md`** with:
+   - Current branch name and status
+   - Summary of completed work
+   - List of uncommitted changes with brief descriptions
+   - List of committed changes (recent commits)
+   - Important technical notes or lessons learned
+   - Next steps or pending tasks
+   - User decisions and preferences
+   - Key file paths for the current work area
+
+2. **On session end** (`/koniec` command or "Kończymy na dziś"):
+   - Update `.claude/current-state.md` with complete session summary
+   - User will execute `/clear` to reset context
+   - Next session starts by reading `.claude/current-state.md` to restore context
+
+### Resuming Work
+
+When starting a new conversation or after context clear:
+- Read `.claude/current-state.md` first to understand current project state
+- Read relevant files mentioned in current-state.md
+- Continue from where the previous session ended
+
+**File location:** `.claude/current-state.md` (always in Polish, matching project language)
+
 ## Architecture
 
 ### Monorepo Structure
