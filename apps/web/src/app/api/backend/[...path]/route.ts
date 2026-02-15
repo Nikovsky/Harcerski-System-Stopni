@@ -3,7 +3,9 @@ import "server-only";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { decode } from "next-auth/jwt";
+
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 
@@ -43,30 +45,36 @@ function decodeJwtClaims(jwt: string): any {
   }
 }
 
+type CookieValue = { value: string } | undefined;
+type CookieReader = { get(name: string): CookieValue };
+
 /**
  * Read and decode the Auth.js session JWT directly from cookies.
  *
  * This bypasses the session callback, giving direct access to the full JWT
  * (including accessToken) without exposing it to the client via /api/auth/session.
+ *
+ * Supports:
+ * - __Secure-authjs.session-token / authjs.session-token
+ * - chunked cookies: <name>.0, <name>.1, ...
  */
 async function readSessionJwt(
-  req: NextRequest,
+  cookieStore: CookieReader,
   secret: string,
-  isSecure: boolean,
+  isSecurePreferred: boolean,
 ): Promise<Record<string, unknown> | null> {
-  // We always try both secure + non-secure names; order just prefers the expected variant.
-  const baseNames = isSecure
+  const baseNames = isSecurePreferred
     ? ["__Secure-authjs.session-token", "authjs.session-token"]
     : ["authjs.session-token", "__Secure-authjs.session-token"];
 
   for (const baseName of baseNames) {
-    let raw = req.cookies.get(baseName)?.value;
+    let raw = cookieStore.get(baseName)?.value;
 
     // Try chunked cookies (.0, .1, .2, …)
     if (!raw) {
       const chunks: string[] = [];
       for (let i = 0; ; i++) {
-        const chunk = req.cookies.get(`${baseName}.${i}`)?.value;
+        const chunk = cookieStore.get(`${baseName}.${i}`)?.value;
         if (!chunk) break;
         chunks.push(chunk);
       }
@@ -167,9 +175,11 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
   }
 }
 
-type RouteContext = { params: Promise<{ path?: string[] }> };
+// IMPORTANT: in newer Next versions params may be async (Promise)
+type RouteContext = { params: { path?: string[] } | Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
+  // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
 
   // auth() triggers the full JWT callback chain — including silent token refresh
@@ -186,11 +196,14 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
   const authSecret = envServer.AUTH_SECRET;
 
   const publicOrigin = getPublicOrigin(req);
-  const isSecure =
+  const isSecurePreferred =
     publicOrigin.startsWith("https://") ||
     new URL(envServer.HSS_WEB_ORIGIN).protocol === "https:";
 
-  const jwt = await readSessionJwt(req, authSecret, isSecure);
+  // ✅ cookies() can be a Promise -> always await
+  const cookieStore = (await cookies()) as unknown as CookieReader;
+
+  const jwt = await readSessionJwt(cookieStore, authSecret, isSecurePreferred);
   const accessToken = jwt?.accessToken as string | undefined;
 
   dlog("jwt decoded:", {

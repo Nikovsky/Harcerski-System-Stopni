@@ -1,3 +1,5 @@
 // @file: packages/schemas/src/index.ts
-export * from './zod/theme.schema';
+export * from './theme.schema';
+export * from './auth.schema';
+export * from './user'
 // EOF

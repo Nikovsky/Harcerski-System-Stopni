@@ -8,7 +8,9 @@ export function findRepoRoot(startDir: string): string {
   while (true) {
     const isRoot =
       existsSync(resolve(dir, "pnpm-workspace.yaml")) ||
-      existsSync(resolve(dir, "turbo.json"));
+      existsSync(resolve(dir, "turbo.json")) ||
+      existsSync(resolve(dir, ".git")) ||
+      existsSync(resolve(dir, "package.json"));
 
     if (isRoot) return dir;
 

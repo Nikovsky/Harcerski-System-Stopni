@@ -28,9 +28,12 @@ export const envSchema = z.object({
   APP_HOST: z.string().min(1).default("0.0.0.0"),
   APP_PORT: z.coerce.number().int().min(1).max(65535).default(5000),
   APP_URL: url,
-  // możesz trzymać jako pojedynczy string albo CSV (polecam CSV)
-  CORS_ORIGIN: z.string().optional(), // legacy / single
-  CORS_ORIGINS: z.preprocess(toCsv, z.array(url).default([])), // recommended
+
+  // CORS
+  // CORS_ORIGIN: z.string().optional(), // legacy / single
+  CORS_ORIGINS: z.preprocess(toCsv, z.array(url).default([])),
+
+  // DB
   DATABASE_URL: z
     .string()
     .min(1)
@@ -45,10 +48,12 @@ export const envSchema = z.object({
   KEYCLOAK_JWKS_URL: url,
   KEYCLOAK_AUDIENCE: z.string().min(1),
 
+  // Optional (can be derived from issuer)
+  KEYCLOAK_TOKEN_URL: url.optional(),
+
   // ===[KEYCLOAK | CLIENT (M2M OPTIONAL)]===
-  KEYCLOAK_API_CLIENT_ID: z.string().min(1),
+  KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
   KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
-  KEYCLOAK_TOKEN_URL: url,
 
   // ===[SECURITY / RUNTIME]===
   TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
