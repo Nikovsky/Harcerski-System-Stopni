@@ -1,13 +1,27 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { decode } from "next-auth/jwt";
 import { auth } from "@/auth";
+import { envServer } from "@/config/env.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEBUG_BFF = process.env.DEBUG_BFF === "1" && process.env.NODE_ENV !== "production";
+/**
+ * Compute the public origin reliably behind reverse proxies.
+ * (req.nextUrl.origin may be internal like http://localhost:3000)
+ */
+function getPublicOrigin(req: NextRequest): string {
+  const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const xfHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  if (xfProto && xfHost) return `${xfProto}://${xfHost}`;
+  return req.nextUrl.origin;
+}
+
+const DEBUG_BFF = envServer.DEBUG_BFF && envServer.NODE_ENV !== "production";
 
 function dlog(...args: any[]) {
   if (DEBUG_BFF) console.log("[BFF]", ...args);
@@ -40,6 +54,7 @@ async function readSessionJwt(
   secret: string,
   isSecure: boolean,
 ): Promise<Record<string, unknown> | null> {
+  // We always try both secure + non-secure names; order just prefers the expected variant.
   const baseNames = isSecure
     ? ["__Secure-authjs.session-token", "authjs.session-token"]
     : ["authjs.session-token", "__Secure-authjs.session-token"];
@@ -61,6 +76,7 @@ async function readSessionJwt(
     if (!raw) continue;
 
     try {
+      // IMPORTANT: salt must match cookie name used by Auth.js
       const decoded = await decode({ token: raw, secret, salt: baseName });
       if (decoded) return decoded as Record<string, unknown>;
     } catch (e) {
@@ -83,7 +99,8 @@ const HOP_BY_HOP = new Set([
 ]);
 
 function apiOriginFromEnv(): string {
-  const raw = process.env.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
+  // Prefer the validated env, allow legacy fallback for convenience
+  const raw = envServer.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
   if (!raw) throw new Error("Missing HSS_API_BASE_URL (or API_URL) env");
   return raw.replace(/\/$/, "");
 }
@@ -106,9 +123,13 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
   headers.delete("authorization");
   headers.set("authorization", `Bearer ${accessToken}`);
 
+  // Avoid mismatches (fetch will compute content-length)
+  headers.delete("content-length");
+
   for (const h of HOP_BY_HOP) headers.delete(h);
   headers.delete("host");
 
+  // Preserve forwarding info (prefer explicit x-forwarded from proxy)
   const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const xfHost =
     req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ??
@@ -122,8 +143,12 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
 
 function filterDownstreamHeaders(upstream: Response): Headers {
   const headers = new Headers(upstream.headers);
+
+  // Never let upstream set cookies through the BFF
   headers.delete("set-cookie");
+
   for (const h of HOP_BY_HOP) headers.delete(h);
+
   headers.set("cache-control", "no-store");
   return headers;
 }
@@ -144,10 +169,7 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
 
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
-async function handle(
-  req: NextRequest,
-  ctx: RouteContext,
-): Promise<NextResponse> {
+async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
   const { path = [] } = await ctx.params;
 
   // auth() triggers the full JWT callback chain — including silent token refresh
@@ -161,13 +183,13 @@ async function handle(
 
   // Read accessToken directly from JWT cookie (bypasses session callback).
   // This prevents XSS — client never sees accessToken via /api/auth/session.
-  const authSecret = process.env.AUTH_SECRET;
-  if (!authSecret) {
-    return jsonNoStore({ error: "Server misconfigured (AUTH_SECRET)" }, 500);
-  }
+  const authSecret = envServer.AUTH_SECRET;
 
-  const publicOrigin = req.nextUrl.origin;
-  const isSecure = publicOrigin.startsWith("https://");
+  const publicOrigin = getPublicOrigin(req);
+  const isSecure =
+    publicOrigin.startsWith("https://") ||
+    new URL(envServer.HSS_WEB_ORIGIN).protocol === "https:";
+
   const jwt = await readSessionJwt(req, authSecret, isSecure);
   const accessToken = jwt?.accessToken as string | undefined;
 
@@ -179,9 +201,10 @@ async function handle(
   if (!accessToken) {
     return jsonNoStore(
       {
-        error: session?.error === "RefreshTokenExpired"
-          ? "Session expired (refresh token invalid). Please log in again."
-          : "Unauthorized (no session or accessToken missing)",
+        error:
+          session?.error === "RefreshTokenExpired"
+            ? "Session expired (refresh token invalid). Please log in again."
+            : "Unauthorized (no session or accessToken missing)",
       },
       401,
     );
@@ -201,7 +224,7 @@ async function handle(
     upstreamUrl = buildUpstreamUrl(req, path);
   } catch (e) {
     dlog("upstream url build error:", String(e));
-    return jsonNoStore({ error: "Server misconfigured (HSS_API_ORIGIN)" }, 500);
+    return jsonNoStore({ error: "Server misconfigured (HSS_API_BASE_URL)" }, 500);
   }
 
   const upstreamHeaders = buildUpstreamHeaders(req, accessToken);

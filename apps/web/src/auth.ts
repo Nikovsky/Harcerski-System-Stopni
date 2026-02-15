@@ -1,7 +1,11 @@
 // @file: apps/web/src/auth.ts
+import "server-only";
+
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import "next-auth/jwt";
+
+import { envServer } from "@/config/env.server";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -16,21 +20,26 @@ declare module "next-auth/jwt" {
 declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
+    user: {
+      id?: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
   }
 }
 
 // Mutex: only one refresh at a time per Node.js process.
-// Prevents race condition when multiple concurrent requests try to refresh
-// the same token — Keycloak's refresh token rotation would invalidate the old
-// token, causing random logouts.
 let refreshPromise: Promise<import("next-auth/jwt").JWT> | null = null;
 
-async function refreshAccessToken(token: import("next-auth/jwt").JWT): Promise<import("next-auth/jwt").JWT> {
-  const issuer = process.env.AUTH_KEYCLOAK_ISSUER;
-  const clientId = process.env.AUTH_KEYCLOAK_ID;
-  const clientSecret = process.env.AUTH_KEYCLOAK_SECRET;
+async function refreshAccessToken(
+  token: import("next-auth/jwt").JWT,
+): Promise<import("next-auth/jwt").JWT> {
+  const issuer = envServer.AUTH_KEYCLOAK_ISSUER;
+  const clientId = envServer.AUTH_KEYCLOAK_ID;
+  const clientSecret = envServer.AUTH_KEYCLOAK_SECRET;
 
-  if (!issuer || !clientId || !clientSecret || !token.refreshToken) {
+  if (!token.refreshToken) {
     return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
   }
 
@@ -52,6 +61,7 @@ async function refreshAccessToken(token: import("next-auth/jwt").JWT): Promise<i
 
     const text = await res.text();
     let data: any;
+
     try {
       data = JSON.parse(text);
     } catch {
@@ -72,7 +82,7 @@ async function refreshAccessToken(token: import("next-auth/jwt").JWT): Promise<i
       accessTokenExpiresAt:
         typeof data.expires_in === "number"
           ? Date.now() + data.expires_in * 1000
-          : Date.now() + 300_000, // fallback: 5 min
+          : Date.now() + 300_000,
       error: undefined,
     };
   } catch (e) {
@@ -82,17 +92,19 @@ async function refreshAccessToken(token: import("next-auth/jwt").JWT): Promise<i
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET,
-  trustHost: true,
+  secret: envServer.AUTH_SECRET,
+  trustHost: envServer.AUTH_TRUST_HOST,
   session: { strategy: "jwt" },
+
   providers: [
     Keycloak({
-      issuer: process.env.AUTH_KEYCLOAK_ISSUER!,
-      clientId: process.env.AUTH_KEYCLOAK_ID!,
-      clientSecret: process.env.AUTH_KEYCLOAK_SECRET!,
+      issuer: envServer.AUTH_KEYCLOAK_ISSUER,
+      clientId: envServer.AUTH_KEYCLOAK_ID,
+      clientSecret: envServer.AUTH_KEYCLOAK_SECRET,
       authorization: { params: { scope: "openid profile email" } },
     }),
   ],
+
   callbacks: {
     async jwt({ token, account }) {
       // First login — persist all tokens from Keycloak
@@ -103,22 +115,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           idToken: account.id_token as string | undefined,
           refreshToken: account.refresh_token as string | undefined,
           accessTokenExpiresAt:
-            typeof account.expires_at === "number"
-              ? account.expires_at * 1000
-              : undefined,
+            typeof account.expires_at === "number" ? account.expires_at * 1000 : undefined,
           error: undefined,
         };
       }
 
-      // Token still valid (with 60s safety margin) — return as-is
-      if (
-        token.accessTokenExpiresAt &&
-        Date.now() < token.accessTokenExpiresAt - 60_000
-      ) {
+      // Token still valid (with 60s safety margin)
+      if (token.accessTokenExpiresAt && Date.now() < token.accessTokenExpiresAt - 60_000) {
         return token;
       }
 
-      // Token expired or about to expire — refresh silently (mutex prevents concurrent refreshes)
+      // Refresh silently (mutex prevents concurrent refresh)
       if (!refreshPromise) {
         refreshPromise = refreshAccessToken(token).finally(() => {
           refreshPromise = null;
@@ -128,14 +135,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      if (token.error) {
-        session.error = token.error;
-      }
+      if (token.error) session.error = token.error;
+
+      // Ensure shape exists (avoids TS edge cases)
+      session.user = session.user ?? { name: null, email: null, image: null };
+
       if (token.sub) {
         session.user.id = token.sub;
       }
-      // accessToken is NOT exposed to the client (XSS mitigation).
-      // Server-side routes (BFF) read it directly from cookies via manual JWT decode.
+
       return session;
     },
   },
