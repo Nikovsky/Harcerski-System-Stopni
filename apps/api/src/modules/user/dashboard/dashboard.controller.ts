@@ -9,7 +9,7 @@ import { ZodValidationPipe } from "@/pipelines/zod-validation.pipe";
 import { DashboardService } from "./dashboard.service";
 import { UserRole } from "@hss/database";
 import { dateOnlyToUtcOrNull } from "@/helpers";
-import { userDashboardResponseSchema, userDashboardUpdateProfileBodySchema, type UserDashboardUpdateProfileBody, type AuthPrincipal, } from "@hss/schemas";
+import { userDashboardResponseSchema, userDashboardUpdatePrivilegedBodySchema, type UserDashboardUpdatePrivilegedBody, type AuthPrincipal, } from "@hss/schemas";
 import type { UpdateUserDashboardProfileDto } from "./dashboard.dto";
 
 @Controller("dashboard")
@@ -32,23 +32,13 @@ export class DashboardController {
     return parsed.data;
   }
 
-  @Patch("profile")
-  async updateMyProfile(
-    @CurrentUser(AuthPrincipalPipe) user: AuthPrincipal,
-    @Body(new ZodValidationPipe(userDashboardUpdateProfileBodySchema))
-    body: UserDashboardUpdateProfileBody,
+  @Patch()
+  async updateDashboard(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Body(new ZodValidationPipe(userDashboardUpdatePrivilegedBodySchema))
+    body: UserDashboardUpdatePrivilegedBody,
   ) {
-    const dto: UpdateUserDashboardProfileDto = {
-      firstName: body.firstName,
-      secondName: body.secondName,
-      surname: body.surname,
-      phone: body.phone,
-      hufiecCode: body.hufiecCode,
-      druzynaCode: body.druzynaCode,
-      birthDate: dateOnlyToUtcOrNull(body.birthDate),
-    };
-
-    const out = await this.dashboardService.updateMyProfile(user, dto);
+    const out = await this.dashboardService.updateDashboard(principal, body);
 
     const parsed = userDashboardResponseSchema.safeParse(out);
     if (!parsed.success) {
@@ -57,6 +47,7 @@ export class DashboardController {
         message: "Response contract mismatch.",
       });
     }
+
     return parsed.data;
   }
 }

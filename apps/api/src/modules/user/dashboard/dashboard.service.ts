@@ -1,34 +1,48 @@
 // @file: apps/api/src/modules/user/dashboard/dashboard.service.ts
-import { ConflictException, Injectable, InternalServerErrorException, } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+} from "@nestjs/common";
 import type { Prisma, User } from "@hss/database";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UserRole, Status } from "@hss/database";
-import type { DashboardAuthUser, UpdateUserDashboardProfileDto, UserDashboardDto, } from "./dashboard.dto";
-import { splitPersonName, iso, isoOrNull } from "@/helpers";
+import type { AuthPrincipal, UserDashboardUpdatePrivilegedBody } from "@hss/schemas";
+import { splitPersonName, iso, isoOrNull, dateOnlyToUtcOrNull } from "@/helpers";
+import { hasAnyDefined } from "@/helpers/object.helper";
+import { isHigherThanUser } from "@/helpers/role.helper";
+import type { DashboardAuthUser, UserDashboardDto } from "./dashboard.dto";
+
+const PRIVILEGED_KEYS = [
+  "hufiecCode",
+  "druzynaCode",
+  "scoutRank",
+  "scoutRankAwardedAt",
+  "instructorRank",
+  "instructorRankAwardedAt",
+  "inScoutingSince",
+  "inZhrSince",
+  "oathDate",
+] as const satisfies readonly (keyof UserDashboardUpdatePrivilegedBody)[];
 
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) { }
 
   /**
-   * Find by keycloakUuid; if missing -> link by email (optional migration); else create new.
+   * Get-or-create (Keycloak sub) and RETURN DB entity.
    */
-  async getOrCreateFromKeycloak(user: DashboardAuthUser): Promise<UserDashboardDto> {
-    const keycloakUuid = user.sub;
-    const email = user.email?.toLowerCase() ?? null;
+  private async ensureUserEntity(principal: DashboardAuthUser): Promise<User> {
+    const keycloakUuid = principal.sub;
+    const email = principal.email?.toLowerCase() ?? null;
 
-    // 1) Fast path: by keycloakUuid
-    const byKc = await this.prisma.user.findUnique({
-      where: { keycloakUuid },
-    });
-    if (byKc) return this.toDashboardDto(byKc);
+    const byKc = await this.prisma.user.findUnique({ where: { keycloakUuid } });
+    if (byKc) return byKc;
 
-    // 2) Optional safe migration: link by unique email
+    // Optional safe migration: link by unique email
     if (email) {
-      const byEmail = await this.prisma.user.findUnique({
-        where: { email },
-      });
-
+      const byEmail = await this.prisma.user.findUnique({ where: { email } });
       if (byEmail) {
         if (byEmail.keycloakUuid && byEmail.keycloakUuid !== keycloakUuid) {
           throw new ConflictException({
@@ -37,59 +51,95 @@ export class DashboardService {
           });
         }
 
-        const parsedName = splitPersonName(user.name);
+        const parsedName = splitPersonName(principal.name);
 
-        const linked = await this.prisma.user.update({
+        return this.prisma.user.update({
           where: { uuid: byEmail.uuid },
           data: {
             keycloakUuid,
-            firstName: byEmail.firstName ?? parsedName.firstName ?? user.preferredUsername ?? null,
+            firstName:
+              byEmail.firstName ?? parsedName.firstName ?? principal.preferredUsername ?? null,
             secondName: byEmail.secondName ?? parsedName.secondName,
             surname: byEmail.surname ?? parsedName.surname,
           },
         });
-
-        return this.toDashboardDto(linked);
       }
     }
 
-    // 3) Create new user (safe defaults)
-    const parsedName = splitPersonName(user.name);
+    // Create new user (safe defaults)
+    const parsedName = splitPersonName(principal.name);
 
-    const created = await this.prisma.user.create({
+    return this.prisma.user.create({
       data: {
         keycloakUuid,
         email,
-        firstName: parsedName.firstName ?? user.preferredUsername ?? null,
+        firstName: parsedName.firstName ?? principal.preferredUsername ?? null,
         secondName: parsedName.secondName,
         surname: parsedName.surname,
-
         role: UserRole.USER,
         status: Status.ACTIVE,
       } satisfies Prisma.UserCreateInput,
     });
-
-    return this.toDashboardDto(created);
   }
 
-  async updateMyProfile(
-    user: DashboardAuthUser,
-    dto: UpdateUserDashboardProfileDto,
+  async getOrCreateFromKeycloak(user: DashboardAuthUser): Promise<UserDashboardDto> {
+    const entity = await this.ensureUserEntity(user);
+    return this.toDashboardDto(entity);
+  }
+
+  async updateDashboard(
+    principal: AuthPrincipal,
+    body: UserDashboardUpdatePrivilegedBody,
   ): Promise<UserDashboardDto> {
-    // Ensure user exists (auto-create if missing)
-    await this.getOrCreateFromKeycloak(user);
+    const me = await this.ensureUserEntity(principal);
+
+    const privileged = isHigherThanUser(me.role);
+
+    if (!privileged && hasAnyDefined(body, PRIVILEGED_KEYS)) {
+      throw new ForbiddenException({
+        code: "DASHBOARD_EDIT_FORBIDDEN",
+        message: "You cannot edit these fields.",
+      });
+    }
+
+    const data: Prisma.UserUpdateInput = {
+      ...(body.firstName !== undefined ? { firstName: body.firstName } : {}),
+      ...(body.secondName !== undefined ? { secondName: body.secondName } : {}),
+      ...(body.surname !== undefined ? { surname: body.surname } : {}),
+      ...(body.phone !== undefined ? { phone: body.phone } : {}),
+      ...(body.birthDate !== undefined
+        ? { birthDate: dateOnlyToUtcOrNull(body.birthDate) }
+        : {}),
+    };
+
+    if (privileged) {
+      Object.assign(data, {
+        ...(body.hufiecCode !== undefined ? { hufiecCode: body.hufiecCode } : {}),
+        ...(body.druzynaCode !== undefined ? { druzynaCode: body.druzynaCode } : {}),
+
+        ...(body.scoutRank !== undefined ? { scoutRank: body.scoutRank } : {}),
+        ...(body.scoutRankAwardedAt !== undefined
+          ? { scoutRankAwardedAt: dateOnlyToUtcOrNull(body.scoutRankAwardedAt) }
+          : {}),
+
+        ...(body.instructorRank !== undefined ? { instructorRank: body.instructorRank } : {}),
+        ...(body.instructorRankAwardedAt !== undefined
+          ? { instructorRankAwardedAt: dateOnlyToUtcOrNull(body.instructorRankAwardedAt) }
+          : {}),
+
+        ...(body.inScoutingSince !== undefined
+          ? { inScoutingSince: dateOnlyToUtcOrNull(body.inScoutingSince) }
+          : {}),
+        ...(body.inZhrSince !== undefined
+          ? { inZhrSince: dateOnlyToUtcOrNull(body.inZhrSince) }
+          : {}),
+        ...(body.oathDate !== undefined ? { oathDate: dateOnlyToUtcOrNull(body.oathDate) } : {}),
+      });
+    }
 
     const updated = await this.prisma.user.update({
-      where: { keycloakUuid: user.sub },
-      data: {
-        ...(dto.firstName !== undefined ? { firstName: dto.firstName } : {}),
-        ...(dto.secondName !== undefined ? { secondName: dto.secondName } : {}),
-        ...(dto.surname !== undefined ? { surname: dto.surname } : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
-        ...(dto.birthDate !== undefined ? { birthDate: dto.birthDate } : {}),
-        ...(dto.hufiecCode !== undefined ? { hufiecCode: dto.hufiecCode } : {}),
-        ...(dto.druzynaCode !== undefined ? { druzynaCode: dto.druzynaCode } : {}),
-      },
+      where: { uuid: me.uuid },
+      data,
     });
 
     return this.toDashboardDto(updated);

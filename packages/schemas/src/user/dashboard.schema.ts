@@ -72,9 +72,13 @@ export const userDashboardResponseSchema = z
 
 export type UserDashboardResponse = z.infer<typeof userDashboardResponseSchema>;
 
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 /**
- * What the user can edit on their own dashboard (keep it allowlisted).
- * Rank/role/status should be controlled by admin/commission flows.
+ * USER editable fields only.
+ * PATCH semantics:
+ * - undefined => do not change in DB
+ * - null      => clear in DB
  */
 export const userDashboardUpdateProfileBodySchema = z
   .object({
@@ -82,19 +86,35 @@ export const userDashboardUpdateProfileBodySchema = z
     secondName: z.string().min(1).max(64).nullable().optional(),
     surname: z.string().min(1).max(64).nullable().optional(),
     phone: z.string().min(3).max(32).nullable().optional(),
-
-    // date-only input; API stores Date; response returns ISO datetime
-    birthDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .nullable()
-      .optional(),
-
-    hufiecCode: z.string().min(1).max(32).nullable().optional(),
-    druzynaCode: z.string().min(1).max(32).nullable().optional(),
+    birthDate: dateOnly.nullable().optional(),
   })
   .strict();
 
 export type UserDashboardUpdateProfileBody = z.infer<
   typeof userDashboardUpdateProfileBodySchema
+>;
+
+/**
+ * Roles > USER can edit additional fields.
+ */
+export const userDashboardUpdatePrivilegedBodySchema =
+  userDashboardUpdateProfileBodySchema
+    .extend({
+      hufiecCode: z.string().min(1).max(32).nullable().optional(),
+      druzynaCode: z.string().min(1).max(32).nullable().optional(),
+
+      scoutRank: scoutRankSchema.nullable().optional(),
+      scoutRankAwardedAt: dateOnly.nullable().optional(),
+
+      instructorRank: instructorRankSchema.nullable().optional(),
+      instructorRankAwardedAt: dateOnly.nullable().optional(),
+
+      inScoutingSince: dateOnly.nullable().optional(),
+      inZhrSince: dateOnly.nullable().optional(),
+      oathDate: dateOnly.nullable().optional(),
+    })
+    .strict();
+
+export type UserDashboardUpdatePrivilegedBody = z.infer<
+  typeof userDashboardUpdatePrivilegedBodySchema
 >;

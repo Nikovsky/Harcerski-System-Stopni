@@ -97,6 +97,9 @@ export default async function DashboardPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <Link className="text-sm underline" href={`/${locale}/dashboard/edit`}>
+        Edit
+      </Link>
 
       <section className="mt-6 rounded-lg border border-neutral-200/60 dark:border-neutral-800 p-5">
         <Row label="UUID" value={u.uuid} />
