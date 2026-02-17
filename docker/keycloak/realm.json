@@ -3,10 +3,14 @@
   "enabled": true,
   "loginTheme": "hss",
   "internationalizationEnabled": true,
-  "supportedLocales": ["pl", "en"],
+  "supportedLocales": [
+    "pl",
+    "en"
+  ],
   "defaultLocale": "pl",
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
+  "registrationEmailAsUsername": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "components": {
@@ -28,7 +32,11 @@
       {
         "name": "ROOT",
         "composite": true,
-        "composites": { "realm": ["ADMIN"] }
+        "composites": {
+          "realm": [
+            "ADMIN"
+          ]
+        }
       },
       {
         "name": "SYSTEM"
@@ -36,7 +44,13 @@
       {
         "name": "ADMIN",
         "composite": true,
-        "composites": { "realm": ["COMMISSION_MEMBER", "SCOUT", "USER"] }
+        "composites": {
+          "realm": [
+            "COMMISSION_MEMBER",
+            "SCOUT",
+            "USER"
+          ]
+        }
       },
       {
         "name": "COMMISSION_MEMBER"
@@ -44,7 +58,11 @@
       {
         "name": "SCOUT",
         "composite": true,
-        "composites": { "realm": ["USER"] }
+        "composites": {
+          "realm": [
+            "USER"
+          ]
+        }
       },
       {
         "name": "USER"
@@ -120,7 +138,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "hss-api",
+            "included.client.audience": "hss-web",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
