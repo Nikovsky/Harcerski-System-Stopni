@@ -119,6 +119,7 @@ services:
     volumes:
       - keycloak_quarkus:/opt/keycloak/lib/quarkus
       - ./keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak/themes/hss:/opt/keycloak/themes/hss:ro
 
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=256m,mode=1777

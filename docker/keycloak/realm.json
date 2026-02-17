@@ -1,6 +1,10 @@
 {
   "realm": "hss",
   "enabled": true,
+  "loginTheme": "hss",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pl", "en"],
+  "defaultLocale": "pl",
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
