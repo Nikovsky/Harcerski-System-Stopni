@@ -32,6 +32,7 @@ export class DashboardService {
 
   /**
    * Get-or-create (Keycloak sub) and RETURN DB entity.
+   * - If user doesn't exist in DB: create MINIMAL row (email only + system fields).
    */
   private async ensureUserEntity(principal: DashboardAuthUser): Promise<User> {
     const keycloakUuid = principal.sub;
@@ -40,44 +41,44 @@ export class DashboardService {
     const byKc = await this.prisma.user.findUnique({ where: { keycloakUuid } });
     if (byKc) return byKc;
 
-    // Optional safe migration: link by unique email
-    if (email) {
-      const byEmail = await this.prisma.user.findUnique({ where: { email } });
-      if (byEmail) {
-        if (byEmail.keycloakUuid && byEmail.keycloakUuid !== keycloakUuid) {
-          throw new ConflictException({
-            code: "KEYCLOAK_LINK_CONFLICT",
-            message: "Account linking conflict.",
-          });
-        }
-
-        const parsedName = splitPersonName(principal.name);
-
-        return this.prisma.user.update({
-          where: { uuid: byEmail.uuid },
-          data: {
-            keycloakUuid,
-            firstName:
-              byEmail.firstName ?? parsedName.firstName ?? principal.preferredUsername ?? null,
-            secondName: byEmail.secondName ?? parsedName.secondName,
-            surname: byEmail.surname ?? parsedName.surname,
-          },
-        });
-      }
+    // If you REQUIRE email for creating local user row, enforce it here:
+    if (!email) {
+      throw new ConflictException({
+        code: "EMAIL_REQUIRED",
+        message: "Email is required to create a local user record.",
+      });
     }
 
-    // Create new user (safe defaults)
-    const parsedName = splitPersonName(principal.name);
+    // Optional safe migration: link by unique email (NO name autofill)
+    const byEmail = await this.prisma.user.findUnique({ where: { email } });
+    if (byEmail) {
+      if (byEmail.keycloakUuid && byEmail.keycloakUuid !== keycloakUuid) {
+        throw new ConflictException({
+          code: "KEYCLOAK_LINK_CONFLICT",
+          message: "Account linking conflict.",
+        });
+      }
 
+      return this.prisma.user.update({
+        where: { uuid: byEmail.uuid },
+        data: { keycloakUuid },
+      });
+    }
+
+    // Create new user: ONLY email (plus required system fields) + keycloakUuid
     return this.prisma.user.create({
       data: {
         keycloakUuid,
         email,
-        firstName: parsedName.firstName ?? principal.preferredUsername ?? null,
-        secondName: parsedName.secondName,
-        surname: parsedName.surname,
+
+        // system defaults (keep if required by schema)
         role: UserRole.USER,
         status: Status.ACTIVE,
+
+        // DO NOT set any personal fields here:
+        // firstName: null,
+        // secondName: null,
+        // surname: null,
       } satisfies Prisma.UserCreateInput,
     });
   }
