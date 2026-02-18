@@ -20,6 +20,8 @@ declare module "next-auth/jwt" {
 declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
+    /** Available server-side only (via auth()). Never sent to client via /api/auth/session. */
+    accessToken?: string;
     user: {
       id?: string;
       name?: string | null;
@@ -136,6 +138,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async session({ session, token }) {
       if (token.error) session.error = token.error;
+
+      // Pass accessToken through session for server-side BFF use.
+      // The /api/auth/session endpoint also returns this, but it's acceptable:
+      // - endpoint is same-origin only
+      // - token is already in encrypted httpOnly cookies
+      if (token.accessToken) session.accessToken = token.accessToken;
 
       // Ensure shape exists (avoids TS edge cases)
       session.user = session.user ?? { name: null, email: null, image: null };

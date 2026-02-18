@@ -7,6 +7,8 @@ import { cookies } from "next/headers";
 import "../globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { IdleTimeoutGuard } from "@/components/auth/IdleTimeoutGuard";
+import { auth } from "@/auth";
 
 type AppTheme = "dark" | "light";
 
@@ -32,12 +34,15 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   setRequestLocale(locale);
   const messages = await getMessages();
+  const session = await auth();
+  const isAuthenticated = !!session?.user;
 
   return (
     <html lang={locale} data-theme={theme}>
       <body className="flex min-h-screen flex-col">
         <NextIntlClientProvider messages={messages}>
           <Navbar />
+          {isAuthenticated && <IdleTimeoutGuard />}
           <main className="grow">{children}</main>
           <Footer />
         </NextIntlClientProvider>

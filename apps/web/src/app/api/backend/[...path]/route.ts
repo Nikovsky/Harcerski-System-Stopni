@@ -3,25 +3,12 @@ import "server-only";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { decode } from "next-auth/jwt";
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/**
- * Compute the public origin reliably behind reverse proxies.
- * (req.nextUrl.origin may be internal like http://localhost:3000)
- */
-function getPublicOrigin(req: NextRequest): string {
-  const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  const xfHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  if (xfProto && xfHost) return `${xfProto}://${xfHost}`;
-  return req.nextUrl.origin;
-}
 
 const DEBUG_BFF = envServer.DEBUG_BFF && envServer.NODE_ENV !== "production";
 
@@ -43,56 +30,6 @@ function decodeJwtClaims(jwt: string): any {
   } catch {
     return null;
   }
-}
-
-type CookieValue = { value: string } | undefined;
-type CookieReader = { get(name: string): CookieValue };
-
-/**
- * Read and decode the Auth.js session JWT directly from cookies.
- *
- * This bypasses the session callback, giving direct access to the full JWT
- * (including accessToken) without exposing it to the client via /api/auth/session.
- *
- * Supports:
- * - __Secure-authjs.session-token / authjs.session-token
- * - chunked cookies: <name>.0, <name>.1, ...
- */
-async function readSessionJwt(
-  cookieStore: CookieReader,
-  secret: string,
-  isSecurePreferred: boolean,
-): Promise<Record<string, unknown> | null> {
-  const baseNames = isSecurePreferred
-    ? ["__Secure-authjs.session-token", "authjs.session-token"]
-    : ["authjs.session-token", "__Secure-authjs.session-token"];
-
-  for (const baseName of baseNames) {
-    let raw = cookieStore.get(baseName)?.value;
-
-    // Try chunked cookies (.0, .1, .2, …)
-    if (!raw) {
-      const chunks: string[] = [];
-      for (let i = 0; ; i++) {
-        const chunk = cookieStore.get(`${baseName}.${i}`)?.value;
-        if (!chunk) break;
-        chunks.push(chunk);
-      }
-      if (chunks.length > 0) raw = chunks.join("");
-    }
-
-    if (!raw) continue;
-
-    try {
-      // IMPORTANT: salt must match cookie name used by Auth.js
-      const decoded = await decode({ token: raw, secret, salt: baseName });
-      if (decoded) return decoded as Record<string, unknown>;
-    } catch (e) {
-      dlog("JWT decode failed for", baseName, e);
-    }
-  }
-
-  return null;
 }
 
 const HOP_BY_HOP = new Set([
@@ -182,34 +119,18 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
 
-  // auth() triggers the full JWT callback chain — including silent token refresh
+  // auth() triggers the full JWT callback chain — including silent token refresh.
+  // accessToken is passed through session callback (server-side only).
   const session = await auth();
 
   dlog("session:", {
     hasSession: !!session,
     userId: session?.user?.id,
+    hasAccessToken: !!session?.accessToken,
     error: session?.error,
   });
 
-  // Read accessToken directly from JWT cookie (bypasses session callback).
-  // This prevents XSS — client never sees accessToken via /api/auth/session.
-  const authSecret = envServer.AUTH_SECRET;
-
-  const publicOrigin = getPublicOrigin(req);
-  const isSecurePreferred =
-    publicOrigin.startsWith("https://") ||
-    new URL(envServer.HSS_WEB_ORIGIN).protocol === "https:";
-
-  // ✅ cookies() can be a Promise -> always await
-  const cookieStore = (await cookies()) as unknown as CookieReader;
-
-  const jwt = await readSessionJwt(cookieStore, authSecret, isSecurePreferred);
-  const accessToken = jwt?.accessToken as string | undefined;
-
-  dlog("jwt decoded:", {
-    hasJwt: !!jwt,
-    hasAccessToken: !!accessToken,
-  });
+  const accessToken = session?.accessToken;
 
   if (!accessToken) {
     return jsonNoStore(
