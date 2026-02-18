@@ -469,6 +469,37 @@ input:-webkit-autofill:active {
     transform: translateX(-2px);
 }
 
+/* ---------- Back link ---------- */
+.hss-back-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #2bee7c;
+    text-decoration: none;
+    background: rgba(43, 238, 124, 0.08);
+    border: 1px solid rgba(43, 238, 124, 0.15);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.hss-back-link:hover {
+    background: rgba(43, 238, 124, 0.15);
+    border-color: rgba(43, 238, 124, 0.3);
+    color: #2bee7c;
+    text-decoration: none;
+}
+.hss-back-link .material-icons {
+    font-size: 1rem;
+    transition: transform 0.2s ease;
+}
+.hss-back-link:hover .material-icons {
+    transform: translateX(-3px);
+}
+
 /* ---------- Animations ---------- */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(16px); }
