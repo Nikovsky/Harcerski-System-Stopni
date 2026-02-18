@@ -96,7 +96,7 @@ async function refreshAccessToken(
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: envServer.AUTH_SECRET,
   trustHost: envServer.AUTH_TRUST_HOST,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8h — F07 fix
 
   providers: [
     Keycloak({

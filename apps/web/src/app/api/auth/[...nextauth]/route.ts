@@ -1,3 +1,25 @@
 // @file: apps/web/src/app/api/auth/[...nextauth]/route.ts
 import { handlers } from "@/auth";
-export const { GET, POST } = handlers;
+
+const { GET: originalGET, POST } = handlers;
+
+/**
+ * F01 security fix: Strip accessToken from /api/auth/session response.
+ * The BFF proxy uses auth() server-side and doesn't need the token exposed to the client.
+ */
+async function GET(req: Request) {
+  const res = await originalGET(req);
+
+  if (new URL(req.url).pathname.endsWith("/session")) {
+    const body = await res.json();
+    delete body.accessToken;
+    return new Response(JSON.stringify(body), {
+      headers: res.headers,
+      status: res.status,
+    });
+  }
+
+  return res;
+}
+
+export { GET, POST };
