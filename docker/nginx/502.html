@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>502 — Zgubiliśmy szlak</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    background: #102218;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    user-select: none;
+    cursor: default;
+  }
+
+  /* ========== BACKGROUND ========== */
+  .layer-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: url('/502-bg.webp') center/cover no-repeat;
+    background-color: #102218;
+  }
+  .layer-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 24, 16, 0.55);
+  }
+
+  .layer-mid {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .layer-mid::before {
+    content: '';
+    width: 70vw;
+    height: 70vw;
+    max-width: 550px;
+    max-height: 550px;
+    border-radius: 50%;
+    background: rgba(43, 238, 124, 0.06);
+    filter: blur(100px);
+  }
+
+  .layer-fg-top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 10rem;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+    z-index: 2;
+    pointer-events: none;
+  }
+  .layer-fg-bottom {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 15rem;
+    background: linear-gradient(to top, #0a1810, rgba(16, 34, 24, 0.8) 40%, transparent);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ========== CONTENT ========== */
+  .content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 2rem 1rem;
+  }
+
+  /* ========== COMPASS ========== */
+  .compass-wrapper {
+    position: relative;
+    margin-bottom: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  .compass-outer {
+    width: clamp(180px, 35vw, 256px);
+    height: clamp(180px, 35vw, 256px);
+    border-radius: 50%;
+    border: 6px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    box-shadow: 0 0 50px rgba(43, 238, 124, 0.25);
+    filter: drop-shadow(0 0 30px rgba(43, 238, 124, 0.4));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .compass-ticks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    z-index: 1;
+  }
+
+  /* Cardinal direction labels */
+  .cardinal {
+    position: absolute;
+    font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.08em;
+    z-index: 5;
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  }
+  .cardinal-n { top: 4%; left: 50%; transform: translateX(-50%); color: #ef4444; text-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+  .cardinal-s { bottom: 4%; left: 50%; transform: translateX(-50%); }
+  .cardinal-e { right: 5%; top: 50%; transform: translateY(-50%); }
+  .cardinal-w { left: 5%; top: 50%; transform: translateY(-50%); }
+
+  .compass-inner {
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(43, 238, 124, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .compass-inner::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -40%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+
+  .compass-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  /* ========== NEEDLE ========== */
+  .needle-group {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* cubic-bezier z lekkim overshoot — poślizg na końcu */
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1.55);
+    transform: rotate(0deg);
+  }
+
+  .needle-north {
+    position: absolute;
+    left: 50%;
+    bottom: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 40%;
+    background: linear-gradient(to top, #dc2626, #ef4444);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+  }
+
+  .needle-south {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(203,213,225,0.3), transparent);
+    clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+    opacity: 0.6;
+  }
+
+  .needle-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    z-index: 5;
+  }
+
+  /* Gold accent glow */
+  .compass-wrapper::after {
+    content: '';
+    position: absolute;
+    top: -2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14rem;
+    height: 14rem;
+    background: radial-gradient(circle, rgba(193, 155, 104, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Ghost 502 */
+  .ghost-502 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(5rem, 16vw, 9rem);
+    font-weight: 900;
+    color: rgba(43, 238, 124, 0.12);
+    filter: blur(20px);
+    user-select: none;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    z-index: 0;
+  }
+
+  /* ========== TYPOGRAPHY ========== */
+  h1 {
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(43, 238, 124, 0.6), 0 0 24px rgba(43, 238, 124, 0.3);
+    margin-bottom: 0.5rem;
+    line-height: 1.1;
+  }
+
+  h2 {
+    font-size: clamp(1.2rem, 3.5vw, 1.875rem);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+    margin-bottom: 1rem;
+  }
+
+  .description {
+    font-size: clamp(0.85rem, 2vw, 1.1rem);
+    font-weight: 300;
+    color: #cbd5e1;
+    max-width: 30rem;
+    margin: 0 auto;
+    line-height: 1.7;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  }
+
+  /* ========== ACTIONS ========== */
+  .actions {
+    margin-top: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+
+  .btn-retry {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    font-family: inherit;
+    font-size: clamp(0.8rem, 2vw, 0.95rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.3s, border-color 0.5s, box-shadow 0.5s, transform 0.15s;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    text-decoration: none;
+  }
+  .btn-retry::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(43, 238, 124, 0.1), transparent);
+    transform: translateX(-100%);
+    transition: transform 1s;
+  }
+  .btn-retry:hover::before { transform: translateX(100%); }
+  .btn-retry:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(43, 238, 124, 0.5);
+    box-shadow: 0 0 20px rgba(43, 238, 124, 0.4);
+  }
+  .btn-retry:active { transform: scale(0.97); }
+  .btn-retry:focus-visible { outline: 2px solid #2bee7c; outline-offset: 2px; }
+
+  .icon-refresh {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid #2bee7c;
+    border-top-color: transparent;
+    border-radius: 50%;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+  .btn-retry:hover .icon-refresh {
+    animation: spinRefresh 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  .icon-refresh::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -3px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid #2bee7c;
+    transform: rotate(30deg);
+    transition: border-bottom-color 0.3s;
+  }
+  .btn-retry:hover .icon-refresh { border-color: #fff; border-top-color: transparent; }
+  .btn-retry:hover .icon-refresh::after { border-bottom-color: #fff; }
+
+  .link-back {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgba(43, 238, 124, 0.8);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    transition: color 0.2s;
+  }
+  .link-back:hover { color: #2bee7c; }
+  .link-back-arrow {
+    transition: transform 0.2s;
+  }
+  .link-back:hover .link-back-arrow {
+    transform: translateX(-2px);
+  }
+  .link-back-text {
+    text-underline-offset: 4px;
+  }
+  .link-back:hover .link-back-text {
+    text-decoration: underline;
+    text-decoration-color: rgba(43, 238, 124, 0.5);
+  }
+
+  /* ========== ANIMATIONS ========== */
+  @keyframes spinRefresh {
+    0%   { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 480px) {
+    .compass-wrapper { margin-bottom: 1.5rem; }
+    .actions { margin-top: 2rem; }
+    .btn-retry { padding: 0.8rem 1.5rem; }
+  }
+
+  @media (max-height: 600px) {
+    .compass-outer { width: 140px; height: 140px; }
+    .compass-wrapper { margin-bottom: 1rem; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1rem; }
+    .description { font-size: 0.8rem; }
+    .actions { margin-top: 1.5rem; }
+    .ghost-502 { font-size: 4rem; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="layer-bg"></div>
+<div class="layer-mid"></div>
+<div class="layer-fg-top"></div>
+<div class="layer-fg-bottom"></div>
+
+<div class="content">
+  <div class="compass-wrapper">
+    <div class="ghost-502">502</div>
+    <div class="compass-outer">
+      <svg class="compass-ticks" viewBox="0 0 200 200">
+        <g stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-linecap="round">
+          <!-- 12 linii od środka do krawędzi co 30° -->
+          <line x1="100" y1="100" x2="100" y2="6"/>
+          <line x1="100" y1="100" x2="147" y2="13.4"/>
+          <line x1="100" y1="100" x2="186.6" y2="53"/>
+          <line x1="100" y1="100" x2="194" y2="100"/>
+          <line x1="100" y1="100" x2="186.6" y2="147"/>
+          <line x1="100" y1="100" x2="147" y2="186.6"/>
+          <line x1="100" y1="100" x2="100" y2="194"/>
+          <line x1="100" y1="100" x2="53" y2="186.6"/>
+          <line x1="100" y1="100" x2="13.4" y2="147"/>
+          <line x1="100" y1="100" x2="6" y2="100"/>
+          <line x1="100" y1="100" x2="13.4" y2="53"/>
+          <line x1="100" y1="100" x2="53" y2="13.4"/>
+        </g>
+      </svg>
+      <span class="cardinal cardinal-n">N</span>
+      <span class="cardinal cardinal-s">S</span>
+      <span class="cardinal cardinal-e">E</span>
+      <span class="cardinal cardinal-w">W</span>
+      <div class="compass-inner">
+        <svg class="compass-map" viewBox="0 0 100 100" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.5">
+          <path d="M 20 20 L 50 50 L 80 30"/>
+          <path d="M 50 50 L 40 80"/>
+          <path d="M 50 50 L 10 60"/>
+        </svg>
+        <div class="needle-group" id="needle">
+          <div class="needle-north"></div>
+          <div class="needle-south"></div>
+          <div class="needle-center"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h1>BŁĄD 502</h1>
+  <h2>Zgubiliśmy szlak...</h2>
+  <p class="description">
+    Wygląda na to, że nasze serwery rozbiły namiot w złym miejscu (Bad Gateway). Zaraz wrócimy na właściwą ścieżkę.
+  </p>
+
+  <div class="actions">
+    <button class="btn-retry" onclick="location.reload()">
+      <span class="icon-refresh"></span>
+      <span>Spróbuj ponownie</span>
+    </button>
+    <a href="/" class="link-back">
+      <span class="link-back-arrow">&larr;</span>
+      <span class="link-back-text">Powrót do obozu</span>
+    </a>
+  </div>
+</div>
+
+<script>
+(function () {
+  var needle = document.getElementById("needle");
+  var MIN = -130;
+  var MAX = 130;
+  var HOLD_MS = 400;
+  var current = 0;
+
+  function randomAngle(prev) {
+    var a = 0;
+    do {
+      a = MIN + Math.random() * (MAX - MIN);
+    } while (Math.abs(a - prev) < 10);
+    return a;
+  }
+
+  function setAngle(angleDeg, durationMs) {
+    needle.style.transitionDuration = durationMs + "ms";
+    needle.style.transform = "rotate(" + angleDeg + "deg)";
+  }
+
+  function loop() {
+    var target = randomAngle(current);
+    var moveMs = 650 + Math.random() * 650;
+    setAngle(target, moveMs);
+    current = target;
+    setTimeout(loop, moveMs + HOLD_MS);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
