@@ -40,6 +40,7 @@
                                class="hss-input <#if messagesPerField.existsError('email')>hss-input-error</#if>"
                                placeholder="${msg("email")}" />
                     </div>
+                    <div id="hint-email" class="hss-field-hint"></div>
                 </div>
 
                 <#if !realm.registrationEmailAsUsername>
@@ -51,6 +52,7 @@
                                    class="hss-input <#if messagesPerField.existsError('username')>hss-input-error</#if>"
                                    placeholder="${msg("username")}" />
                         </div>
+                        <div id="hint-username" class="hss-field-hint"></div>
                     </div>
                 </#if>
 
@@ -66,6 +68,7 @@
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
                     </div>
+                    <div id="hint-password" class="hss-field-hint"></div>
                 </div>
 
                 <div class="hss-form-group">
@@ -80,6 +83,7 @@
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
                     </div>
+                    <div id="hint-confirm" class="hss-field-hint"></div>
                 </div>
 
                 <#if recaptchaRequired??>
@@ -88,7 +92,7 @@
                     </div>
                 </#if>
 
-                <button tabindex="5" class="hss-btn-primary" type="submit">
+                <button tabindex="5" id="register-btn" class="hss-btn-primary" type="submit" disabled>
                     ${msg("doRegister")}
                     <span class="material-icons">arrow_forward</span>
                 </button>
@@ -156,6 +160,160 @@
                     eyeClosed.style.display = 'none';
                 }
             }
+
+            (function() {
+                var emailInput = document.getElementById('email');
+                var usernameInput = document.getElementById('username');
+                var passwordInput = document.getElementById('password');
+                var confirmInput = document.getElementById('password-confirm');
+                var submitBtn = document.getElementById('register-btn');
+
+                var hintEmail = document.getElementById('hint-email');
+                var hintUsername = document.getElementById('hint-username');
+                var hintPassword = document.getElementById('hint-password');
+                var hintConfirm = document.getElementById('hint-confirm');
+
+                var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                // Track whether a field has been touched (user started typing)
+                var touched = { email: false, username: false, password: false, confirm: false };
+
+                var icons = { error: 'error_outline', ok: 'check_circle' };
+
+                function setHint(el, state, msg) {
+                    if (!el) return;
+                    if (!state || !msg) {
+                        el.classList.remove('visible');
+                        el.setAttribute('data-state', '');
+                        return;
+                    }
+                    var icon = icons[state] || '';
+                    el.innerHTML = (icon ? '<span class="material-icons">' + icon + '</span>' : '') + msg;
+                    el.setAttribute('data-state', state);
+                    el.classList.add('visible');
+                }
+
+                function setInputState(input, state) {
+                    if (!input) return;
+                    input.classList.remove('hss-input-error', 'hss-input-ok');
+                    if (state) input.classList.add('hss-input-' + state);
+                }
+
+                function validate() {
+                    var valid = true;
+
+                    // Email
+                    var emailVal = emailInput ? emailInput.value.trim() : '';
+                    if (touched.email) {
+                        if (emailVal.length === 0) {
+                            setHint(hintEmail, 'error', 'Podaj adres e-mail');
+                            setInputState(emailInput, 'error');
+                            valid = false;
+                        } else if (!emailRegex.test(emailVal)) {
+                            setHint(hintEmail, 'error', 'Nieprawidłowy format adresu e-mail');
+                            setInputState(emailInput, 'error');
+                            valid = false;
+                        } else {
+                            setHint(hintEmail, 'ok', 'Adres e-mail poprawny');
+                            setInputState(emailInput, 'ok');
+                        }
+                    } else {
+                        setHint(hintEmail, '', '');
+                        setInputState(emailInput, '');
+                        valid = false;
+                    }
+
+                    // Username (only if field exists)
+                    if (usernameInput) {
+                        var usernameVal = usernameInput.value.trim();
+                        if (touched.username) {
+                            if (usernameVal.length === 0) {
+                                setHint(hintUsername, 'error', 'Podaj nazwę użytkownika');
+                                setInputState(usernameInput, 'error');
+                                valid = false;
+                            } else {
+                                setHint(hintUsername, 'ok', 'Nazwa użytkownika OK');
+                                setInputState(usernameInput, 'ok');
+                            }
+                        } else {
+                            setHint(hintUsername, '', '');
+                            setInputState(usernameInput, '');
+                            valid = false;
+                        }
+                    }
+
+                    // Password
+                    var passVal = passwordInput ? passwordInput.value : '';
+                    if (touched.password) {
+                        if (passVal.length === 0) {
+                            setHint(hintPassword, 'error', 'Podaj hasło');
+                            setInputState(passwordInput, 'error');
+                            valid = false;
+                        } else if (passVal.length < 8) {
+                            setHint(hintPassword, 'error', 'Min. 8 znaków — wpisano ' + passVal.length + '/8');
+                            setInputState(passwordInput, 'error');
+                            valid = false;
+                        } else {
+                            setHint(hintPassword, 'ok', 'Siła hasła OK');
+                            setInputState(passwordInput, 'ok');
+                        }
+                    } else {
+                        setHint(hintPassword, '', '');
+                        setInputState(passwordInput, '');
+                        valid = false;
+                    }
+
+                    // Confirm password
+                    var confirmVal = confirmInput ? confirmInput.value : '';
+                    if (touched.confirm) {
+                        if (confirmVal.length === 0) {
+                            setHint(hintConfirm, 'error', 'Powtórz hasło');
+                            setInputState(confirmInput, 'error');
+                            valid = false;
+                        } else if (confirmVal !== passVal) {
+                            setHint(hintConfirm, 'error', 'Hasła nie są identyczne');
+                            setInputState(confirmInput, 'error');
+                            valid = false;
+                        } else {
+                            setHint(hintConfirm, 'ok', 'Hasła się zgadzają');
+                            setInputState(confirmInput, 'ok');
+                        }
+                    } else {
+                        setHint(hintConfirm, '', '');
+                        setInputState(confirmInput, '');
+                        valid = false;
+                    }
+
+                    submitBtn.disabled = !valid;
+                }
+
+                function bindField(input, key) {
+                    if (!input) return;
+                    input.addEventListener('input', function() {
+                        touched[key] = true;
+                        validate();
+                    });
+                    // Also validate on blur for fields user tabbed through
+                    input.addEventListener('blur', function() {
+                        if (input.value.length > 0) touched[key] = true;
+                        validate();
+                    });
+                }
+
+                bindField(emailInput, 'email');
+                bindField(usernameInput, 'username');
+                bindField(passwordInput, 'password');
+                bindField(confirmInput, 'confirm');
+
+                // Re-validate confirm when password changes
+                if (passwordInput && confirmInput) {
+                    passwordInput.addEventListener('input', function() {
+                        if (touched.confirm) validate();
+                    });
+                }
+
+                validate();
+            })();
         </script>
     </#if>
 
