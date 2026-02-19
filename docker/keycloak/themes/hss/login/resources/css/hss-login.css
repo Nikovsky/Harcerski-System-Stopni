@@ -500,6 +500,47 @@ input:-webkit-autofill:active {
     transform: translateX(-3px);
 }
 
+/* ---------- Social providers ---------- */
+.hss-social-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.75rem;
+}
+.hss-btn-social {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: #d1d5db;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.hss-btn-social:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    text-decoration: none;
+}
+.hss-social-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+}
+.hss-social-icon-fallback {
+    font-size: 1.125rem;
+    color: #9ca3af;
+}
+
 /* ---------- Animations ---------- */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(16px); }

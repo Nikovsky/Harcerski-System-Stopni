@@ -216,6 +216,8 @@ services:
 
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/502.html:/usr/share/nginx/html/502.html:ro
+      - ./nginx/502-bg.webp:/usr/share/nginx/html/502-bg.webp:ro
       - ${CERTS_DIR:-./certs}/${TLS_CERT_PEM:-hss.local.pem}:/etc/nginx/certs/hss.local.pem:ro
       - ${CERTS_DIR:-./certs}/${TLS_CERT_KEY:-hss.local-key.pem}:/etc/nginx/certs/hss.local-key.pem:ro
 
