@@ -98,6 +98,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: envServer.AUTH_TRUST_HOST,
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8h — F07 fix
 
+  // Behind NGINX reverse proxy, Node.js sees HTTP but cookies were set with
+  // __Secure- prefix (browser sees HTTPS). Force useSecureCookies so NextAuth
+  // reads the correct cookie names on callback. Without this, PKCE
+  // code_verifier cookie is not found → InvalidCheck error.
+  useSecureCookies: true,
+
   providers: [
     Keycloak({
       issuer: envServer.AUTH_KEYCLOAK_ISSUER,

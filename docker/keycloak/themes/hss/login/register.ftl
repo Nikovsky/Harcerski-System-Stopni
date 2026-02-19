@@ -68,6 +68,12 @@
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
                     </div>
+                    <div id="password-strength" class="hss-strength-bar">
+                        <div class="hss-strength-segment"></div>
+                        <div class="hss-strength-segment"></div>
+                        <div class="hss-strength-segment"></div>
+                        <div class="hss-strength-segment"></div>
+                    </div>
                     <div id="hint-password" class="hss-field-hint"></div>
                 </div>
 
@@ -93,8 +99,9 @@
                 </#if>
 
                 <button tabindex="5" id="register-btn" class="hss-btn-primary" type="submit" disabled>
-                    ${msg("doRegister")}
+                    <span class="hss-btn-text">${msg("doRegister")}</span>
                     <span class="material-icons">arrow_forward</span>
+                    <span class="hss-btn-spinner"></span>
                 </button>
 
             </form>
@@ -172,22 +179,52 @@
                 var hintUsername = document.getElementById('hint-username');
                 var hintPassword = document.getElementById('hint-password');
                 var hintConfirm = document.getElementById('hint-confirm');
+                var strengthBar = document.getElementById('password-strength');
 
                 var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                var strengthLabels = ['', 'Słabe', 'Przeciętne', 'Dobre', 'Silne'];
+
+                function getPasswordStrength(pass) {
+                    if (!pass) return 0;
+                    var score = 0;
+                    if (pass.length >= 8) score++;
+                    if (pass.length >= 12) score++;
+                    if (/[a-z]/.test(pass) && /[A-Z]/.test(pass)) score++;
+                    if (/\d/.test(pass)) score++;
+                    if (/[^a-zA-Z0-9]/.test(pass)) score++;
+                    if (score <= 1) return 1;
+                    if (score <= 2) return 2;
+                    if (score <= 3) return 3;
+                    return 4;
+                }
+
+                function updateStrengthBar(pass) {
+                    if (!strengthBar) return;
+                    if (!pass || pass.length === 0) {
+                        strengthBar.classList.remove('visible');
+                        strengthBar.setAttribute('data-level', '0');
+                        return;
+                    }
+                    var level = getPasswordStrength(pass);
+                    strengthBar.setAttribute('data-level', level);
+                    strengthBar.classList.add('visible');
+                    return level;
+                }
 
                 // Track whether a field has been touched (user started typing)
                 var touched = { email: false, username: false, password: false, confirm: false };
 
                 var icons = { error: 'error_outline', ok: 'check_circle' };
 
-                function setHint(el, state, msg) {
+                function setHint(el, state, msg, customIcon) {
                     if (!el) return;
                     if (!state || !msg) {
                         el.classList.remove('visible');
                         el.setAttribute('data-state', '');
                         return;
                     }
-                    var icon = icons[state] || '';
+                    var icon = customIcon || icons[state] || '';
                     el.innerHTML = (icon ? '<span class="material-icons">' + icon + '</span>' : '') + msg;
                     el.setAttribute('data-state', state);
                     el.classList.add('visible');
@@ -245,6 +282,7 @@
                     // Password
                     var passVal = passwordInput ? passwordInput.value : '';
                     if (touched.password) {
+                        var strength = updateStrengthBar(passVal);
                         if (passVal.length === 0) {
                             setHint(hintPassword, 'error', 'Podaj hasło');
                             setInputState(passwordInput, 'error');
@@ -254,12 +292,16 @@
                             setInputState(passwordInput, 'error');
                             valid = false;
                         } else {
-                            setHint(hintPassword, 'ok', 'Siła hasła OK');
-                            setInputState(passwordInput, 'ok');
+                            var label = strengthLabels[strength] || 'OK';
+                            var hintState = strength >= 3 ? 'ok' : 'warn';
+                            var icon = strength >= 3 ? 'check_circle' : 'info';
+                            setHint(hintPassword, hintState, 'Siła hasła: ' + label, icon);
+                            setInputState(passwordInput, strength >= 3 ? 'ok' : '');
                         }
                     } else {
                         setHint(hintPassword, '', '');
                         setInputState(passwordInput, '');
+                        updateStrengthBar('');
                         valid = false;
                     }
 
@@ -313,6 +355,12 @@
                 }
 
                 validate();
+
+                // Submit spinner
+                var form = document.getElementById('kc-register-form');
+                form.addEventListener('submit', function() {
+                    submitBtn.classList.add('hss-btn-loading');
+                });
             })();
         </script>
     </#if>
