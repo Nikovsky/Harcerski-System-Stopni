@@ -1,36 +1,13 @@
 // @file: packages/schemas/src/user/dashboard.schema.ts
 import { z } from "zod";
 
-export const userRoleSchema = z.enum([
-  "ROOT",
-  "SYSTEM",
-  "ADMIN",
-  "COMMISSION_MEMBER",
-  "SCOUT",
-  "USER",
-]);
-
-export const scoutRankSchema = z.enum([
-  "MLODZIK",
-  "WYWIADOWCA",
-  "CWIK",
-  "HARCERZ_ORLI",
-  "HARCERZ_RZECZYPOSPOLITEJ",
-]);
-
-export const instructorRankSchema = z.enum([
-  "PRZEWODNIK",
-  "PODHARCMISTRZ_OTWARTA_PROBA",
-  "PODHARCMISTRZ",
-  "HARCMISTRZ",
-]);
-
-export const statusSchema = z.enum([
-  "ACTIVE",
-  "INACTIVE",
-  "ARCHIVED",
-  "PENDING_DELETION",
-]);
+import {
+  instructorRankSchema,
+  scoutRankSchema,
+  statusSchema,
+  userRoleSchema,
+} from "../enums.schema";
+import { dateOnlySchema, emailSchema, isoDateTimeSchema, uuidSchema } from "../primitives.schema";
 
 /**
  * JSON contract: Dates go over the wire as ISO strings.
@@ -38,41 +15,39 @@ export const statusSchema = z.enum([
  */
 export const userDashboardResponseSchema = z
   .object({
-    uuid: z.string().uuid(),
-    keycloakUuid: z.string().uuid(),
+    uuid: uuidSchema,
+    keycloakUuid: uuidSchema,
 
     firstName: z.string().max(64).nullable(),
     secondName: z.string().max(64).nullable(),
     surname: z.string().max(64).nullable(),
-    email: z.string().email().nullable(),
+    email: emailSchema.nullable(),
     phone: z.string().max(32).nullable(),
 
-    birthDate: z.string().datetime().nullable(),
+    birthDate: isoDateTimeSchema.nullable(),
 
     role: userRoleSchema,
     hufiecCode: z.string().max(32).nullable(),
     druzynaCode: z.string().max(32).nullable(),
 
     scoutRank: scoutRankSchema.nullable(),
-    scoutRankAwardedAt: z.string().datetime().nullable(),
+    scoutRankAwardedAt: isoDateTimeSchema.nullable(),
 
     instructorRank: instructorRankSchema.nullable(),
-    instructorRankAwardedAt: z.string().datetime().nullable(),
+    instructorRankAwardedAt: isoDateTimeSchema.nullable(),
 
-    inScoutingSince: z.string().datetime().nullable(),
-    inZhrSince: z.string().datetime().nullable(),
-    oathDate: z.string().datetime().nullable(),
+    inScoutingSince: isoDateTimeSchema.nullable(),
+    inZhrSince: isoDateTimeSchema.nullable(),
+    oathDate: isoDateTimeSchema.nullable(),
 
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: isoDateTimeSchema,
+    updatedAt: isoDateTimeSchema,
 
     status: statusSchema,
   })
   .strict();
 
 export type UserDashboardResponse = z.infer<typeof userDashboardResponseSchema>;
-
-const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /**
  * USER editable fields only.
@@ -86,7 +61,7 @@ export const userDashboardUpdateProfileBodySchema = z
     secondName: z.string().min(1).max(64).nullable().optional(),
     surname: z.string().min(1).max(64).nullable().optional(),
     phone: z.string().min(3).max(32).nullable().optional(),
-    birthDate: dateOnly.nullable().optional(),
+    birthDate: dateOnlySchema.nullable().optional(),
   })
   .strict();
 
@@ -104,14 +79,14 @@ export const userDashboardUpdatePrivilegedBodySchema =
       druzynaCode: z.string().min(1).max(32).nullable().optional(),
 
       scoutRank: scoutRankSchema.nullable().optional(),
-      scoutRankAwardedAt: dateOnly.nullable().optional(),
+      scoutRankAwardedAt: dateOnlySchema.nullable().optional(),
 
       instructorRank: instructorRankSchema.nullable().optional(),
-      instructorRankAwardedAt: dateOnly.nullable().optional(),
+      instructorRankAwardedAt: dateOnlySchema.nullable().optional(),
 
-      inScoutingSince: dateOnly.nullable().optional(),
-      inZhrSince: dateOnly.nullable().optional(),
-      oathDate: dateOnly.nullable().optional(),
+      inScoutingSince: dateOnlySchema.nullable().optional(),
+      inZhrSince: dateOnlySchema.nullable().optional(),
+      oathDate: dateOnlySchema.nullable().optional(),
     })
     .strict();
 
