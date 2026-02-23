@@ -8,23 +8,11 @@ import {
 import type { Prisma, User } from "@hss/database";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UserRole, Status } from "@hss/database";
-import type { AuthPrincipal, UserDashboardUpdatePrivilegedBody } from "@hss/schemas";
-import { splitPersonName, iso, isoOrNull, dateOnlyToUtcOrNull } from "@/helpers";
+import { userDashboardPrivilegedKeys, type AuthPrincipal, type UserDashboardUpdatePrivilegedBody, type UserDashboardResponse } from "@hss/schemas";
+import { iso, isoOrNull, dateOnlyToUtcOrNull } from "@/helpers";
 import { hasAnyDefined } from "@/helpers/object.helper";
 import { isHigherThanUser } from "@/helpers/role.helper";
-import type { DashboardAuthUser, UserDashboardDto } from "./dashboard.dto";
-
-const PRIVILEGED_KEYS = [
-  "hufiecCode",
-  "druzynaCode",
-  "scoutRank",
-  "scoutRankAwardedAt",
-  "instructorRank",
-  "instructorRankAwardedAt",
-  "inScoutingSince",
-  "inZhrSince",
-  "oathDate",
-] as const satisfies readonly (keyof UserDashboardUpdatePrivilegedBody)[];
+import { ZodValidationPipe } from "@/pipelines/zod-validation.pipe";
 
 @Injectable()
 export class DashboardService {
@@ -34,7 +22,7 @@ export class DashboardService {
    * Get-or-create (Keycloak sub) and RETURN DB entity.
    * - If user doesn't exist in DB: create MINIMAL row (email only + system fields).
    */
-  private async ensureUserEntity(principal: DashboardAuthUser): Promise<User> {
+  private async ensureUserEntity(principal: AuthPrincipal): Promise<User> {
     const keycloakUuid = principal.sub;
     const email = principal.email?.toLowerCase() ?? null;
 
@@ -83,7 +71,7 @@ export class DashboardService {
     });
   }
 
-  async getOrCreateFromKeycloak(user: DashboardAuthUser): Promise<UserDashboardDto> {
+  async getOrCreateFromKeycloak(user: AuthPrincipal): Promise<UserDashboardResponse> {
     const entity = await this.ensureUserEntity(user);
     return this.toDashboardDto(entity);
   }
@@ -91,12 +79,12 @@ export class DashboardService {
   async updateDashboard(
     principal: AuthPrincipal,
     body: UserDashboardUpdatePrivilegedBody,
-  ): Promise<UserDashboardDto> {
+  ): Promise<UserDashboardResponse> {
     const me = await this.ensureUserEntity(principal);
 
     const privileged = isHigherThanUser(me.role);
 
-    if (!privileged && hasAnyDefined(body, PRIVILEGED_KEYS)) {
+    if (!privileged && hasAnyDefined(body, userDashboardPrivilegedKeys)) {
       throw new ForbiddenException({
         code: "DASHBOARD_EDIT_FORBIDDEN",
         message: "You cannot edit these fields.",
@@ -146,7 +134,7 @@ export class DashboardService {
     return this.toDashboardDto(updated);
   }
 
-  private toDashboardDto(user: User): UserDashboardDto {
+  private toDashboardDto(user: User): UserDashboardResponse {
     if (!user.keycloakUuid) {
       throw new InternalServerErrorException({
         code: "KEYCLOAK_UUID_MISSING",

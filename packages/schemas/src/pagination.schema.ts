@@ -1,14 +1,14 @@
-// @file: packages/schemas/src/models/_shared.schema.ts
+// @file: packages/schemas/src/pagination.schema.ts
 import { z } from "zod";
 
-export const baseGetAllQuerySchema = z
+export const paginationQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })
   .strict();
 
-export const createGetAllResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+export const createPaginationResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
   z
     .object({
       items: z.array(itemSchema),

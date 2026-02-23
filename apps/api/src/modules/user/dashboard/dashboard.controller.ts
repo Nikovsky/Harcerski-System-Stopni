@@ -10,7 +10,7 @@ import { DashboardService } from "./dashboard.service";
 import { UserRole } from "@hss/database";
 import { dateOnlyToUtcOrNull } from "@/helpers";
 import { userDashboardResponseSchema, userDashboardUpdatePrivilegedBodySchema, type UserDashboardUpdatePrivilegedBody, type AuthPrincipal, } from "@hss/schemas";
-import type { UpdateUserDashboardProfileDto } from "./dashboard.dto";
+// import type { UpdateUserDashboardProfileDto } from "./dashboard.dto";
 
 @Controller("dashboard")
 @UseGuards(JwtAuthGuard, RolesGuard)

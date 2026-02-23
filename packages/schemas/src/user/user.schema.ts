@@ -1,13 +1,16 @@
-// @file: packages/schemas/src/models/user.schema.ts
+// @file: packages/schemas/src/user/user.schema.ts
 import { z } from "zod";
 
 import { instructorRankSchema, scoutRankSchema, statusSchema, userRoleSchema } from "../enums.schema";
-import { emailSchema, isoDateTimeSchema, uuidSchema } from "../primitives.schema";
-import { baseGetAllQuerySchema, createGetAllResponseSchema } from "./_shared.schema";
+import { createPaginationResponseSchema, paginationQuerySchema } from "../pagination.schema";
 
-export const userGetAllQuerySchema = baseGetAllQuerySchema;
+const uuidSchema = z.string().uuid();
+const emailSchema = z.email();
+const isoDateTimeSchema = z.iso.datetime();
 
-export const userGetAllItemSchema = z
+export const getAllUserQuerySchema = paginationQuerySchema;
+
+export const getAllUserItemSchema = z
   .object({
     uuid: uuidSchema,
     keycloakUuid: uuidSchema,
@@ -33,6 +36,6 @@ export const userGetAllItemSchema = z
   })
   .strict();
 
-export const userGetPathParamsSchema = z.object({ userUuid: uuidSchema }).strict();
-export const userGetResponseSchema = userGetAllItemSchema;
-export const userGetAllResponseSchema = createGetAllResponseSchema(userGetAllItemSchema);
+export const getUserPathParamsSchema = z.object({ userUuid: uuidSchema }).strict();
+export const getUserResponseSchema = getAllUserItemSchema;
+export const getAllUserResponseSchema = createPaginationResponseSchema(getAllUserItemSchema);

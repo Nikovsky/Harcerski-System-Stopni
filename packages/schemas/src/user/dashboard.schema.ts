@@ -7,7 +7,11 @@ import {
   statusSchema,
   userRoleSchema,
 } from "../enums.schema";
-import { dateOnlySchema, emailSchema, isoDateTimeSchema, uuidSchema } from "../primitives.schema";
+
+const uuidSchema = z.string().uuid();
+const emailSchema = z.email();
+const isoDateTimeSchema = z.iso.datetime();
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /**
  * JSON contract: Dates go over the wire as ISO strings.
@@ -18,11 +22,11 @@ export const userDashboardResponseSchema = z
     uuid: uuidSchema,
     keycloakUuid: uuidSchema,
 
-    firstName: z.string().max(64).nullable(),
-    secondName: z.string().max(64).nullable(),
-    surname: z.string().max(64).nullable(),
+    firstName: z.string().max(32).nullable(),
+    secondName: z.string().max(32).nullable(),
+    surname: z.string().max(32).nullable(),
     email: emailSchema.nullable(),
-    phone: z.string().max(32).nullable(),
+    phone: z.string().max(16).nullable(),
 
     birthDate: isoDateTimeSchema.nullable(),
 
@@ -57,10 +61,10 @@ export type UserDashboardResponse = z.infer<typeof userDashboardResponseSchema>;
  */
 export const userDashboardUpdateProfileBodySchema = z
   .object({
-    firstName: z.string().min(1).max(64).nullable().optional(),
-    secondName: z.string().min(1).max(64).nullable().optional(),
-    surname: z.string().min(1).max(64).nullable().optional(),
-    phone: z.string().min(3).max(32).nullable().optional(),
+    firstName: z.string().min(1).max(32).nullable().optional(),
+    secondName: z.string().min(1).max(32).nullable().optional(),
+    surname: z.string().min(1).max(32).nullable().optional(),
+    phone: z.string().min(3).max(16).nullable().optional(),
     birthDate: dateOnlySchema.nullable().optional(),
   })
   .strict();
@@ -89,6 +93,18 @@ export const userDashboardUpdatePrivilegedBodySchema =
       oathDate: dateOnlySchema.nullable().optional(),
     })
     .strict();
+
+export const userDashboardPrivilegedKeys = [
+  "hufiecCode",
+  "druzynaCode",
+  "scoutRank",
+  "scoutRankAwardedAt",
+  "instructorRank",
+  "instructorRankAwardedAt",
+  "inScoutingSince",
+  "inZhrSince",
+  "oathDate",
+] as const satisfies readonly (keyof UserDashboardUpdatePrivilegedBody)[];
 
 export type UserDashboardUpdatePrivilegedBody = z.infer<
   typeof userDashboardUpdatePrivilegedBodySchema

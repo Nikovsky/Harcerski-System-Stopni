@@ -1,24 +1,27 @@
-// @file: packages/schemas/src/models/instructor-application.schema.ts
+// @file: packages/schemas/src/application/instructorApplication.schema.ts
 import { z } from "zod";
 
 import { applicationStatusSchema, instructorRankSchema, presenceTypeSchema } from "../enums.schema";
-import { isoDateTimeSchema, uuidSchema } from "../primitives.schema";
-import { baseGetAllQuerySchema, createGetAllResponseSchema } from "./_shared.schema";
+import { createPaginationResponseSchema, paginationQuerySchema } from "../pagination.schema";
 
-export const instructorApplicationGetAllQuerySchema = baseGetAllQuerySchema;
+const uuidSchema = z.string().uuid();
+const isoDateTimeSchema = z.iso.datetime();
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export const instructorApplicationGetAllItemSchema = z
+export const getAllInstructorApplicationQuerySchema = paginationQuerySchema;
+
+export const getAllInstructorApplicationItemSchema = z
   .object({
     uuid: uuidSchema,
     candidateUuid: uuidSchema,
     templateUuid: uuidSchema,
     status: applicationStatusSchema,
     targetDegree: instructorRankSchema.nullable(),
-    plannedFinishAt: isoDateTimeSchema.nullable(),
+    plannedFinishAt: dateOnlySchema.nullable(),
     teamFunction: z.string().max(64).nullable(),
     hufiecFunction: z.string().max(64).nullable(),
     openTrialForRank: instructorRankSchema.nullable(),
-    openTrialDeadline: isoDateTimeSchema.nullable(),
+    openTrialDeadline: dateOnlySchema.nullable(),
     hufcowyPresence: presenceTypeSchema.nullable(),
     hufcowyPresenceAttachmentUuid: uuidSchema.nullable(),
     functionsHistory: z.string().nullable(),
@@ -40,6 +43,6 @@ export const instructorApplicationGetAllItemSchema = z
   })
   .strict();
 
-export const instructorApplicationGetPathParamsSchema = z.object({ instructorApplicationUuid: uuidSchema }).strict();
-export const instructorApplicationGetResponseSchema = instructorApplicationGetAllItemSchema;
-export const instructorApplicationGetAllResponseSchema = createGetAllResponseSchema(instructorApplicationGetAllItemSchema);
+export const getInstructorApplicationPathParamsSchema = z.object({ instructorApplicationUuid: uuidSchema }).strict();
+export const getInstructorApplicationResponseSchema = getAllInstructorApplicationItemSchema;
+export const getAllInstructorApplicationResponseSchema = createPaginationResponseSchema(getAllInstructorApplicationItemSchema);

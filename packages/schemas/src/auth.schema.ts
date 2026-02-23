@@ -1,6 +1,8 @@
-// @file: packages/schemas/src/zod/auth.schema.ts
+// @file: packages/schemas/src/auth.schema.ts
 import { z } from "zod";
-import { emailSchema, uuidSchema } from "./primitives.schema";
+
+const uuidSchema = z.string().uuid();
+const emailSchema = z.email();
 
 export const AuthPrincipalSchema = z.object({
   sub: uuidSchema,
