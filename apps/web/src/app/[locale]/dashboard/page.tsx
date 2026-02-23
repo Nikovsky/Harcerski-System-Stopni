@@ -23,7 +23,7 @@ async function fetchDashboard(): Promise<
   const h = await headers();
   const baseUrl = await getBaseUrl();
 
-  const res = await fetch(`${baseUrl}/api/backend/dashboard`, {
+  const res = await fetch(`${baseUrl}/api/backend/profile`, {
     method: "GET",
     cache: "no-store",
     headers: {

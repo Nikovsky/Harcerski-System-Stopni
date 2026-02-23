@@ -1,26 +1,29 @@
-// @file: apps/api/src/modules/user/dashboard/dashboard.controller.ts
-import { Body, Controller, Get, InternalServerErrorException, Patch, UseGuards, } from "@nestjs/common";
-import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
-import { RolesGuard } from "@/guards/roles.guard";
+// @file: apps/api/src/modules/user/profile/profile.controller.ts
+import { Body, Controller, Get, InternalServerErrorException, Patch, UseGuards } from "@nestjs/common";
+import { UserRole } from "@hss/database";
+import {
+  userDashboardResponseSchema,
+  userDashboardUpdatePrivilegedBodySchema,
+  type AuthPrincipal,
+  type UserDashboardUpdatePrivilegedBody,
+} from "@hss/schemas";
 import { Roles } from "@/decorators/roles.decorator";
 import { CurrentUser } from "@/decorators/current-user.decorator";
+import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
+import { RolesGuard } from "@/guards/roles.guard";
 import { AuthPrincipalPipe } from "@/pipelines/auth-principal.pipe";
 import { ZodValidationPipe } from "@/pipelines/zod-validation.pipe";
-import { DashboardService } from "./dashboard.service";
-import { UserRole } from "@hss/database";
-import { dateOnlyToUtcOrNull } from "@/helpers";
-import { userDashboardResponseSchema, userDashboardUpdatePrivilegedBodySchema, type UserDashboardUpdatePrivilegedBody, type AuthPrincipal, } from "@hss/schemas";
-// import type { UpdateUserDashboardProfileDto } from "./dashboard.dto";
+import { ProfileService } from "./profile.service";
 
-@Controller("dashboard")
+@Controller("profile")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.USER)
-export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) { }
+export class ProfileController {
+  constructor(private readonly profileService: ProfileService) { }
 
   @Get()
-  async getMyDashboard(@CurrentUser(AuthPrincipalPipe) user: AuthPrincipal) {
-    const dto = await this.dashboardService.getOrCreateFromKeycloak(user);
+  async getMyProfile(@CurrentUser(AuthPrincipalPipe) user: AuthPrincipal) {
+    const dto = await this.profileService.getOrCreateFromKeycloak(user);
 
     const parsed = userDashboardResponseSchema.safeParse(dto);
     if (!parsed.success) {
@@ -33,12 +36,12 @@ export class DashboardController {
   }
 
   @Patch()
-  async updateDashboard(
+  async updateProfile(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Body(new ZodValidationPipe(userDashboardUpdatePrivilegedBodySchema))
     body: UserDashboardUpdatePrivilegedBody,
   ) {
-    const out = await this.dashboardService.updateDashboard(principal, body);
+    const out = await this.profileService.updateProfile(principal, body);
 
     const parsed = userDashboardResponseSchema.safeParse(out);
     if (!parsed.success) {
