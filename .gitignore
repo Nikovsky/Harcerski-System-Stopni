@@ -10,6 +10,7 @@
 
 **/scripts/github/
 **/.claude/*
+**/docker/certs/
 
 # pnpm store (if ever created locally)
 **/.pnpm-store/

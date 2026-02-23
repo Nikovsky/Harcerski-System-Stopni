@@ -55,6 +55,7 @@ Infra stack runs via Docker:
 - APP_URL=https://hss.local
 - API_URL=https://api.hss.local
 - AUTH_URL=https://auth.hss.local
+- AUTHCONSOLE_URL=https://authconsole.hss.local
 - S3_URL=https://s3.hss.local
 - S3CONSOLE_URL=https://s3console.hss.local
 
@@ -87,6 +88,18 @@ Infra stack runs via Docker:
 ### Config boundaries
 - `apps/*` may only read config through a single config module (no scattered `process.env` reads).
 - Shared env conventions live in `packages/schemas`.
+
+---
+
+## 4.1) Enforcement model (mandatory)
+
+Rules in this file are split into:
+- **MUST (enforced)**: must be validated by CI checks, linters, tests, or explicit PR evidence.
+- **SHOULD (guideline)**: strong default, but can be bypassed with justification in PR.
+
+Every PR MUST state:
+- which **MUST** controls were touched,
+- how they were verified (automated checks and/or manual verification steps).
 
 ---
 
@@ -139,6 +152,15 @@ Example:
 - Implement CSRF protections where cookies are used for auth.
 - Never log passwords, tokens, secrets, refresh tokens, authorization headers.
 
+### Session and token lifecycle (mandatory)
+- Access tokens must be short-lived.
+- Refresh tokens must be rotated when supported by the provider.
+- Session policy must define:
+  - idle timeout,
+  - absolute timeout,
+  - refresh failure behavior (force re-auth).
+- UI warning popups are UX-only; server-side/session policy is the security control.
+
 ### Error exposure
 - Never leak stack traces or internal errors to clients.
 - Use consistent error responses with stable error codes.
@@ -167,6 +189,15 @@ All API errors must return a consistent envelope, e.g.:
 ### Correlation
 - nginx should pass/request a correlation id.
 - API should propagate it to logs and responses.
+
+---
+
+## 8.1) Reverse proxy and host trust
+
+- `trustHost` (or equivalent host trust options) is allowed only when:
+  - requests are guaranteed to pass through trusted reverse proxy layers,
+  - proxy header forwarding is explicitly configured and documented.
+- Do not enable host trust in unknown/public proxy chains.
 
 ---
 
@@ -210,6 +241,13 @@ All API errors must return a consistent envelope, e.g.:
 - Breaking changes require coordinated updates across API + Web.
 - Prefer zod schemas + inferred types rather than hand-written duplicated types.
 
+### Breaking contract protocol (mandatory)
+- Breaking contract PRs must include:
+  - impact summary,
+  - migration plan (API + Web),
+  - rollout/rollback notes.
+- If backward compatibility is intentionally dropped, this must be explicit in the PR title or description.
+
 ---
 
 ## 13) Quality gates (required on every PR)
@@ -217,6 +255,9 @@ All API errors must return a consistent envelope, e.g.:
 - lint
 - typecheck
 - test
+- dependency audit (`pnpm audit` or equivalent)
+- secret scanning (CI-integrated)
+- static security scan (SAST) for changed code
 
 PRs that fail any gate do not merge.
 
@@ -247,5 +288,6 @@ PRs that fail any gate do not merge.
 - [ ] scaling impact noted if relevant
 - [ ] docs updated if behavior changes
 - [ ] any single-instance logic marked with `[SINGLE-INSTANCE]`
+- [ ] if auth/session/RBAC changed: threat summary + control summary + verification steps included
 
 (For full detail, see CONTRIBUTING.md / SECURITY.md / docs/runbook*.md)
