@@ -1,5 +1,11 @@
 // @file: apps/api/src/guards/roles.guard.ts
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY } from "../decorators/roles.decorator";
 
@@ -25,9 +31,21 @@ export class RolesGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest<{ user?: JwtUser }>();
     const user = req.user;
-    if (!user) return false;
+    if (!user) {
+      throw new UnauthorizedException({
+        code: "AUTHENTICATION_REQUIRED",
+        message: "Authentication required.",
+      });
+    }
 
     const roles = new Set([...user.realmRoles, ...user.clientRoles]);
-    return required.every((r) => roles.has(r));
+    if (!required.every((r) => roles.has(r))) {
+      throw new ForbiddenException({
+        code: "INSUFFICIENT_ROLE",
+        message: "Insufficient role.",
+      });
+    }
+
+    return true;
   }
 }

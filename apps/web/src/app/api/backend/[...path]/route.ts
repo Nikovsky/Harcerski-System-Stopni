@@ -3,6 +3,7 @@ import "server-only";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
@@ -20,16 +21,6 @@ function jsonNoStore(body: any, status: number) {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
   return res;
-}
-
-function decodeJwtClaims(jwt: string): any {
-  try {
-    const parts = jwt.split(".");
-    if (parts.length < 2) return null;
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-  } catch {
-    return null;
-  }
 }
 
 const HOP_BY_HOP = new Set([
@@ -98,6 +89,37 @@ function filterDownstreamHeaders(upstream: Response): Headers {
   return headers;
 }
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function getRequestOrigin(req: NextRequest): string | null {
+  const origin = req.headers.get("origin");
+  if (origin) return origin;
+
+  const referer = req.headers.get("referer");
+  if (!referer) return null;
+
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
+
+function enforceSameOriginCsrf(req: NextRequest): NextResponse | null {
+  const method = req.method.toUpperCase();
+  if (!MUTATING_METHODS.has(method)) return null;
+
+  const allowedOrigin = new URL(envServer.HSS_WEB_ORIGIN).origin;
+  const requestOrigin = getRequestOrigin(req);
+
+  if (!requestOrigin || requestOrigin !== allowedOrigin) {
+    dlog("csrf check failed", { method, requestOrigin, allowedOrigin });
+    return jsonNoStore({ error: "Forbidden" }, 403);
+  }
+
+  return null;
+}
+
 async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefined> {
   const m = req.method.toUpperCase();
   if (m === "GET" || m === "HEAD") return undefined;
@@ -113,24 +135,30 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
 }
 
 // IMPORTANT: in newer Next versions params may be async (Promise)
-type RouteContext = { params: { path?: string[] } | Promise<{ path?: string[] }> };
+type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
+  const csrfFailure = enforceSameOriginCsrf(req);
+  if (csrfFailure) return csrfFailure;
+
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
 
   // auth() triggers the full JWT callback chain — including silent token refresh.
-  // accessToken is passed through session callback (server-side only).
   const session = await auth();
+  const jwt = await getToken({
+    req,
+    secret: envServer.AUTH_SECRET,
+    secureCookie: envServer.HSS_WEB_ORIGIN.startsWith("https://"),
+  });
+  const accessToken = jwt?.accessToken ?? session?.accessToken;
 
-  dlog("session:", {
+  dlog("auth context:", {
     hasSession: !!session,
     userId: session?.user?.id,
-    hasAccessToken: !!session?.accessToken,
+    hasAccessToken: !!accessToken,
     error: session?.error,
   });
-
-  const accessToken = session?.accessToken;
 
   if (!accessToken) {
     return jsonNoStore(
@@ -143,15 +171,6 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
       401,
     );
   }
-
-  const claims = decodeJwtClaims(accessToken);
-  dlog("access token claims:", {
-    iss: claims?.iss,
-    aud: claims?.aud,
-    azp: claims?.azp,
-    exp: claims?.exp,
-    realmRoles: claims?.realm_access?.roles,
-  });
 
   let upstreamUrl: URL;
   try {

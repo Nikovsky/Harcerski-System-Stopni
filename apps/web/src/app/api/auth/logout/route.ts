@@ -76,8 +76,8 @@ async function readSessionJwt(
   isSecure: boolean,
 ): Promise<Record<string, unknown> | null> {
   const baseNames = isSecure
-    ? ["__Secure-authjs.session-token", "authjs.session-token"]
-    : ["authjs.session-token", "__Secure-authjs.session-token"];
+    ? ["__Host-authjs.session-token", "__Secure-authjs.session-token"]
+    : ["authjs.session-token"];
 
   for (const baseName of baseNames) {
     let raw = req.cookies.get(baseName)?.value;

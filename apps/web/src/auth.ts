@@ -4,6 +4,7 @@ import "server-only";
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import "next-auth/jwt";
+import type { JWT } from "next-auth/jwt";
 
 import { envServer } from "@/config/env.server";
 
@@ -31,12 +32,17 @@ declare module "next-auth" {
   }
 }
 
-// Mutex: only one refresh at a time per Node.js process.
-let refreshPromise: Promise<import("next-auth/jwt").JWT> | null = null;
+// Mutex map: one refresh per authenticated session key (per Node.js process).
+const refreshPromises = new Map<string, Promise<JWT>>();
+
+function getRefreshMutexKey(token: JWT): string {
+  if (token.sub) return `${token.sub}:${token.refreshToken?.slice(-12) ?? "no-refresh-token"}`;
+  return token.refreshToken?.slice(-12) ?? "anonymous";
+}
 
 async function refreshAccessToken(
-  token: import("next-auth/jwt").JWT,
-): Promise<import("next-auth/jwt").JWT> {
+  token: JWT,
+): Promise<JWT> {
   const issuer = envServer.AUTH_KEYCLOAK_ISSUER;
   const clientId = envServer.AUTH_KEYCLOAK_ID;
   const clientSecret = envServer.AUTH_KEYCLOAK_SECRET;
@@ -133,13 +139,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      // Refresh silently (mutex prevents concurrent refresh)
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken(token).finally(() => {
-          refreshPromise = null;
-        });
+      // Refresh silently (mutex prevents concurrent refresh per session key)
+      const refreshKey = getRefreshMutexKey(token);
+      const runningRefresh = refreshPromises.get(refreshKey);
+      if (runningRefresh) {
+        return runningRefresh;
       }
-      return refreshPromise;
+
+      const nextRefresh = refreshAccessToken(token).finally(() => {
+        refreshPromises.delete(refreshKey);
+      });
+      refreshPromises.set(refreshKey, nextRefresh);
+      return nextRefresh;
     },
 
     async session({ session, token }) {

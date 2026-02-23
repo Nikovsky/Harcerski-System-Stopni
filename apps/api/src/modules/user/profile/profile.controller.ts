@@ -1,23 +1,19 @@
 // @file: apps/api/src/modules/user/profile/profile.controller.ts
 import { Body, Controller, Get, InternalServerErrorException, Patch, UseGuards } from "@nestjs/common";
-import { UserRole } from "@hss/database";
 import {
   userDashboardResponseSchema,
   userDashboardUpdatePrivilegedBodySchema,
   type AuthPrincipal,
   type UserDashboardUpdatePrivilegedBody,
 } from "@hss/schemas";
-import { Roles } from "@/decorators/roles.decorator";
 import { CurrentUser } from "@/decorators/current-user.decorator";
 import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
-import { RolesGuard } from "@/guards/roles.guard";
 import { AuthPrincipalPipe } from "@/pipelines/auth-principal.pipe";
 import { ZodValidationPipe } from "@/pipelines/zod-validation.pipe";
 import { ProfileService } from "./profile.service";
 
 @Controller("profile")
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.USER)
+@UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) { }
 

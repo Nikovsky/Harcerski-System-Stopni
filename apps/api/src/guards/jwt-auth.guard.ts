@@ -9,12 +9,16 @@ export class JwtAuthGuard extends AuthGuard("keycloak-jwt") {
   handleRequest(err: any, user: any, info: any) {
     if (err || !user) {
       // info is typically: JsonWebTokenError / TokenExpiredError / error from jwks-rsa
+      const isExpired = info?.name === "TokenExpiredError";
       this.logger.warn("auth failed", {
         err: err?.message ?? err ?? null,
         info: info?.message ?? info ?? null,
         name: info?.name ?? err?.name ?? null,
       });
-      throw err || new UnauthorizedException();
+      throw new UnauthorizedException({
+        code: isExpired ? "ACCESS_TOKEN_EXPIRED" : "AUTHENTICATION_REQUIRED",
+        message: isExpired ? "Access token expired." : "Authentication required.",
+      });
     }
     return user;
   }
