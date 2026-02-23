@@ -9,13 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@hss/schemas": "workspace:*",
     "next": "16.1.6",
     "next-auth": "5.0.0-beta.30",
     "next-intl": "^4.8.1",
     "react": "19.2.3",
     "react-bootstrap-icons": "^1.11.6",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

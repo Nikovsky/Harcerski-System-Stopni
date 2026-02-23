@@ -2,5 +2,12 @@
   "nav": {
     "home": "Strona główna",
     "login": "Zaloguj"
+  },
+  "sessionTimeout": {
+    "title": "Sesja wygasa",
+    "message": "Zostaniesz wylogowany za {seconds} sekund z powodu braku aktywności.",
+    "stayLoggedIn": "Zostań zalogowany",
+    "extendMinutes": "+{minutes} min",
+    "loggingOut": "Wylogowywanie..."
   }
 }

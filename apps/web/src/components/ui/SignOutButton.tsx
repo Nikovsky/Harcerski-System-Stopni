@@ -33,11 +33,30 @@ export function SignOutButton() {
               </Button>
 
               {/* Full logout (Keycloak + Auth.js cookies cleanup) */}
-              <form method="post" action="/api/auth/logout">
-                <Button className="bg-red-500 text-white border-red-600" type="submit">
-                  LOGOUT
-                </Button>
-              </form>
+              <Button
+                className="bg-red-500 text-white border-red-600"
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/auth/logout", {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (res.ok) {
+                      // Logout successful - redirect handled by server
+                      window.location.href = "/";
+                    } else {
+                      console.error("Logout failed:", await res.text());
+                      alert("Logout failed. Please try again.");
+                    }
+                  } catch (e) {
+                    console.error("Logout error:", e);
+                    alert("Logout failed. Please try again.");
+                  }
+                }}
+              >
+                LOGOUT
+              </Button>
             </div>
           </div>
         </Popup>

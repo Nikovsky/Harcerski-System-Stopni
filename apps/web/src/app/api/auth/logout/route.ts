@@ -1,15 +1,13 @@
 // @file: apps/web/src/app/api/auth/logout/route.ts
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { decode } from "next-auth/jwt";
+import { envServer } from "@/config/env.server";
 
 /**
- * Derive the public origin of the web app.
- * - If the app is behind a reverse proxy (e.g. Nginx), use X-Forwarded-* headers.
- * - Otherwise fall back to Next.js computed origin.
- *
- * Why: behind Nginx, `req.nextUrl.origin` may become `http://localhost:3000`,
- * while the real browser origin is `https://hss.local`.
+ * Derive the public origin of the web app (works behind reverse proxy).
  */
 function getPublicOrigin(req: NextRequest): string {
   const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
@@ -19,180 +17,220 @@ function getPublicOrigin(req: NextRequest): string {
 }
 
 /**
- * Build a safe "returnTo" URL.
- * - Accepts absolute or relative values (we read it from query string).
- * - Enforces same-origin with the app base URL to prevent open redirects.
+ * Serialize a Set-Cookie header string that expires (deletes) the given cookie.
+ *
+ * NOTE: HttpOnly is fine even when deleting cookies (matches original cookies).
+ * We intentionally do NOT set Domain=... (host-only deletion is safest).
  */
-function safeReturnTo(raw: string | null, appUrl: string): string {
-  const fallback = `${appUrl}/`;
-  if (!raw) return fallback;
-
-  try {
-    const target = new URL(raw, appUrl);
-    const appOrigin = new URL(appUrl).origin;
-    return target.origin === appOrigin ? target.toString() : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Clear Auth.js / NextAuth cookies.
- * Note: cookie names can differ between versions and deployments,
- * so we clear a known superset (safe no-op if a cookie doesn't exist).
- */
-function clearAuthCookies(res: NextResponse, opts: { secure: boolean }): void {
-  const common = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    path: "/",
-    secure: opts.secure,
-    maxAge: 0,
-  };
-
-  const names = [
-    // Auth.js / NextAuth v5
-    "__Secure-authjs.session-token",
-    "authjs.session-token",
-    "__Host-authjs.session-token",
-
-    "__Host-authjs.csrf-token",
-    "__Secure-authjs.csrf-token",
-    "authjs.csrf-token",
-
-    "__Secure-authjs.callback-url",
-    "authjs.callback-url",
-    "__Host-authjs.callback-url",
-
-    "__Secure-authjs.pkce.code_verifier",
-    "authjs.pkce.code_verifier",
-
-    "__Secure-authjs.state",
-    "authjs.state",
-
-    "__Secure-authjs.nonce",
-    "authjs.nonce",
-
-    // NextAuth v4 leftovers (safe to clear)
-    "__Secure-next-auth.session-token",
-    "next-auth.session-token",
-
-    "__Host-next-auth.csrf-token",
-    "next-auth.csrf-token",
-
-    "__Secure-next-auth.callback-url",
-    "next-auth.callback-url",
+function expireCookie(name: string, secure: boolean): string {
+  const parts = [
+    `${name}=`,
+    "Path=/",
+    "Max-Age=0",
+    "HttpOnly",
+    "SameSite=Lax",
   ];
-
-  for (const name of names) {
-    res.cookies.set(name, "", common);
-  }
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
 }
 
 /**
- * Build the Keycloak end-session logout URL.
- *
- * We use front-channel logout to ensure the Keycloak SSO session is actually ended.
- * The `id_token_hint` parameter can suppress the Keycloak "Do you want to log out?" page
- * (depends on Keycloak settings / client configuration).
+ * Prefixes that identify Auth.js / NextAuth cookies.
+ * NextAuth v5 uses chunked cookies for large JWTs — e.g.
+ * `__Secure-authjs.session-token.0`, `.1`, `.2`, etc.
+ * Matching by prefix catches both base names AND chunks.
  */
-function buildKeycloakLogoutUrl(params: {
-  issuer: string;
-  clientId: string;
-  postLogoutRedirectUri: string;
-  idTokenHint?: string;
-}): string {
-  const url = new URL(`${params.issuer.replace(/\/$/, "")}/protocol/openid-connect/logout`);
-  url.searchParams.set("client_id", params.clientId);
-  url.searchParams.set("post_logout_redirect_uri", params.postLogoutRedirectUri);
-  if (params.idTokenHint) url.searchParams.set("id_token_hint", params.idTokenHint);
-  return url.toString();
+const AUTH_COOKIE_PREFIXES = [
+  "authjs.",
+  "__Secure-authjs.",
+  "__Host-authjs.",
+  "next-auth.",
+  "__Secure-next-auth.",
+  "__Host-next-auth.",
+];
+
+/**
+ * Read cookie names from the request and return those matching auth prefixes.
+ */
+function getAuthCookieNames(req: NextRequest): string[] {
+  const names: string[] = [];
+  for (const cookie of req.cookies.getAll()) {
+    if (AUTH_COOKIE_PREFIXES.some((p) => cookie.name.startsWith(p))) {
+      names.push(cookie.name);
+    }
+  }
+  return names;
 }
 
 /**
- * Logout flow (single route, two modes):
+ * Read and decode the Auth.js session JWT directly from cookies.
  *
- * 1) /api/auth/logout
- *    - Builds a safe returnTo URL (same-origin).
- *    - Reads id_token from Auth.js JWT (server-side).
- *    - Redirects the browser to Keycloak end-session endpoint with:
- *        - client_id
- *        - id_token_hint (optional)
- *        - post_logout_redirect_uri => /api/auth/logout?mode=finish&returnTo=...
- *
- * 2) /api/auth/logout?mode=finish&returnTo=...
- *    - Clears Auth.js cookies (hard local logout).
- *    - Redirects back to `returnTo`.
- *
- * Why this design:
- * - Ensures Keycloak SSO session ends (not only local cookies).
- * - Still guarantees local hard logout (cookie cleanup) even if Keycloak UI/redirect changes.
+ * Why not `getToken()`?
+ * Behind a reverse proxy, secure cookie detection can be unreliable if the
+ * original HTTPS protocol is not visible. By reading cookies explicitly, we
+ * handle secure/non-secure names AND chunked cookies.
  */
-async function handler(req: NextRequest): Promise<NextResponse> {
-  const publicOrigin = getPublicOrigin(req);
-  const appUrl = (process.env.HSS_WEB_ORIGIN ?? process.env.AUTH_URL ?? publicOrigin).replace(/\/$/, "");
-  const isSecure = appUrl.startsWith("https://");
+async function readSessionJwt(
+  req: NextRequest,
+  secret: string,
+  isSecure: boolean,
+): Promise<Record<string, unknown> | null> {
+  const baseNames = isSecure
+    ? ["__Secure-authjs.session-token", "authjs.session-token"]
+    : ["authjs.session-token", "__Secure-authjs.session-token"];
 
-  const mode = req.nextUrl.searchParams.get("mode");
+  for (const baseName of baseNames) {
+    let raw = req.cookies.get(baseName)?.value;
 
-  // --- FINISH MODE: clear local cookies and return to the app -------------------
-  if (mode === "finish") {
-    const returnToRaw = req.nextUrl.searchParams.get("returnTo");
-    const returnTo = safeReturnTo(returnToRaw, appUrl);
+    // Try chunked cookies (.0, .1, .2, …)
+    if (!raw) {
+      const chunks: string[] = [];
+      for (let i = 0; ; i++) {
+        const chunk = req.cookies.get(`${baseName}.${i}`)?.value;
+        if (!chunk) break;
+        chunks.push(chunk);
+      }
+      if (chunks.length > 0) raw = chunks.join("");
+    }
 
-    const res = NextResponse.redirect(returnTo, { status: 302 });
-    res.headers.set("Cache-Control", "no-store");
-    clearAuthCookies(res, { secure: isSecure });
-    return res;
-  }
+    if (!raw) continue;
 
-  // --- START MODE: redirect to Keycloak end-session ----------------------------
-  const issuer = process.env.AUTH_KEYCLOAK_ISSUER;
-  const clientId = process.env.AUTH_KEYCLOAK_ID;
-  const authSecret = process.env.AUTH_SECRET;
-
-  if (!issuer || !clientId || !authSecret) {
-    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
-  }
-
-  // Prefer explicit returnTo from POST form; fallback to Referer.
-  let returnToRaw: string | null = req.headers.get("referer");
-
-  if (req.method === "POST") {
     try {
-      const form = await req.formData();
-      const rt = form.get("returnTo");
-      if (typeof rt === "string" && rt.trim()) returnToRaw = rt;
-    } catch {
-      // ignore malformed form-data
+      const decoded = await decode({ token: raw, secret, salt: baseName });
+      if (decoded) return decoded as Record<string, unknown>;
+    } catch (e) {
+      // Do not leak token contents; just log cookie name + error.
+      console.error(`[logout] JWT decode failed for ${baseName}:`, e);
     }
   }
 
-  const returnTo = safeReturnTo(returnToRaw, appUrl);
+  return null;
+}
 
-  // Read id_token server-side (stored in JWT in your NextAuth callbacks)
-  const token = await getToken({ req, secret: authSecret });
-  const idTokenHint = (token as any)?.idToken as string | undefined;
+/**
+ * Terminate the Keycloak SSO session server-side.
+ *
+ * POST to the OIDC logout endpoint with `client_id`, `client_secret`, and
+ * `refresh_token`. Keycloak closes the SSO session without browser redirects.
+ */
+async function revokeKeycloakSession(params: {
+  issuer: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  idToken?: string;
+}): Promise<void> {
+  const logoutUrl = `${params.issuer.replace(/\/$/, "")}/protocol/openid-connect/logout`;
 
-  // Build our own finish URL
-  const finish = new URL(`${appUrl}/api/auth/logout`);
-  finish.searchParams.set("mode", "finish");
-  finish.searchParams.set("returnTo", returnTo);
+  const body: Record<string, string> = {
+    client_id: params.clientId,
+    client_secret: params.clientSecret,
+    refresh_token: params.refreshToken,
+  };
+  if (params.idToken) body.id_token_hint = params.idToken;
 
-  const kcLogoutUrl = buildKeycloakLogoutUrl({
-    issuer,
-    clientId,
-    postLogoutRedirectUri: finish.toString(),
-    idTokenHint,
+  const res = await fetch(logoutUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(body),
+    signal: AbortSignal.timeout(5_000),
   });
 
-  return NextResponse.redirect(kcLogoutUrl, { status: 302 });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    console.error(`[logout] Keycloak session revocation failed (${res.status}):`, txt.slice(0, 500));
+  } else if (envServer.NODE_ENV !== "production") {
+    console.log("[logout] Keycloak SSO session revoked successfully");
+  }
 }
 
-export async function GET(req: NextRequest) {
-  return handler(req);
+/**
+ * Logout flow — single-click, fully server-side:
+ *
+ * 1. Read refresh_token from the Auth.js JWT cookie (manual decode)
+ * 2. POST to Keycloak logout endpoint with client credentials + refresh_token
+ *    → Keycloak terminates the SSO session (no browser redirect needed)
+ * 3. Clear all Auth.js session cookies
+ * 4. Redirect user to home page
+ */
+async function handler(req: NextRequest): Promise<NextResponse> {
+  const publicOrigin = getPublicOrigin(req);
+
+  // Canonical app origin from validated env (safe)
+  const canonicalAppOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
+
+  // In weird proxy cases, req-origin may differ; we always redirect to canonical origin.
+  const appOrigin = canonicalAppOrigin || publicOrigin.replace(/\/$/, "");
+  const isSecure = appOrigin.startsWith("https://");
+
+  // --- Step 1: Decode JWT to extract refresh_token ---
+  const jwt = await readSessionJwt(req, envServer.AUTH_SECRET, isSecure);
+  const refreshToken = jwt?.refreshToken as string | undefined;
+  const idToken = jwt?.idToken as string | undefined;
+
+  // --- Step 2: Revoke Keycloak SSO session (server-side) ---
+  if (refreshToken) {
+    try {
+      await revokeKeycloakSession({
+        issuer: envServer.AUTH_KEYCLOAK_ISSUER,
+        clientId: envServer.AUTH_KEYCLOAK_ID,
+        clientSecret: envServer.AUTH_KEYCLOAK_SECRET,
+        refreshToken,
+        idToken,
+      });
+    } catch (e) {
+      console.error("[logout] Keycloak revocation error:", e);
+    }
+  } else {
+    console.warn("[logout] No refresh_token — skipping Keycloak revocation");
+  }
+
+  // --- Step 3: Clear all Auth.js cookies + redirect home ---
+  const cookiesToClear = getAuthCookieNames(req);
+
+  /**
+   * Use 200 + HTML redirect (not 302) to guarantee Set-Cookie headers are processed.
+   * Some reverse proxies may strip Set-Cookie from 302 responses.
+   */
+  const redirectTo = `${appOrigin}/`;
+  const html = [
+    "<!DOCTYPE html>",
+    "<html><head>",
+    '<meta charset="utf-8">',
+    `<meta http-equiv="refresh" content="0;url=${redirectTo}">`,
+    "</head><body>",
+    `<script>window.location.replace(${JSON.stringify(redirectTo)});</script>`,
+    "<noscript>Redirecting&hellip;</noscript>",
+    "</body></html>",
+  ].join("");
+
+  const headers = new Headers();
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Cache-Control", "no-store");
+
+  for (const name of cookiesToClear) {
+    headers.append("Set-Cookie", expireCookie(name, isSecure));
+  }
+
+  return new NextResponse(html, { status: 200, headers });
 }
 
+/**
+ * POST only — logout via GET enables CSRF attacks (e.g. <img src="/api/auth/logout">).
+ */
 export async function POST(req: NextRequest) {
+  // CSRF guard: allow only same-origin POSTs (Origin preferred, Referer fallback).
+  const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
+
+  const allowedOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
+
+  const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+
+  if (!requestOrigin || !allowedOrigin || requestOrigin !== allowedOrigin) {
+    console.warn("[logout] CSRF check failed:", { origin, referer, allowedOrigin });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return handler(req);
 }

@@ -2,24 +2,14 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY } from "../decorators/roles.decorator";
-import type { KeycloakClaims } from "../strategies/keycloak-jwt.strategy";
 
-function asArray(v: string | string[] | undefined): string[] {
-  if (!v) return [];
-  return Array.isArray(v) ? v : [v];
-}
-
-function extractRoles(user: KeycloakClaims, clientId: string): Set<string> {
-  const out = new Set<string>();
-
-  // realm roles
-  user.realm_access?.roles?.forEach((r) => out.add(r));
-
-  // client roles
-  const clientRoles = user.resource_access?.[clientId]?.roles ?? [];
-  clientRoles.forEach((r) => out.add(r));
-
-  return out;
+/** Shape returned by KeycloakJwtStrategy.validate() */
+interface JwtUser {
+  sub: string;
+  email?: string;
+  preferredUsername?: string;
+  realmRoles: string[];
+  clientRoles: string[];
 }
 
 @Injectable()
@@ -33,18 +23,11 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!required || required.length === 0) return true;
 
-    const req = ctx.switchToHttp().getRequest<{ user?: KeycloakClaims }>();
+    const req = ctx.switchToHttp().getRequest<{ user?: JwtUser }>();
     const user = req.user;
     if (!user) return false;
 
-    // (opcjonalnie, ale polecam) aud check
-    const expectedAud = process.env.KEYCLOAK_AUDIENCE!;
-    if (expectedAud) {
-      const aud = new Set(asArray(user.aud));
-      if (!aud.has(expectedAud)) return false;
-    }
-
-    const roles = extractRoles(user, expectedAud);
+    const roles = new Set([...user.realmRoles, ...user.clientRoles]);
     return required.every((r) => roles.has(r));
   }
 }

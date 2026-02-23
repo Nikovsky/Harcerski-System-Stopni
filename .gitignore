@@ -9,6 +9,7 @@
 !**/.yarn/versions
 
 **/scripts/github/
+**/.claude/*
 **/docker/certs/
 
 # pnpm store (if ever created locally)
@@ -52,4 +53,12 @@
 
 **/generated
 
+# python
+**/__pycache__
+**/*.py[codz]
+**/*$py.class
+**/.venv
+
+# AI
+**/.codex
 **/.claude

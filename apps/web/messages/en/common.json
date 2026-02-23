@@ -2,5 +2,12 @@
   "nav": {
     "home": "Home page",
     "login": "Login"
+  },
+  "sessionTimeout": {
+    "title": "Session expiring",
+    "message": "You will be logged out in {seconds} seconds due to inactivity.",
+    "stayLoggedIn": "Stay logged in",
+    "extendMinutes": "+{minutes} min",
+    "loggingOut": "Logging out..."
   }
 }

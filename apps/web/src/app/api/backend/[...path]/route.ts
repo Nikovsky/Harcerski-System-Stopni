@@ -1,13 +1,16 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import crypto from "crypto";
+
+import { auth } from "@/auth";
+import { envServer } from "@/config/env.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEBUG_BFF = process.env.DEBUG_BFF === "1";
+const DEBUG_BFF = envServer.DEBUG_BFF && envServer.NODE_ENV !== "production";
 
 function dlog(...args: any[]) {
   if (DEBUG_BFF) console.log("[BFF]", ...args);
@@ -17,11 +20,6 @@ function jsonNoStore(body: any, status: number) {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
   return res;
-}
-
-function secretFingerprint(secret: string) {
-  // nigdy nie loguj secreta, tylko krótki fingerprint
-  return crypto.createHash("sha256").update(secret).digest("hex").slice(0, 10);
 }
 
 function decodeJwtClaims(jwt: string): any {
@@ -46,7 +44,8 @@ const HOP_BY_HOP = new Set([
 ]);
 
 function apiOriginFromEnv(): string {
-  const raw = process.env.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
+  // Prefer the validated env, allow legacy fallback for convenience
+  const raw = envServer.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
   if (!raw) throw new Error("Missing HSS_API_BASE_URL (or API_URL) env");
   return raw.replace(/\/$/, "");
 }
@@ -69,9 +68,13 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
   headers.delete("authorization");
   headers.set("authorization", `Bearer ${accessToken}`);
 
+  // Avoid mismatches (fetch will compute content-length)
+  headers.delete("content-length");
+
   for (const h of HOP_BY_HOP) headers.delete(h);
   headers.delete("host");
 
+  // Preserve forwarding info (prefer explicit x-forwarded from proxy)
   const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const xfHost =
     req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ??
@@ -85,53 +88,14 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
 
 function filterDownstreamHeaders(upstream: Response): Headers {
   const headers = new Headers(upstream.headers);
+
+  // Never let upstream set cookies through the BFF
   headers.delete("set-cookie");
+
   for (const h of HOP_BY_HOP) headers.delete(h);
+
   headers.set("cache-control", "no-store");
   return headers;
-}
-
-function cookieHas(cookieHeader: string, baseName: string): boolean {
-  // obsługa chunkowania: authjs.session-token.0=...
-  return (
-    cookieHeader.includes(`${baseName}=`) ||
-    cookieHeader.includes(`${baseName}.0=`) ||
-    cookieHeader.includes(`${baseName}.1=`) ||
-    cookieHeader.includes(`${baseName}.`)
-  );
-}
-
-async function readAuthToken(req: NextRequest, secret: string) {
-  // 1) spróbuj default (Auth.js sam dobiera nazwę wg secureCookie itp.)
-  const t0 = await getToken({ req, secret });
-  if (t0) return { token: t0, usedCookieName: "(default)" as const };
-
-  // 2) jeśli nie wyszło, spróbuj jawnie na typowych nazwach (v5 + v4)
-  const cookieHeader = req.headers.get("cookie") ?? "";
-
-  const candidates = [
-    "__Secure-authjs.session-token",
-    "__Host-authjs.session-token",
-    "authjs.session-token",
-
-    // v4 leftovers (jeśli coś miesza w środowisku)
-    "__Secure-next-auth.session-token",
-    "next-auth.session-token",
-  ] as const;
-
-  for (const name of candidates) {
-    if (!cookieHas(cookieHeader, name)) continue;
-
-    const t = await getToken({
-      req,
-      secret,
-      cookieName: name,
-    });
-
-    if (t) return { token: t, usedCookieName: name };
-  }
-
-  return { token: null as any, usedCookieName: null as any };
 }
 
 async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefined> {
@@ -148,38 +112,33 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
   }
 }
 
-async function handle(
-  req: NextRequest,
-  ctx: { params: Promise<{ path?: string[] }> },
-): Promise<NextResponse> {
+// IMPORTANT: in newer Next versions params may be async (Promise)
+type RouteContext = { params: { path?: string[] } | Promise<{ path?: string[] }> };
+
+async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
+  // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
 
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) return jsonNoStore({ error: "Server misconfigured (AUTH_SECRET)" }, 500);
+  // auth() triggers the full JWT callback chain — including silent token refresh.
+  // accessToken is passed through session callback (server-side only).
+  const session = await auth();
 
-  const cookieHeader = req.headers.get("cookie") ?? "";
-  dlog("cookie header:", { present: cookieHeader.length > 0, len: cookieHeader.length });
-  dlog("auth secret fingerprint:", { fp: secretFingerprint(secret), len: secret.length });
-
-  const { token, usedCookieName } = await readAuthToken(req, secret);
-
-  dlog("getToken:", {
-    hasToken: !!token,
-    tokenKeys: token ? Object.keys(token) : [],
-    usedCookieName,
+  dlog("session:", {
+    hasSession: !!session,
+    userId: session?.user?.id,
+    hasAccessToken: !!session?.accessToken,
+    error: session?.error,
   });
 
-  const accessToken = (token as any)?.accessToken as string | undefined;
-  dlog("accessToken:", { present: !!accessToken });
+  const accessToken = session?.accessToken;
 
   if (!accessToken) {
-    // To jest Twój przypadek: cookie jest, ale tokenu nie da się odczytać albo nie ma accessToken.
-    // Najczęściej: AUTH_SECRET mismatch albo nie ten cookieName / chunking.
     return jsonNoStore(
       {
-        error: "Unauthorized (BFF cannot read/decrypt session token or accessToken missing)",
-        hint:
-          "If hasToken=false => AUTH_SECRET mismatch OR cookieName mismatch. Ensure stable AUTH_SECRET, then hard logout + clear cookies + login again.",
+        error:
+          session?.error === "RefreshTokenExpired"
+            ? "Session expired (refresh token invalid). Please log in again."
+            : "Unauthorized (no session or accessToken missing)",
       },
       401,
     );
@@ -199,7 +158,7 @@ async function handle(
     upstreamUrl = buildUpstreamUrl(req, path);
   } catch (e) {
     dlog("upstream url build error:", String(e));
-    return jsonNoStore({ error: "Server misconfigured (HSS_API_ORIGIN)" }, 500);
+    return jsonNoStore({ error: "Server misconfigured (HSS_API_BASE_URL)" }, 500);
   }
 
   const upstreamHeaders = buildUpstreamHeaders(req, accessToken);
@@ -214,6 +173,7 @@ async function handle(
       body: body ? Buffer.from(body) : undefined,
       redirect: "manual",
       cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
     });
 
     dlog("upstream response:", {
@@ -238,21 +198,21 @@ async function handle(
   }
 }
 
-export async function GET(req: NextRequest, ctx: any) {
+export async function GET(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function POST(req: NextRequest, ctx: any) {
+export async function POST(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function PUT(req: NextRequest, ctx: any) {
+export async function PUT(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function PATCH(req: NextRequest, ctx: any) {
+export async function PATCH(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function DELETE(req: NextRequest, ctx: any) {
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
-export async function HEAD(req: NextRequest, ctx: any) {
+export async function HEAD(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
