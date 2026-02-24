@@ -1,6 +1,7 @@
 // @file: apps/web/src/app/api/auth/logout/route.ts
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { decode } from "next-auth/jwt";
@@ -14,6 +15,21 @@ function getPublicOrigin(req: NextRequest): string {
   const xfHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
   if (xfProto && xfHost) return `${xfProto}://${xfHost}`;
   return req.nextUrl.origin;
+}
+
+function parseOriginFromReferer(referer: string | null): string | null {
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getRequestId(req: NextRequest): string {
+  const raw = req.headers.get("x-request-id")?.trim();
+  if (raw && /^[A-Za-z0-9._:-]{8,128}$/.test(raw)) return raw;
+  return randomUUID();
 }
 
 /**
@@ -220,17 +236,25 @@ async function handler(req: NextRequest): Promise<NextResponse> {
  */
 export async function POST(req: NextRequest) {
   // CSRF guard: allow only same-origin POSTs (Origin preferred, Referer fallback).
+  const requestId = getRequestId(req);
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
 
   const allowedOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
 
-  const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+  const requestOrigin = origin || parseOriginFromReferer(referer);
 
   if (!requestOrigin || !allowedOrigin || requestOrigin !== allowedOrigin) {
     console.warn("[logout] CSRF check failed:", { origin, referer, allowedOrigin });
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const res = NextResponse.json(
+      { code: "FORBIDDEN", message: "Forbidden." },
+      { status: 403 },
+    );
+    res.headers.set("x-request-id", requestId);
+    return res;
   }
 
-  return handler(req);
+  const res = await handler(req);
+  res.headers.set("x-request-id", requestId);
+  return res;
 }

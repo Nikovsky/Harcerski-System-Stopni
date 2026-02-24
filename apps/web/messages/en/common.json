@@ -5,7 +5,7 @@
   },
   "sessionTimeout": {
     "title": "Session expiring",
-    "message": "You will be logged out in {seconds} seconds due to inactivity.",
+    "message": "Your session will expire in {seconds} seconds.",
     "stayLoggedIn": "Stay logged in",
     "extendMinutes": "+{minutes} min",
     "loggingOut": "Logging out..."

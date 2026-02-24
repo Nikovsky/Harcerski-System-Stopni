@@ -5,7 +5,7 @@
   },
   "sessionTimeout": {
     "title": "Sesja wygasa",
-    "message": "Zostaniesz wylogowany za {seconds} sekund z powodu braku aktywności.",
+    "message": "Twoja sesja wygaśnie za {seconds} sekund.",
     "stayLoggedIn": "Zostań zalogowany",
     "extendMinutes": "+{minutes} min",
     "loggingOut": "Wylogowywanie..."

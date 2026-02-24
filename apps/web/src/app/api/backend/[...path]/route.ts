@@ -1,6 +1,7 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -17,10 +18,22 @@ function dlog(...args: any[]) {
   if (DEBUG_BFF) console.log("[BFF]", ...args);
 }
 
-function jsonNoStore(body: any, status: number) {
+function jsonNoStore(body: any, status: number, requestId?: string) {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
+  if (requestId) res.headers.set("x-request-id", requestId);
   return res;
+}
+
+type BffErrorCode =
+  | "FORBIDDEN"
+  | "AUTHENTICATION_REQUIRED"
+  | "SESSION_EXPIRED"
+  | "SERVER_MISCONFIGURED"
+  | "BAD_GATEWAY";
+
+function errorNoStore(status: number, code: BffErrorCode, message: string, requestId: string) {
+  return jsonNoStore({ code, message, requestId }, status, requestId);
 }
 
 const HOP_BY_HOP = new Set([
@@ -49,7 +62,7 @@ function buildUpstreamUrl(req: NextRequest, pathParts: string[]): URL {
   return url;
 }
 
-function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
+function buildUpstreamHeaders(req: NextRequest, accessToken: string, requestId: string): Headers {
   const headers = new Headers(req.headers);
 
   // Never forward browser cookies to the API
@@ -73,6 +86,7 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string): Headers {
 
   if (xfProto) headers.set("x-forwarded-proto", xfProto);
   if (xfHost) headers.set("x-forwarded-host", xfHost);
+  headers.set("x-request-id", requestId);
 
   return headers;
 }
@@ -105,7 +119,7 @@ function getRequestOrigin(req: NextRequest): string | null {
   }
 }
 
-function enforceSameOriginCsrf(req: NextRequest): NextResponse | null {
+function enforceSameOriginCsrf(req: NextRequest, requestId: string): NextResponse | null {
   const method = req.method.toUpperCase();
   if (!MUTATING_METHODS.has(method)) return null;
 
@@ -113,8 +127,8 @@ function enforceSameOriginCsrf(req: NextRequest): NextResponse | null {
   const requestOrigin = getRequestOrigin(req);
 
   if (!requestOrigin || requestOrigin !== allowedOrigin) {
-    dlog("csrf check failed", { method, requestOrigin, allowedOrigin });
-    return jsonNoStore({ error: "Forbidden" }, 403);
+    dlog("csrf check failed", { method, requestOrigin, allowedOrigin, requestId });
+    return errorNoStore(403, "FORBIDDEN", "Forbidden.", requestId);
   }
 
   return null;
@@ -138,7 +152,9 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const csrfFailure = enforceSameOriginCsrf(req);
+  const incomingRequestId = req.headers.get("x-request-id")?.trim();
+  const requestId = incomingRequestId || randomUUID();
+  const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
 
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
@@ -151,25 +167,20 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
     secret: envServer.AUTH_SECRET,
     secureCookie: envServer.HSS_WEB_ORIGIN.startsWith("https://"),
   });
-  const accessToken = jwt?.accessToken ?? session?.accessToken;
+  const accessToken = jwt?.accessToken;
 
   dlog("auth context:", {
     hasSession: !!session,
     userId: session?.user?.id,
     hasAccessToken: !!accessToken,
     error: session?.error,
+    requestId,
   });
 
   if (!accessToken) {
-    return jsonNoStore(
-      {
-        error:
-          session?.error === "RefreshTokenExpired"
-            ? "Session expired (refresh token invalid). Please log in again."
-            : "Unauthorized (no session or accessToken missing)",
-      },
-      401,
-    );
+    return session?.error === "RefreshTokenExpired"
+      ? errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId)
+      : errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
   }
 
   let upstreamUrl: URL;
@@ -177,10 +188,15 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
     upstreamUrl = buildUpstreamUrl(req, path);
   } catch (e) {
     dlog("upstream url build error:", String(e));
-    return jsonNoStore({ error: "Server misconfigured (HSS_API_BASE_URL)" }, 500);
+    return errorNoStore(
+      500,
+      "SERVER_MISCONFIGURED",
+      "Server misconfigured (HSS_API_BASE_URL).",
+      requestId,
+    );
   }
 
-  const upstreamHeaders = buildUpstreamHeaders(req, accessToken);
+  const upstreamHeaders = buildUpstreamHeaders(req, accessToken, requestId);
   const body = await readRequestBody(req);
 
   try {
@@ -206,6 +222,9 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
     }
 
     const downstreamHeaders = filterDownstreamHeaders(upstreamRes);
+    if (!downstreamHeaders.get("x-request-id")) {
+      downstreamHeaders.set("x-request-id", requestId);
+    }
 
     return new NextResponse(upstreamRes.body, {
       status: upstreamRes.status,
@@ -213,7 +232,7 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
     });
   } catch (e) {
     dlog("fetch upstream failed:", String(e));
-    return jsonNoStore({ error: "Bad gateway" }, 502);
+    return errorNoStore(502, "BAD_GATEWAY", "Bad gateway.", requestId);
   }
 }
 
