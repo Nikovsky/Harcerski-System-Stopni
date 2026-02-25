@@ -1,3 +1,4 @@
+<#-- @file: docker/keycloak/themes/hss/login-reset-password.ftl -->
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=!messagesPerField.existsError('username') displayInfo=false; section>
 
@@ -64,16 +65,16 @@
 
         <footer class="hss-page-footer">
             <div class="hss-footer-links">
-                <a href="https://hss.local" class="hss-footer-home">
+                <a href="https://hss.local/${(locale.currentLanguageTag!'pl')}" class="hss-footer-home">
                     <span class="material-icons">arrow_back</span>
-                    Strona główna
+                    ${msg("footerHome")}
                 </a>
                 <span class="sep">•</span>
-                <a href="#">Polityka Prywatności</a>
+                <a href="#">${msg("footerPrivacyPolicy")}</a>
                 <span class="sep">•</span>
-                <a href="#">Regulamin</a>
+                <a href="#">${msg("footerTerms")}</a>
             </div>
-            <p>&copy; ${.now?string('yyyy')} Związek Harcerstwa Rzeczypospolitej. Wszelkie prawa zastrzeżone.</p>
+            <p>${msg("footerCopyright", .now?string('yyyy'))}</p>
         </footer>
     </#if>
 

@@ -1,3 +1,4 @@
+<#-- @file: docker/keycloak/themes/hss/login.ftl -->
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled??; section>
 
@@ -9,8 +10,8 @@
                 <div class="hss-logo">
                     <img src="${url.resourcesPath}/img/logo.svg" alt="HSS Logo" />
                 </div>
-                <h1 class="hss-title">Zaloguj się do HSS</h1>
-                <p class="hss-subtitle">Harcerski System Stopni</p>
+                <h1 class="hss-title">${msg("signInTitle")}</h1>
+                <p class="hss-subtitle">${msg("appName")}</p>
             </div>
 
             <#if message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
@@ -53,7 +54,7 @@
                         <span class="material-icons hss-input-icon">lock</span>
                         <input tabindex="2" id="password" name="password" type="password" autocomplete="current-password"
                                class="hss-input hss-input-password" placeholder="••••••••" />
-                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password', this)" tabindex="5" aria-label="Pokaż/ukryj hasło">
+                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password', this)" tabindex="5" aria-label="${msg("togglePasswordVisibility")}">
                             <span class="material-icons eye-open">visibility_off</span>
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
@@ -92,7 +93,7 @@
                             <#else>
                                 <span class="material-icons hss-social-icon-fallback">login</span>
                             </#if>
-                            <span>Kontynuuj z ${p.displayName}</span>
+                            <span>${msg("continueWith", p.displayName)}</span>
                         </a>
                     </#list>
                 </div>
@@ -114,16 +115,16 @@
 
         <footer class="hss-page-footer">
             <div class="hss-footer-links">
-                <a href="https://hss.local" class="hss-footer-home">
+                <a href="https://hss.local/${(locale.currentLanguageTag!'pl')}" class="hss-footer-home">
                     <span class="material-icons">arrow_back</span>
-                    Strona główna
+                    ${msg("footerHome")}
                 </a>
                 <span class="sep">•</span>
-                <a href="#">Polityka Prywatności</a>
+                <a href="#">${msg("footerPrivacyPolicy")}</a>
                 <span class="sep">•</span>
-                <a href="#">Regulamin</a>
+                <a href="#">${msg("footerTerms")}</a>
             </div>
-            <p>&copy; ${.now?string('yyyy')} Związek Harcerstwa Rzeczypospolitej. Wszelkie prawa zastrzeżone.</p>
+            <p>${msg("footerCopyright", .now?string('yyyy'))}</p>
         </footer>
 
         <script>

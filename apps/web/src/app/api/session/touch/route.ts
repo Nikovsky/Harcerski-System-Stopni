@@ -12,6 +12,7 @@ import {
   type BffSessionTouchResponse,
 } from "@hss/schemas";
 
+import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 import { normalizeSessionSidFromCookie, touchSessionBySid } from "@/lib/server/bff-session.store";
 
@@ -82,6 +83,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = getRequestId(req);
   const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
+
+  const session = await auth();
+  if (!session?.user) {
+    return errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+  }
+  if (session.error === "RefreshTokenExpired") {
+    return errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId);
+  }
+  if (!session.accessToken) {
+    return errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+  }
 
   const body = await readTouchBody(req);
   if (!body) {

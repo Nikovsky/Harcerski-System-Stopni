@@ -4,11 +4,15 @@ import { SignInButton } from "./SignInButton";
 import { SignOutButton } from "./SignOutButton";
 import { SessionRemainingBadge } from "./SessionRemainingBadge";
 
-export async function AuthNav() {
+type AuthNavProps = {
+  locale: string;
+};
+
+export async function AuthNav({ locale }: AuthNavProps) {
   const session = await auth();
 
   if (!session?.user) {
-    return <SignInButton />;
+    return <SignInButton locale={locale} />;
   }
 
   const displayName =

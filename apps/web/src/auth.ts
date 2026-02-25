@@ -33,6 +33,7 @@ declare module "next-auth/jwt" {
 declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
+    accessToken?: string;
     user: {
       id?: string;
       name?: string | null;
@@ -59,6 +60,17 @@ function asString(value: unknown): string | undefined {
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function expireSessionToken(token: SessionJwt): SessionJwt {
+  return {
+    ...token,
+    accessToken: undefined,
+    refreshToken: undefined,
+    idToken: undefined,
+    accessTokenExpiresAt: undefined,
+    error: "RefreshTokenExpired",
+  };
 }
 
 function isTokenFresh(token: SessionJwt): boolean {
@@ -94,7 +106,7 @@ async function refreshAccessToken(
   const clientSecret = envServer.AUTH_KEYCLOAK_SECRET;
 
   if (!token.refreshToken) {
-    return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+    return expireSessionToken(token);
   }
 
   try {
@@ -120,17 +132,29 @@ async function refreshAccessToken(
       const parsed = JSON.parse(text) as unknown;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
         console.error("[auth] token refresh: invalid JSON payload shape", res.status);
-        return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+        return expireSessionToken(token);
       }
       data = parsed as Record<string, unknown>;
     } catch {
       console.error("[auth] token refresh: non-JSON response", res.status, text.slice(0, 200));
-      return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      return expireSessionToken(token);
     }
 
     if (!res.ok) {
-      console.error("[auth] token refresh failed:", data.error_description ?? data.error);
-      return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      const errorCode = asString(data.error);
+      const errorDescription = asString(data.error_description);
+      const isExpectedAuthRejection =
+        errorCode === "invalid_grant" ||
+        (typeof errorDescription === "string" &&
+          errorDescription.toLowerCase().includes("session doesn't have required client"));
+
+      if (isExpectedAuthRejection) {
+        console.warn("[auth] token refresh rejected by provider:", errorDescription ?? errorCode);
+      } else {
+        console.error("[auth] token refresh failed:", errorDescription ?? errorCode ?? `HTTP ${res.status}`);
+      }
+
+      return expireSessionToken(token);
     }
 
     const accessToken = asString(data.access_token);
@@ -140,7 +164,7 @@ async function refreshAccessToken(
 
     if (!accessToken || !expiresIn) {
       console.error("[auth] token refresh: missing access_token or expires_in");
-      return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      return expireSessionToken(token);
     }
 
     return {
@@ -153,7 +177,7 @@ async function refreshAccessToken(
     };
   } catch (e) {
     console.error("[auth] token refresh error:", e);
-    return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+    return expireSessionToken(token);
   }
 }
 
@@ -213,6 +237,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       }
 
+      // Once refresh is known to be invalid/expired, stop retrying.
+      if (sessionToken.error === "RefreshTokenExpired") {
+        return expireSessionToken(sessionToken);
+      }
+
       // Token still valid (with 60s safety margin)
       if (isTokenFresh(sessionToken)) {
         return sessionToken;
@@ -244,6 +273,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async session({ session, token }) {
       if (token.error) session.error = token.error;
+      session.accessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
 
       // Ensure shape exists (avoids TS edge cases)
       session.user = session.user ?? { name: null, email: null, image: null };

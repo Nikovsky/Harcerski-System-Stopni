@@ -6,6 +6,16 @@
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 28800,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxTemporaryLockouts": 10,
+  "bruteForceStrategy": "MULTIPLE",
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 10,
   "loginTheme": "hss",
   "internationalizationEnabled": true,
   "supportedLocales": [
@@ -18,6 +28,10 @@
   "registrationEmailAsUsername": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
+  "passwordPolicy": "length(8) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1)",
+  "attributes": {
+    "hss.password.regex": "${KEYCLOAK_PASSWORD_REGEX}"
+  },
   "components": {
     "org.keycloak.userprofile.UserProfileProvider": [
       {

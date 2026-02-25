@@ -4,10 +4,9 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import type { BffErrorCode, BffErrorResponse } from "@hss/schemas";
 
-import { auth, authJwtDecode, authSessionCookieName } from "@/auth";
+import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 
 export const runtime = "nodejs";
@@ -157,18 +156,7 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
 
   // auth() triggers the full JWT callback chain — including silent token refresh.
   const session = await auth();
-  const shouldUseSecureCookie =
-    authSessionCookieName.startsWith("__Host-") ||
-    authSessionCookieName.startsWith("__Secure-") ||
-    envServer.HSS_WEB_ORIGIN.startsWith("https://");
-  const jwt = await getToken({
-    req,
-    secret: envServer.AUTH_SECRET,
-    secureCookie: shouldUseSecureCookie,
-    cookieName: authSessionCookieName,
-    decode: authJwtDecode,
-  });
-  const accessToken = jwt?.accessToken;
+  const accessToken = session?.accessToken;
 
   dlog("auth context:", {
     hasSession: !!session,

@@ -87,6 +87,7 @@ services:
       # Client secrets (for import)
       KEYCLOAK_HSS_WEB_CLIENT_SECRET: ${KEYCLOAK_HSS_WEB_CLIENT_SECRET:?set in docker/.env}
       KEYCLOAK_HSS_API_CLIENT_SECRET: ${KEYCLOAK_HSS_API_CLIENT_SECRET:?set in docker/.env}
+      KEYCLOAK_PASSWORD_REGEX: ${KEYCLOAK_PASSWORD_REGEX:?set in docker/.env}
 
       # DB
       KC_DB: ${KEYCLOAK_DATABASE:-postgres}
@@ -119,7 +120,7 @@ services:
     volumes:
       - keycloak_quarkus:/opt/keycloak/lib/quarkus
       - ./keycloak:/opt/keycloak/data/import:ro
-      - ./keycloak/themes/hss:/opt/keycloak/themes/hss:ro
+      - ./keycloak/themes/hss:/opt/keycloak/themes/hss/login:ro
 
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=256m,mode=1777
