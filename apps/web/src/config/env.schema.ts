@@ -20,6 +20,10 @@ const zInt = z.preprocess((v) => {
 const zIntPositive = zInt.pipe(z.number().int().positive());
 
 const zUrl = z.string().url();
+const zRedisUrl = zUrl.refine(
+  (v) => v.startsWith("redis://") || v.startsWith("rediss://"),
+  { message: "Expected a Redis URL (redis:// or rediss://)" },
+);
 
 export const webPublicEnvSchema = z
   .object({
@@ -56,6 +60,19 @@ export const webServerEnvSchema = z
 
     HSS_API_BASE_URL: zUrl,
     HSS_WEB_ORIGIN: zUrl,
+    HSS_REDIS_URL: zRedisUrl,
+    HSS_REDIS_CONNECT_TIMEOUT_MS: zIntPositive,
+    HSS_REDIS_COMMAND_TIMEOUT_MS: zIntPositive,
+    HSS_SESSION_COOKIE_NAME: z.string().regex(
+      /^(?:__Host-|__Secure-)?[A-Za-z0-9._-]+$/,
+      "HSS_SESSION_COOKIE_NAME has invalid format",
+    ),
+    HSS_SESSION_KEY_PREFIX: z.string().min(1),
+    HSS_SESSION_IDLE_TIMEOUT_SECONDS: zIntPositive,
+    HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS: zIntPositive,
+    HSS_SESSION_TOUCH_THROTTLE_SECONDS: zIntPositive,
+    HSS_SESSION_REFRESH_LOCK_TTL_MS: zIntPositive,
+    HSS_SESSION_ENCRYPTION_KEY: z.string().min(32),
 
     AUTH_SECRET: z.string().min(32),
     AUTH_URL: zUrl,
@@ -66,6 +83,34 @@ export const webServerEnvSchema = z
     AUTH_KEYCLOAK_SECRET: z.string().min(1),
   })
   .merge(webPublicEnvSchema)
+  .refine(
+    (v) => v.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS > v.HSS_SESSION_IDLE_TIMEOUT_SECONDS,
+    {
+      message:
+        "HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS must be > HSS_SESSION_IDLE_TIMEOUT_SECONDS",
+      path: ["HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS"],
+    },
+  )
+  .refine(
+    (v) => v.HSS_SESSION_TOUCH_THROTTLE_SECONDS <= v.HSS_SESSION_IDLE_TIMEOUT_SECONDS,
+    {
+      message:
+        "HSS_SESSION_TOUCH_THROTTLE_SECONDS should be <= HSS_SESSION_IDLE_TIMEOUT_SECONDS",
+      path: ["HSS_SESSION_TOUCH_THROTTLE_SECONDS"],
+    },
+  )
+  .refine(
+    (v) => {
+      const cookie = v.HSS_SESSION_COOKIE_NAME;
+      if (!cookie.startsWith("__Host-") && !cookie.startsWith("__Secure-")) return true;
+      return new URL(v.HSS_WEB_ORIGIN).protocol === "https:";
+    },
+    {
+      message:
+        "HSS_SESSION_COOKIE_NAME with __Host- or __Secure- prefix requires HTTPS HSS_WEB_ORIGIN",
+      path: ["HSS_SESSION_COOKIE_NAME"],
+    },
+  )
   .refine((v) => new URL(v.AUTH_URL).origin === new URL(v.HSS_WEB_ORIGIN).origin, {
     message: "AUTH_URL must match HSS_WEB_ORIGIN (same origin)",
     path: ["AUTH_URL"],

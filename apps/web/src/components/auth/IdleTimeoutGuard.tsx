@@ -3,6 +3,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import {
+  bffSessionStatusResponseSchema,
+  bffSessionTouchResponseSchema,
+} from "@hss/schemas";
+
 import { envPublic } from "@/config/env.client";
 import { Popup } from "@/components/ui/Popup";
 
@@ -10,8 +15,14 @@ const CHANNEL_NAME = "hss-idle-timeout";
 const SESSION_EXPIRES_AT_STORAGE_KEY = "hss.session.expiresAtMs";
 
 type ChannelMessage =
-  | { type: "reset"; durationSec: number }
+  | { type: "sync"; expiresAtMs: number }
   | { type: "logout" };
+
+type SessionStatus = {
+  authenticated: boolean;
+  idleExpiresAtMs: number | null;
+  absoluteExpiresAtMs: number | null;
+};
 
 function parseExtendOptions(csv: string): number[] {
   const values = csv
@@ -28,6 +39,12 @@ function formatClock(seconds: number): string {
   const mins = Math.floor(safe / 60);
   const secs = safe % 60;
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function parseIsoToMs(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function readStoredExpiresAt(): number | null {
@@ -48,11 +65,66 @@ function clearStoredExpiresAt(): void {
   window.sessionStorage.removeItem(SESSION_EXPIRES_AT_STORAGE_KEY);
 }
 
+async function fetchSessionStatus(): Promise<SessionStatus | null> {
+  try {
+    const res = await fetch("/api/session/status", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const payload = (await res.json().catch(() => null)) as unknown;
+    const parsed = bffSessionStatusResponseSchema.safeParse(payload);
+    if (!parsed.success) return null;
+
+    return {
+      authenticated: parsed.data.authenticated,
+      idleExpiresAtMs: parseIsoToMs(parsed.data.idleExpiresAt),
+      absoluteExpiresAtMs: parseIsoToMs(parsed.data.absoluteExpiresAt),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function touchSession(extendSeconds?: number): Promise<SessionStatus | null> {
+  try {
+    const body = extendSeconds
+      ? JSON.stringify({ extendSeconds })
+      : undefined;
+
+    const res = await fetch("/api/session/touch", {
+      method: "POST",
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body,
+      cache: "no-store",
+    });
+
+    if (res.status === 401) {
+      return { authenticated: false, idleExpiresAtMs: null, absoluteExpiresAtMs: null };
+    }
+
+    const payload = (await res.json().catch(() => null)) as unknown;
+    const parsed = bffSessionTouchResponseSchema.safeParse(payload);
+    if (!parsed.success) return null;
+
+    return {
+      authenticated: true,
+      idleExpiresAtMs: parseIsoToMs(parsed.data.idleExpiresAt),
+      absoluteExpiresAtMs: parseIsoToMs(parsed.data.absoluteExpiresAt),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function IdleTimeoutGuard() {
   const pathname = usePathname();
 
   const sessionTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
   const promptBeforeExpirySec = envPublic.NEXT_PUBLIC_SESSION_PROMPT_BEFORE_EXPIRY_SECONDS;
+  const authCheckIntervalSec = envPublic.NEXT_PUBLIC_SESSION_AUTH_CHECK_INTERVAL_SECONDS;
   const extendOptionsMinutes = useMemo(
     () => parseExtendOptions(envPublic.NEXT_PUBLIC_SESSION_EXTEND_OPTIONS_MINUTES),
     [],
@@ -66,8 +138,7 @@ export function IdleTimeoutGuard() {
 
   const promptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const expiresAtRef = useRef(Date.now() + sessionTimeoutSec * 1_000);
-  const warningShownRef = useRef(false);
+  const expiresAtRef = useRef<number>(0);
   const logoutStartedRef = useRef(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const previousPathnameRef = useRef<string | null>(null);
@@ -101,6 +172,36 @@ export function IdleTimeoutGuard() {
     channelRef.current?.postMessage(msg);
   }, []);
 
+  const applyExpiry = useCallback(
+    (expiresAtMs: number, shouldBroadcast = true) => {
+      if (logoutStartedRef.current) return;
+      clearSessionTimers();
+      expiresAtRef.current = Math.max(expiresAtMs, Date.now());
+      writeStoredExpiresAt(expiresAtRef.current);
+      setIsDialogOpen(false);
+      setIsLoggingOut(false);
+      startCountdownTicker();
+
+      const delayMs = Math.max(0, expiresAtRef.current - Date.now() - promptBeforeExpirySec * 1_000);
+      promptTimerRef.current = setTimeout(() => {
+        setIsDialogOpen(true);
+        syncRemaining();
+      }, delayMs);
+
+      if (shouldBroadcast) {
+        broadcast({ type: "sync", expiresAtMs: expiresAtRef.current });
+      }
+    },
+    [broadcast, clearSessionTimers, promptBeforeExpirySec, startCountdownTicker, syncRemaining],
+  );
+
+  const applyDuration = useCallback(
+    (durationSec: number, shouldBroadcast = true) => {
+      applyExpiry(Date.now() + Math.max(1, durationSec) * 1_000, shouldBroadcast);
+    },
+    [applyExpiry],
+  );
+
   const doLogout = useCallback(async () => {
     if (logoutStartedRef.current) return;
     logoutStartedRef.current = true;
@@ -115,73 +216,56 @@ export function IdleTimeoutGuard() {
         credentials: "include",
       });
     } catch {
-      // ignore
+      // Ignore network errors and proceed with redirect.
     }
 
     window.location.href = "/";
   }, [broadcast]);
 
-  const armPromptTimer = useCallback(() => {
-    if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
-    const delayMs = Math.max(0, expiresAtRef.current - Date.now() - promptBeforeExpirySec * 1_000);
-    promptTimerRef.current = setTimeout(() => {
-      warningShownRef.current = true;
-      setIsDialogOpen(true);
-      syncRemaining();
-    }, delayMs);
-  }, [promptBeforeExpirySec, syncRemaining]);
-
-  const scheduleSession = useCallback(
-    (durationSec: number, shouldBroadcast = true) => {
+  const touchServerSession = useCallback(
+    async (extendSeconds?: number) => {
       if (logoutStartedRef.current) return;
-      clearSessionTimers();
-      warningShownRef.current = false;
-      expiresAtRef.current = Date.now() + Math.max(1, durationSec) * 1_000;
-      writeStoredExpiresAt(expiresAtRef.current);
+      const touched = await touchSession(extendSeconds);
+      if (!touched) return;
 
-      setIsDialogOpen(false);
-      setIsLoggingOut(false);
-      startCountdownTicker();
-      armPromptTimer();
-
-      if (shouldBroadcast) {
-        broadcast({ type: "reset", durationSec });
+      if (!touched.authenticated || !touched.idleExpiresAtMs) {
+        await doLogout();
+        return;
       }
+
+      applyExpiry(touched.idleExpiresAtMs);
     },
-    [armPromptTimer, broadcast, clearSessionTimers, startCountdownTicker],
+    [applyExpiry, doLogout],
   );
 
   const stayLoggedIn = useCallback(() => {
-    scheduleSession(sessionTimeoutSec);
-  }, [scheduleSession, sessionTimeoutSec]);
+    void touchServerSession();
+  }, [touchServerSession]);
 
   const extendSession = useCallback(() => {
-    scheduleSession(selectedExtendMinutes * 60);
-  }, [scheduleSession, selectedExtendMinutes]);
+    void touchServerSession(selectedExtendMinutes * 60);
+  }, [selectedExtendMinutes, touchServerSession]);
 
   const closeDialog = useCallback(() => {
     if (isLoggingOut) return;
     setIsDialogOpen(false);
   }, [isLoggingOut]);
 
-  // Cross-tab sync.
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
 
     const channel = new BroadcastChannel(CHANNEL_NAME);
     channelRef.current = channel;
 
-    channel.onmessage = (e: MessageEvent<ChannelMessage>) => {
-      const msg = e.data;
-      if (msg.type === "reset") {
-        scheduleSession(msg.durationSec, false);
+    channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
+      const message = event.data;
+      if (message.type === "sync") {
+        applyExpiry(message.expiresAtMs, false);
         return;
       }
 
-      if (msg.type === "logout") {
-        if (!logoutStartedRef.current) {
-          void doLogout();
-        }
+      if (message.type === "logout" && !logoutStartedRef.current) {
+        void doLogout();
       }
     };
 
@@ -189,9 +273,50 @@ export function IdleTimeoutGuard() {
       channel.close();
       channelRef.current = null;
     };
-  }, [doLogout, scheduleSession, sessionTimeoutSec]);
+  }, [applyExpiry, doLogout]);
 
-  // Session extends only on route transitions.
+  useEffect(() => {
+    let disposed = false;
+
+    const bootstrap = async () => {
+      const storedExpiresAt = readStoredExpiresAt();
+      const now = Date.now();
+
+      if (storedExpiresAt && storedExpiresAt > now) {
+        applyExpiry(storedExpiresAt, false);
+      } else {
+        applyDuration(sessionTimeoutSec, false);
+      }
+
+      setSelectedExtendMinutes(defaultExtendMinutes);
+
+      const status = await fetchSessionStatus();
+      if (disposed || logoutStartedRef.current) return;
+      if (!status) return;
+
+      if (!status.authenticated || !status.idleExpiresAtMs) {
+        await doLogout();
+        return;
+      }
+
+      applyExpiry(status.idleExpiresAtMs, false);
+    };
+
+    void bootstrap();
+
+    return () => {
+      disposed = true;
+      clearSessionTimers();
+    };
+  }, [
+    applyDuration,
+    applyExpiry,
+    clearSessionTimers,
+    defaultExtendMinutes,
+    doLogout,
+    sessionTimeoutSec,
+  ]);
+
   useEffect(() => {
     if (logoutStartedRef.current) return;
     if (previousPathnameRef.current === null) {
@@ -201,36 +326,47 @@ export function IdleTimeoutGuard() {
 
     if (previousPathnameRef.current !== pathname) {
       previousPathnameRef.current = pathname;
-      scheduleSession(sessionTimeoutSec);
+      const timer = window.setTimeout(() => {
+        void touchServerSession();
+      }, 0);
+      return () => {
+        window.clearTimeout(timer);
+      };
     }
-  }, [pathname, scheduleSession, sessionTimeoutSec]);
+  }, [pathname, touchServerSession]);
 
-  // Start cycle.
   useEffect(() => {
-    const storedExpiresAt = readStoredExpiresAt();
-    const now = Date.now();
-    if (storedExpiresAt && storedExpiresAt > now) {
-      const remainingFromStorageSec = Math.max(1, Math.ceil((storedExpiresAt - now) / 1_000));
-      scheduleSession(remainingFromStorageSec, false);
-    } else {
-      scheduleSession(sessionTimeoutSec, false);
-    }
+    const interval = setInterval(() => {
+      if (logoutStartedRef.current) return;
 
-    setSelectedExtendMinutes(defaultExtendMinutes);
+      void (async () => {
+        const status = await fetchSessionStatus();
+        if (!status) return;
+
+        if (!status.authenticated || !status.idleExpiresAtMs) {
+          await doLogout();
+          return;
+        }
+
+        if (Math.abs(status.idleExpiresAtMs - expiresAtRef.current) > 1_500) {
+          applyExpiry(status.idleExpiresAtMs, false);
+        }
+      })();
+    }, Math.max(10, authCheckIntervalSec) * 1_000);
+
     return () => {
-      clearSessionTimers();
+      clearInterval(interval);
     };
-  }, [
-    clearSessionTimers,
-    defaultExtendMinutes,
-    scheduleSession,
-    sessionTimeoutSec,
-  ]);
+  }, [applyExpiry, authCheckIntervalSec, doLogout]);
 
-  // Hard stop at 0 even if prompt was manually closed.
   useEffect(() => {
     if (remainingSec <= 0 && !logoutStartedRef.current) {
-      void doLogout();
+      const timer = window.setTimeout(() => {
+        void doLogout();
+      }, 0);
+      return () => {
+        window.clearTimeout(timer);
+      };
     }
   }, [doLogout, remainingSec]);
 

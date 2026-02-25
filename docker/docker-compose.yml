@@ -191,6 +191,54 @@ services:
     networks:
       - infra
 
+  redis:
+    image: ${REDIS_IMAGE:-redis:8.2.5}
+    container_name: ${REDIS_CONTAINER_NAME:-hss_redis}
+    hostname: ${REDIS_CONTAINER_NAME:-hss_redis}
+    user: "redis:redis"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+
+    command:
+      - /bin/sh
+      - -ec
+      - >
+        printf '%s\n' "user default on >${REDIS_PASSWORD:?set in docker/.env} ~* +@all"
+        "user ${REDIS_USER:-root} on >${REDIS_PASSWORD:?set in docker/.env} ~* +@all" > /tmp/users.acl
+        && exec redis-server
+        --bind 0.0.0.0
+        --port 6379
+        --appendonly ${REDIS_APPENDONLY:-yes}
+        --maxmemory ${REDIS_MAXMEMORY:-256mb}
+        --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+        --aclfile /tmp/users.acl
+        --save 60 1000
+
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+    volumes:
+      - redis_data:/data
+
+    mem_limit: ${REDIS_MEM_LIMIT:-512m}
+    cpus: ${REDIS_CPUS:-1.0}
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli --user ${REDIS_USER:-root} --pass ${REDIS_PASSWORD:?set in docker/.env} -h 127.0.0.1 -p 6379 PING | grep -q PONG" ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - infra
+
   nginx:
     image: ${NGINX_IMAGE:-nginx:1.29.4-alpine-slim}
     container_name: ${NGINX_CONTAINER_NAME:-hss_nginx}
@@ -255,6 +303,7 @@ volumes:
   pg_data:
   minio_data:
   keycloak_quarkus:
+  redis_data:
 
 
 networks:

@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { handlers } from "@/auth";
 
 const { GET: originalGET, POST } = handlers;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * F01 security fix: Strip accessToken from /api/auth/session response.

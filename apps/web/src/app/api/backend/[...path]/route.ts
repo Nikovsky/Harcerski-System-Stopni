@@ -5,8 +5,9 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import type { BffErrorCode, BffErrorResponse } from "@hss/schemas";
 
-import { auth } from "@/auth";
+import { auth, authJwtDecode, authSessionCookieName } from "@/auth";
 import { envServer } from "@/config/env.server";
 
 export const runtime = "nodejs";
@@ -14,26 +15,20 @@ export const dynamic = "force-dynamic";
 
 const DEBUG_BFF = envServer.DEBUG_BFF && envServer.NODE_ENV !== "production";
 
-function dlog(...args: any[]) {
+function dlog(...args: unknown[]) {
   if (DEBUG_BFF) console.log("[BFF]", ...args);
 }
 
-function jsonNoStore(body: any, status: number, requestId?: string) {
+function jsonNoStore(body: unknown, status: number, requestId?: string) {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
   if (requestId) res.headers.set("x-request-id", requestId);
   return res;
 }
 
-type BffErrorCode =
-  | "FORBIDDEN"
-  | "AUTHENTICATION_REQUIRED"
-  | "SESSION_EXPIRED"
-  | "SERVER_MISCONFIGURED"
-  | "BAD_GATEWAY";
-
 function errorNoStore(status: number, code: BffErrorCode, message: string, requestId: string) {
-  return jsonNoStore({ code, message, requestId }, status, requestId);
+  const payload: BffErrorResponse = { code, message, requestId };
+  return jsonNoStore(payload, status, requestId);
 }
 
 const HOP_BY_HOP = new Set([
@@ -162,10 +157,16 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
 
   // auth() triggers the full JWT callback chain — including silent token refresh.
   const session = await auth();
+  const shouldUseSecureCookie =
+    authSessionCookieName.startsWith("__Host-") ||
+    authSessionCookieName.startsWith("__Secure-") ||
+    envServer.HSS_WEB_ORIGIN.startsWith("https://");
   const jwt = await getToken({
     req,
     secret: envServer.AUTH_SECRET,
-    secureCookie: envServer.HSS_WEB_ORIGIN.startsWith("https://"),
+    secureCookie: shouldUseSecureCookie,
+    cookieName: authSessionCookieName,
+    decode: authJwtDecode,
   });
   const accessToken = jwt?.accessToken;
 

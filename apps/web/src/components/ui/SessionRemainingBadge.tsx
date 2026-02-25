@@ -8,7 +8,7 @@ const CHANNEL_NAME = "hss-idle-timeout";
 const SESSION_EXPIRES_AT_STORAGE_KEY = "hss.session.expiresAtMs";
 
 type ChannelMessage =
-  | { type: "reset"; durationSec: number }
+  | { type: "sync"; expiresAtMs: number }
   | { type: "logout" };
 
 function formatClock(seconds: number): string {
@@ -28,12 +28,15 @@ function readStoredExpiresAt(): number | null {
 
 export function SessionRemainingBadge() {
   const baseTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
-  const fallbackExpiresAtRef = useRef(Date.now() + baseTimeoutSec * 1_000);
+  const fallbackExpiresAtRef = useRef<number>(0);
   const [remainingSec, setRemainingSec] = useState(baseTimeoutSec);
 
   useEffect(() => {
     const syncRemaining = () => {
       const storedExpiresAt = readStoredExpiresAt();
+      if (fallbackExpiresAtRef.current <= 0) {
+        fallbackExpiresAtRef.current = Date.now() + baseTimeoutSec * 1_000;
+      }
       const effectiveExpiresAt = storedExpiresAt ?? fallbackExpiresAtRef.current;
 
       if (storedExpiresAt) {
@@ -57,10 +60,10 @@ export function SessionRemainingBadge() {
           return;
         }
 
-        if (message.type === "reset") {
-          const expiresAt = Date.now() + Math.max(1, message.durationSec) * 1_000;
-          fallbackExpiresAtRef.current = expiresAt;
-          setRemainingSec(Math.max(0, message.durationSec));
+        if (message.type === "sync") {
+          fallbackExpiresAtRef.current = message.expiresAtMs;
+          const next = Math.max(0, Math.ceil((message.expiresAtMs - Date.now()) / 1_000));
+          setRemainingSec(next);
           return;
         }
       };

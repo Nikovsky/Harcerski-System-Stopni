@@ -59,5 +59,6 @@ async function bootstrap() {
 
   await app.listen(cfg.appPort, cfg.appHost);
   Logger.debug(`${cfg.appUrl}`, "API URL");
+  Logger.debug(`${cfg.corsOrigins}`, "WEB URL")
 }
 bootstrap();

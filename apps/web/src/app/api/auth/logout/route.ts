@@ -4,12 +4,12 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { decode } from "next-auth/jwt";
-import { envServer } from "@/config/env.server";
+import { getToken } from "next-auth/jwt";
 
-/**
- * Derive the public origin of the web app (works behind reverse proxy).
- */
+import { authJwtDecode, authSessionCookieName } from "@/auth";
+import { envServer } from "@/config/env.server";
+import { destroySessionBySid, normalizeSessionSidFromCookie } from "@/lib/server/bff-session.store";
+
 function getPublicOrigin(req: NextRequest): string {
   const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const xfHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
@@ -32,12 +32,6 @@ function getRequestId(req: NextRequest): string {
   return randomUUID();
 }
 
-/**
- * Serialize a Set-Cookie header string that expires (deletes) the given cookie.
- *
- * NOTE: HttpOnly is fine even when deleting cookies (matches original cookies).
- * We intentionally do NOT set Domain=... (host-only deletion is safest).
- */
 function expireCookie(name: string, secure: boolean): string {
   const parts = [
     `${name}=`,
@@ -50,12 +44,6 @@ function expireCookie(name: string, secure: boolean): string {
   return parts.join("; ");
 }
 
-/**
- * Prefixes that identify Auth.js / NextAuth cookies.
- * NextAuth v5 uses chunked cookies for large JWTs — e.g.
- * `__Secure-authjs.session-token.0`, `.1`, `.2`, etc.
- * Matching by prefix catches both base names AND chunks.
- */
 const AUTH_COOKIE_PREFIXES = [
   "authjs.",
   "__Secure-authjs.",
@@ -65,70 +53,19 @@ const AUTH_COOKIE_PREFIXES = [
   "__Host-next-auth.",
 ];
 
-/**
- * Read cookie names from the request and return those matching auth prefixes.
- */
 function getAuthCookieNames(req: NextRequest): string[] {
-  const names: string[] = [];
+  const names = new Set<string>();
+
   for (const cookie of req.cookies.getAll()) {
-    if (AUTH_COOKIE_PREFIXES.some((p) => cookie.name.startsWith(p))) {
-      names.push(cookie.name);
-    }
-  }
-  return names;
-}
-
-/**
- * Read and decode the Auth.js session JWT directly from cookies.
- *
- * Why not `getToken()`?
- * Behind a reverse proxy, secure cookie detection can be unreliable if the
- * original HTTPS protocol is not visible. By reading cookies explicitly, we
- * handle secure/non-secure names AND chunked cookies.
- */
-async function readSessionJwt(
-  req: NextRequest,
-  secret: string,
-  isSecure: boolean,
-): Promise<Record<string, unknown> | null> {
-  const baseNames = isSecure
-    ? ["__Host-authjs.session-token", "__Secure-authjs.session-token"]
-    : ["authjs.session-token"];
-
-  for (const baseName of baseNames) {
-    let raw = req.cookies.get(baseName)?.value;
-
-    // Try chunked cookies (.0, .1, .2, …)
-    if (!raw) {
-      const chunks: string[] = [];
-      for (let i = 0; ; i++) {
-        const chunk = req.cookies.get(`${baseName}.${i}`)?.value;
-        if (!chunk) break;
-        chunks.push(chunk);
-      }
-      if (chunks.length > 0) raw = chunks.join("");
-    }
-
-    if (!raw) continue;
-
-    try {
-      const decoded = await decode({ token: raw, secret, salt: baseName });
-      if (decoded) return decoded as Record<string, unknown>;
-    } catch (e) {
-      // Do not leak token contents; just log cookie name + error.
-      console.error(`[logout] JWT decode failed for ${baseName}:`, e);
+    if (AUTH_COOKIE_PREFIXES.some((prefix) => cookie.name.startsWith(prefix))) {
+      names.add(cookie.name);
     }
   }
 
-  return null;
+  names.add(authSessionCookieName);
+  return [...names];
 }
 
-/**
- * Terminate the Keycloak SSO session server-side.
- *
- * POST to the OIDC logout endpoint with `client_id`, `client_secret`, and
- * `refresh_token`. Keycloak closes the SSO session without browser redirects.
- */
 async function revokeKeycloakSession(params: {
   issuer: string;
   clientId: string;
@@ -155,36 +92,31 @@ async function revokeKeycloakSession(params: {
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     console.error(`[logout] Keycloak session revocation failed (${res.status}):`, txt.slice(0, 500));
-  } else if (envServer.NODE_ENV !== "production") {
-    console.log("[logout] Keycloak SSO session revoked successfully");
   }
 }
 
-/**
- * Logout flow — single-click, fully server-side:
- *
- * 1. Read refresh_token from the Auth.js JWT cookie (manual decode)
- * 2. POST to Keycloak logout endpoint with client credentials + refresh_token
- *    → Keycloak terminates the SSO session (no browser redirect needed)
- * 3. Clear all Auth.js session cookies
- * 4. Redirect user to home page
- */
 async function handler(req: NextRequest): Promise<NextResponse> {
   const publicOrigin = getPublicOrigin(req);
-
-  // Canonical app origin from validated env (safe)
   const canonicalAppOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
-
-  // In weird proxy cases, req-origin may differ; we always redirect to canonical origin.
   const appOrigin = canonicalAppOrigin || publicOrigin.replace(/\/$/, "");
   const isSecure = appOrigin.startsWith("https://");
 
-  // --- Step 1: Decode JWT to extract refresh_token ---
-  const jwt = await readSessionJwt(req, envServer.AUTH_SECRET, isSecure);
-  const refreshToken = jwt?.refreshToken as string | undefined;
-  const idToken = jwt?.idToken as string | undefined;
+  const token = (await getToken({
+    req,
+    secret: envServer.AUTH_SECRET,
+    secureCookie: isSecure,
+    cookieName: authSessionCookieName,
+    decode: authJwtDecode,
+  })) as
+    | {
+      refreshToken?: string;
+      idToken?: string;
+    }
+    | null;
 
-  // --- Step 2: Revoke Keycloak SSO session (server-side) ---
+  const refreshToken = token?.refreshToken;
+  const idToken = token?.idToken;
+
   if (refreshToken) {
     try {
       await revokeKeycloakSession({
@@ -194,20 +126,18 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         refreshToken,
         idToken,
       });
-    } catch (e) {
-      console.error("[logout] Keycloak revocation error:", e);
+    } catch (error) {
+      console.error("[logout] Keycloak revocation error:", error);
     }
-  } else {
-    console.warn("[logout] No refresh_token — skipping Keycloak revocation");
   }
 
-  // --- Step 3: Clear all Auth.js cookies + redirect home ---
-  const cookiesToClear = getAuthCookieNames(req);
+  const sidCookie = req.cookies.get(authSessionCookieName)?.value;
+  const sid = normalizeSessionSidFromCookie(sidCookie);
+  if (sid) {
+    await destroySessionBySid(sid);
+  }
 
-  /**
-   * Use 200 + HTML redirect (not 302) to guarantee Set-Cookie headers are processed.
-   * Some reverse proxies may strip Set-Cookie from 302 responses.
-   */
+  const cookiesToClear = getAuthCookieNames(req);
   const redirectTo = `${appOrigin}/`;
   const html = [
     "<!DOCTYPE html>",
@@ -231,17 +161,14 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   return new NextResponse(html, { status: 200, headers });
 }
 
-/**
- * POST only — logout via GET enables CSRF attacks (e.g. <img src="/api/auth/logout">).
- */
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
-  // CSRF guard: allow only same-origin POSTs (Origin preferred, Referer fallback).
   const requestId = getRequestId(req);
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
-
   const allowedOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
-
   const requestOrigin = origin || parseOriginFromReferer(referer);
 
   if (!requestOrigin || !allowedOrigin || requestOrigin !== allowedOrigin) {
