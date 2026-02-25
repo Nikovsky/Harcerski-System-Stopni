@@ -206,6 +206,11 @@
                     passwordRequired: "${msg("validationPasswordRequired")?js_string}",
                     passwordMinLengthPrefix: "${msg("validationPasswordMinLengthPrefix")?js_string}",
                     passwordRegex: "${msg("validationPasswordRegex")?js_string}",
+                    passwordRequirementsPrefix: "${msg("validationPasswordRequirementsPrefix")?js_string}",
+                    passwordRequirementLowercase: "${msg("validationPasswordRequirementLowercase")?js_string}",
+                    passwordRequirementUppercase: "${msg("validationPasswordRequirementUppercase")?js_string}",
+                    passwordRequirementDigit: "${msg("validationPasswordRequirementDigit")?js_string}",
+                    passwordRequirementSpecial: "${msg("validationPasswordRequirementSpecial")?js_string}",
                     passwordStrengthPrefix: "${msg("validationPasswordStrengthPrefix")?js_string}",
                     confirmRequired: "${msg("validationConfirmRequired")?js_string}",
                     confirmMismatch: "${msg("validationConfirmMismatch")?js_string}",
@@ -237,6 +242,15 @@
                     if (score <= 2) return 2;
                     if (score <= 3) return 3;
                     return 4;
+                }
+
+                function getMissingPasswordRequirements(pass) {
+                    var missing = [];
+                    if (!/[a-z]/.test(pass)) missing.push(i18n.passwordRequirementLowercase);
+                    if (!/[A-Z]/.test(pass)) missing.push(i18n.passwordRequirementUppercase);
+                    if (!/\d/.test(pass)) missing.push(i18n.passwordRequirementDigit);
+                    if (!/[^a-zA-Z0-9]/.test(pass)) missing.push(i18n.passwordRequirementSpecial);
+                    return missing;
                 }
 
                 function updateStrengthBar(pass) {
@@ -332,7 +346,16 @@
                             setInputState(passwordInput, 'error');
                             valid = false;
                         } else if (passwordRegex && !passwordRegex.test(passVal)) {
-                            setHint(hintPassword, 'error', i18n.passwordRegex);
+                            var missingRequirements = getMissingPasswordRequirements(passVal);
+                            if (missingRequirements.length > 0) {
+                                setHint(
+                                    hintPassword,
+                                    'error',
+                                    i18n.passwordRequirementsPrefix + missingRequirements.join(', ')
+                                );
+                            } else {
+                                setHint(hintPassword, 'error', i18n.passwordRegex);
+                            }
                             setInputState(passwordInput, 'error');
                             valid = false;
                         } else {
