@@ -36,14 +36,14 @@ export function Popup({ children, onClose, ariaLabel = "Popup dialog" }: PopupPr
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      onMouseDown={(e) => {
-        // click outside closes
+      onClick={(e) => {
+        // Close only when clicking the backdrop.
         if (e.target === e.currentTarget) onClose();
       }}
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1000,
+        zIndex: 20000,
         background: "rgba(0,0,0,0.45)",
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
@@ -64,8 +64,8 @@ export function Popup({ children, onClose, ariaLabel = "Popup dialog" }: PopupPr
           padding: 16,
           boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
         }}
-        onMouseDown={(e) => {
-          // prevent closing when interacting inside
+        onClick={(e) => {
+          // Prevent backdrop click-close when interacting inside.
           e.stopPropagation();
         }}
       >

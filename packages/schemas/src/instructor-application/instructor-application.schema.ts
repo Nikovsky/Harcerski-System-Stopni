@@ -1,6 +1,6 @@
 // @file: packages/schemas/src/instructor-application/instructor-application.schema.ts
 import { z } from "zod";
-import { instructorRankSchema, scoutRankSchema } from "../user/dashboard.schema";
+import { instructorRankSchema, scoutRankSchema, presenceTypeSchema, requirementStateSchema, degreeTypeSchema, applicationStatusSchema } from "../enums.schema";
 
 // ── File upload security constants ───────────────────────────────────────────
 export const ALLOWED_MIME_TYPES = [
@@ -19,20 +19,6 @@ export const ALLOWED_MIME_TYPES = [
 export const ALLOWED_EXTENSIONS_REGEX = /\.(pdf|jpg|jpeg|png|webp|doc|docx|odt|mp4|ppt|pptx)$/i;
 
 export const MAX_FILE_SIZE = 50_000_000; // 50 MB
-
-// ── Enums (mirror Prisma) ──────────────────────────────────────────────────
-export const applicationStatusSchema = z.enum([
-  "DRAFT", "SUBMITTED", "TO_FIX", "UNDER_REVIEW", "APPROVED",
-  "IN_PROGRESS", "REPORT_SUBMITTED", "COMPLETED_POSITIVE", "REJECTED", "ARCHIVED",
-]);
-
-export const presenceTypeSchema = z.enum([
-  "IN_PERSON", "REMOTE", "ATTACHMENT_OPINION",
-]);
-
-export const requirementStateSchema = z.enum(["DONE", "PLANNED"]);
-
-export const degreeTypeSchema = z.enum(["INSTRUCTOR", "SCOUT"]);
 
 // ── Create ─────────────────────────────────────────────────────────────────
 export const createInstructorApplicationSchema = z.object({

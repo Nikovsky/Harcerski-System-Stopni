@@ -1,13 +1,18 @@
-// @file: apps/web/src/components/auth/AuthNav.tsx
+// @file: apps/web/src/components/ui/AuthNav.tsx
 import { auth } from "@/auth";
 import { SignInButton } from "./SignInButton";
 import { SignOutButton } from "./SignOutButton";
+import { SessionRemainingBadge } from "./SessionRemainingBadge";
 
-export async function AuthNav() {
+type AuthNavProps = {
+  locale: string;
+};
+
+export async function AuthNav({ locale }: AuthNavProps) {
   const session = await auth();
 
   if (!session?.user) {
-    return <SignInButton />;
+    return <SignInButton locale={locale} />;
   }
 
   const displayName =
@@ -18,6 +23,7 @@ export async function AuthNav() {
   return (
     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
       <span>{displayName}</span>
+      <SessionRemainingBadge />
       <SignOutButton />
     </div>
   );

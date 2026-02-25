@@ -1,3 +1,5 @@
+<#-- @file: docker/keycloak/themes/hss/register.ftl -->
+<#assign passwordRegexSource = (realm.attributes['hss.password.regex']!'')>
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=!messagesPerField.existsError('firstName','lastName','email','username','password','password-confirm') ; section>
 
@@ -11,7 +13,7 @@
                     <img src="${url.resourcesPath}/img/logo.svg" alt="HSS Logo" />
                 </div>
                 <h1 class="hss-title">${msg("registerTitle")}</h1>
-                <p class="hss-subtitle">${msg("registerSubtitle", "Harcerski System Stopni")}</p>
+                <p class="hss-subtitle">${msg("registerSubtitle", msg("appName"))}</p>
             </div>
 
             <#if messagesPerField.existsError('firstName','lastName','email','username','password','password-confirm')>
@@ -62,8 +64,9 @@
                         <span class="material-icons hss-input-icon">lock</span>
                         <input tabindex="3" id="password" name="password" type="password" autocomplete="new-password"
                                class="hss-input hss-input-password <#if messagesPerField.existsError('password')>hss-input-error</#if>"
+                               data-password-regex="${passwordRegexSource}"
                                placeholder="••••••••" />
-                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password', this)" aria-label="Pokaż/ukryj hasło">
+                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password', this)" aria-label="${msg("togglePasswordVisibility")}">
                             <span class="material-icons eye-open">visibility_off</span>
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
@@ -84,7 +87,7 @@
                         <input tabindex="4" id="password-confirm" name="password-confirm" type="password" autocomplete="new-password"
                                class="hss-input hss-input-password <#if messagesPerField.existsError('password-confirm')>hss-input-error</#if>"
                                placeholder="••••••••" />
-                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password-confirm', this)" aria-label="Pokaż/ukryj hasło">
+                        <button type="button" class="hss-password-toggle" onclick="togglePassword('password-confirm', this)" aria-label="${msg("togglePasswordVisibility")}">
                             <span class="material-icons eye-open">visibility_off</span>
                             <span class="material-icons eye-closed" style="display:none">visibility</span>
                         </button>
@@ -120,7 +123,7 @@
                             <#else>
                                 <span class="material-icons hss-social-icon-fallback">login</span>
                             </#if>
-                            <span>Kontynuuj z ${p.displayName}</span>
+                            <span>${msg("continueWith", p.displayName)}</span>
                         </a>
                     </#list>
                 </div>
@@ -132,7 +135,7 @@
 
             <div class="hss-card-footer">
                 <p>
-                    ${msg("alreadyHaveAccount", "Masz już konto?")}
+                    ${msg("alreadyHaveAccount")}
                     <a tabindex="6" class="hss-link-register" href="${url.loginUrl}">${msg("doLogIn")}</a>
                 </p>
             </div>
@@ -140,16 +143,16 @@
 
         <footer class="hss-page-footer">
             <div class="hss-footer-links">
-                <a href="https://hss.local" class="hss-footer-home">
+                <a href="https://hss.local/${(locale.currentLanguageTag!'pl')}" class="hss-footer-home">
                     <span class="material-icons">arrow_back</span>
-                    Strona główna
+                    ${msg("footerHome")}
                 </a>
                 <span class="sep">•</span>
-                <a href="#">Polityka Prywatności</a>
+                <a href="#">${msg("footerPrivacyPolicy")}</a>
                 <span class="sep">•</span>
-                <a href="#">Regulamin</a>
+                <a href="#">${msg("footerTerms")}</a>
             </div>
-            <p>&copy; ${.now?string('yyyy')} Związek Harcerstwa Rzeczypospolitej. Wszelkie prawa zastrzeżone.</p>
+            <p>${msg("footerCopyright", .now?string('yyyy'))}</p>
         </footer>
 
         <script>
@@ -182,13 +185,55 @@
                 var strengthBar = document.getElementById('password-strength');
 
                 var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                var minPasswordLength = 8;
+                var passwordRegex = null;
+                var passwordRegexSource = "${passwordRegexSource?js_string}";
 
-                var strengthLabels = ['', 'Słabe', 'Przeciętne', 'Dobre', 'Silne'];
+                if (passwordRegexSource) {
+                    try {
+                        passwordRegex = new RegExp(passwordRegexSource);
+                    } catch (error) {
+                        console.error("Invalid password regex configured in realm attribute hss.password.regex");
+                    }
+                }
+
+                var i18n = {
+                    emailRequired: "${msg("validationEmailRequired")?js_string}",
+                    emailInvalid: "${msg("validationEmailInvalid")?js_string}",
+                    emailValid: "${msg("validationEmailValid")?js_string}",
+                    usernameRequired: "${msg("validationUsernameRequired")?js_string}",
+                    usernameValid: "${msg("validationUsernameValid")?js_string}",
+                    passwordRequired: "${msg("validationPasswordRequired")?js_string}",
+                    passwordMinLengthPrefix: "${msg("validationPasswordMinLengthPrefix")?js_string}",
+                    passwordRegex: "${msg("validationPasswordRegex")?js_string}",
+                    passwordRequirementsPrefix: "${msg("validationPasswordRequirementsPrefix")?js_string}",
+                    passwordRequirementLowercase: "${msg("validationPasswordRequirementLowercase")?js_string}",
+                    passwordRequirementUppercase: "${msg("validationPasswordRequirementUppercase")?js_string}",
+                    passwordRequirementDigit: "${msg("validationPasswordRequirementDigit")?js_string}",
+                    passwordRequirementSpecial: "${msg("validationPasswordRequirementSpecial")?js_string}",
+                    passwordStrengthPrefix: "${msg("validationPasswordStrengthPrefix")?js_string}",
+                    confirmRequired: "${msg("validationConfirmRequired")?js_string}",
+                    confirmMismatch: "${msg("validationConfirmMismatch")?js_string}",
+                    confirmMatch: "${msg("validationConfirmMatch")?js_string}",
+                    strengthWeak: "${msg("passwordStrengthWeak")?js_string}",
+                    strengthFair: "${msg("passwordStrengthFair")?js_string}",
+                    strengthGood: "${msg("passwordStrengthGood")?js_string}",
+                    strengthStrong: "${msg("passwordStrengthStrong")?js_string}",
+                    ok: "${msg("validationOk")?js_string}"
+                };
+
+                var strengthLabels = [
+                    '',
+                    i18n.strengthWeak,
+                    i18n.strengthFair,
+                    i18n.strengthGood,
+                    i18n.strengthStrong
+                ];
 
                 function getPasswordStrength(pass) {
                     if (!pass) return 0;
                     var score = 0;
-                    if (pass.length >= 8) score++;
+                    if (pass.length >= minPasswordLength) score++;
                     if (pass.length >= 12) score++;
                     if (/[a-z]/.test(pass) && /[A-Z]/.test(pass)) score++;
                     if (/\d/.test(pass)) score++;
@@ -197,6 +242,15 @@
                     if (score <= 2) return 2;
                     if (score <= 3) return 3;
                     return 4;
+                }
+
+                function getMissingPasswordRequirements(pass) {
+                    var missing = [];
+                    if (!/[a-z]/.test(pass)) missing.push(i18n.passwordRequirementLowercase);
+                    if (!/[A-Z]/.test(pass)) missing.push(i18n.passwordRequirementUppercase);
+                    if (!/\d/.test(pass)) missing.push(i18n.passwordRequirementDigit);
+                    if (!/[^a-zA-Z0-9]/.test(pass)) missing.push(i18n.passwordRequirementSpecial);
+                    return missing;
                 }
 
                 function updateStrengthBar(pass) {
@@ -243,15 +297,15 @@
                     var emailVal = emailInput ? emailInput.value.trim() : '';
                     if (touched.email) {
                         if (emailVal.length === 0) {
-                            setHint(hintEmail, 'error', 'Podaj adres e-mail');
+                            setHint(hintEmail, 'error', i18n.emailRequired);
                             setInputState(emailInput, 'error');
                             valid = false;
                         } else if (!emailRegex.test(emailVal)) {
-                            setHint(hintEmail, 'error', 'Nieprawidłowy format adresu e-mail');
+                            setHint(hintEmail, 'error', i18n.emailInvalid);
                             setInputState(emailInput, 'error');
                             valid = false;
                         } else {
-                            setHint(hintEmail, 'ok', 'Adres e-mail poprawny');
+                            setHint(hintEmail, 'ok', i18n.emailValid);
                             setInputState(emailInput, 'ok');
                         }
                     } else {
@@ -265,11 +319,11 @@
                         var usernameVal = usernameInput.value.trim();
                         if (touched.username) {
                             if (usernameVal.length === 0) {
-                                setHint(hintUsername, 'error', 'Podaj nazwę użytkownika');
+                                setHint(hintUsername, 'error', i18n.usernameRequired);
                                 setInputState(usernameInput, 'error');
                                 valid = false;
                             } else {
-                                setHint(hintUsername, 'ok', 'Nazwa użytkownika OK');
+                                setHint(hintUsername, 'ok', i18n.usernameValid);
                                 setInputState(usernameInput, 'ok');
                             }
                         } else {
@@ -284,18 +338,31 @@
                     if (touched.password) {
                         var strength = updateStrengthBar(passVal);
                         if (passVal.length === 0) {
-                            setHint(hintPassword, 'error', 'Podaj hasło');
+                            setHint(hintPassword, 'error', i18n.passwordRequired);
                             setInputState(passwordInput, 'error');
                             valid = false;
-                        } else if (passVal.length < 8) {
-                            setHint(hintPassword, 'error', 'Min. 8 znaków — wpisano ' + passVal.length + '/8');
+                        } else if (passVal.length < minPasswordLength) {
+                            setHint(hintPassword, 'error', i18n.passwordMinLengthPrefix + passVal.length + '/' + minPasswordLength);
+                            setInputState(passwordInput, 'error');
+                            valid = false;
+                        } else if (passwordRegex && !passwordRegex.test(passVal)) {
+                            var missingRequirements = getMissingPasswordRequirements(passVal);
+                            if (missingRequirements.length > 0) {
+                                setHint(
+                                    hintPassword,
+                                    'error',
+                                    i18n.passwordRequirementsPrefix + missingRequirements.join(', ')
+                                );
+                            } else {
+                                setHint(hintPassword, 'error', i18n.passwordRegex);
+                            }
                             setInputState(passwordInput, 'error');
                             valid = false;
                         } else {
-                            var label = strengthLabels[strength] || 'OK';
+                            var label = strengthLabels[strength] || i18n.ok;
                             var hintState = strength >= 3 ? 'ok' : 'warn';
                             var icon = strength >= 3 ? 'check_circle' : 'info';
-                            setHint(hintPassword, hintState, 'Siła hasła: ' + label, icon);
+                            setHint(hintPassword, hintState, i18n.passwordStrengthPrefix + label, icon);
                             setInputState(passwordInput, strength >= 3 ? 'ok' : '');
                         }
                     } else {
@@ -309,15 +376,15 @@
                     var confirmVal = confirmInput ? confirmInput.value : '';
                     if (touched.confirm) {
                         if (confirmVal.length === 0) {
-                            setHint(hintConfirm, 'error', 'Powtórz hasło');
+                            setHint(hintConfirm, 'error', i18n.confirmRequired);
                             setInputState(confirmInput, 'error');
                             valid = false;
                         } else if (confirmVal !== passVal) {
-                            setHint(hintConfirm, 'error', 'Hasła nie są identyczne');
+                            setHint(hintConfirm, 'error', i18n.confirmMismatch);
                             setInputState(confirmInput, 'error');
                             valid = false;
                         } else {
-                            setHint(hintConfirm, 'ok', 'Hasła się zgadzają');
+                            setHint(hintConfirm, 'ok', i18n.confirmMatch);
                             setInputState(confirmInput, 'ok');
                         }
                     } else {

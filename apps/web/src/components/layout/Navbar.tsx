@@ -5,6 +5,7 @@ import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
 
 type NavItem = { label: string; href: string };
+type NavbarProps = { locale: string };
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/" },
@@ -13,7 +14,7 @@ const NAV: NavItem[] = [
   { label: "Moje wnioski", href: "/applications" },
 ];
 
-export function Navbar() {
+export function Navbar({ locale }: NavbarProps) {
   return (
     <header className="border-b border-border bg-background text-foreground">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -37,7 +38,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <ThemeControls />
-          <AuthNav />
+          <AuthNav locale={locale} />
         </div>
 
       </div>

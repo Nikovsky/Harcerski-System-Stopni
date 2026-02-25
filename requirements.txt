@@ -1,0 +1,15 @@
+annotated-doc==0.0.4
+charset-normalizer==3.4.4
+click==8.3.1
+colorama==0.4.6
+markdown-it-py==4.0.0
+mdurl==0.1.2
+orjson==3.11.7
+pathspec==1.0.4
+Pygments==2.19.2
+PyYAML==6.0.3
+regex==2026.2.19
+rich==14.3.3
+shellingham==1.5.4
+tomlkit==0.14.0
+typer==0.24.1

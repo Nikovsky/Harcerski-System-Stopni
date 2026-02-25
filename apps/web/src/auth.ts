@@ -4,8 +4,18 @@ import "server-only";
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import "next-auth/jwt";
+import type { JWT, JWTDecodeParams, JWTEncodeParams } from "next-auth/jwt";
 
 import { envServer } from "@/config/env.server";
+import {
+  acquireSessionRefreshLock,
+  decodeOpaqueSessionToken,
+  encodeOpaqueSessionToken,
+  extractSessionSid,
+  readSessionBySid,
+  releaseSessionRefreshLock,
+  type SessionJwt,
+} from "@/lib/server/bff-session.store";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -14,13 +24,15 @@ declare module "next-auth/jwt" {
     refreshToken?: string;
     accessTokenExpiresAt?: number;
     error?: "RefreshTokenExpired";
+    hssSid?: string;
+    hssSessionCreatedAtMs?: number;
+    hssSessionAbsoluteExpiresAtMs?: number;
   }
 }
 
 declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
-    /** Available server-side only (via auth()). Never sent to client via /api/auth/session. */
     accessToken?: string;
     user: {
       id?: string;
@@ -31,25 +43,70 @@ declare module "next-auth" {
   }
 }
 
-// Mutex: only one refresh at a time per Node.js process.
-let refreshPromise: Promise<import("next-auth/jwt").JWT> | null = null;
+const sessionCookieIsSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://");
+export const authSessionCookieName = envServer.HSS_SESSION_COOKIE_NAME;
 
-// Race condition guard: cache the last refresh result so parallel requests
-// that arrive with the same (old) cookie don't re-use an already-rotated refresh token.
-let lastRefreshInput: string | null = null;
-let lastRefreshOutput: import("next-auth/jwt").JWT | null = null;
-let lastRefreshTime = 0;
-const REFRESH_CACHE_TTL = 30_000; // 30s
+export async function authJwtEncode(params: JWTEncodeParams): Promise<string> {
+  return encodeOpaqueSessionToken(params);
+}
+
+export async function authJwtDecode(params: JWTDecodeParams): Promise<JWT | null> {
+  return decodeOpaqueSessionToken(params);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function expireSessionToken(token: SessionJwt): SessionJwt {
+  return {
+    ...token,
+    accessToken: undefined,
+    refreshToken: undefined,
+    idToken: undefined,
+    accessTokenExpiresAt: undefined,
+    error: "RefreshTokenExpired",
+  };
+}
+
+function isTokenFresh(token: SessionJwt): boolean {
+  if (!token.accessToken || !token.accessTokenExpiresAt) return false;
+  return Date.now() < token.accessTokenExpiresAt - 60_000;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForPeerRefresh(sid: string): Promise<SessionJwt | null> {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await sleep(120);
+    const persisted = await readSessionBySid(sid);
+    if (!persisted) return null;
+
+    const token = persisted.token;
+    if (token.error === "RefreshTokenExpired") return token;
+    if (isTokenFresh(token)) return token;
+  }
+
+  return null;
+}
 
 async function refreshAccessToken(
-  token: import("next-auth/jwt").JWT,
-): Promise<import("next-auth/jwt").JWT> {
+  token: SessionJwt,
+): Promise<SessionJwt> {
   const issuer = envServer.AUTH_KEYCLOAK_ISSUER;
   const clientId = envServer.AUTH_KEYCLOAK_ID;
   const clientSecret = envServer.AUTH_KEYCLOAK_SECRET;
 
   if (!token.refreshToken) {
-    return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+    return expireSessionToken(token);
   }
 
   try {
@@ -69,55 +126,90 @@ async function refreshAccessToken(
     );
 
     const text = await res.text();
-    let data: any;
+    let data: Record<string, unknown>;
 
     try {
-      data = JSON.parse(text);
+      const parsed = JSON.parse(text) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        console.error("[auth] token refresh: invalid JSON payload shape", res.status);
+        return expireSessionToken(token);
+      }
+      data = parsed as Record<string, unknown>;
     } catch {
-      // Non-JSON response = proxy/gateway error → transient, don't poison JWT
-      console.error("[auth] token refresh: non-JSON response (transient)", res.status, text.slice(0, 200));
-      return token;
+      console.error("[auth] token refresh: non-JSON response", res.status, text.slice(0, 200));
+      return expireSessionToken(token);
     }
 
     if (!res.ok) {
-      const permanentErrors = ["invalid_grant", "invalid_token", "unauthorized_client"];
-      if (permanentErrors.includes(data.error)) {
-        console.error("[auth] refresh token rejected:", data.error_description ?? data.error);
-        return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      const errorCode = asString(data.error);
+      const errorDescription = asString(data.error_description);
+      const isExpectedAuthRejection =
+        errorCode === "invalid_grant" ||
+        (typeof errorDescription === "string" &&
+          errorDescription.toLowerCase().includes("session doesn't have required client"));
+
+      if (isExpectedAuthRejection) {
+        console.warn("[auth] token refresh rejected by provider:", errorDescription ?? errorCode);
+      } else {
+        console.error("[auth] token refresh failed:", errorDescription ?? errorCode ?? `HTTP ${res.status}`);
       }
-      // Transient Keycloak error (5xx, rate limit, etc.) → retry on next request
-      console.warn("[auth] refresh failed (transient):", data.error, data.error_description);
-      return token;
+
+      return expireSessionToken(token);
+    }
+
+    const accessToken = asString(data.access_token);
+    const refreshToken = asString(data.refresh_token);
+    const idToken = asString(data.id_token);
+    const expiresIn = asNumber(data.expires_in);
+
+    if (!accessToken || !expiresIn) {
+      console.error("[auth] token refresh: missing access_token or expires_in");
+      return expireSessionToken(token);
     }
 
     return {
       ...token,
-      accessToken: data.access_token,
-      idToken: data.id_token ?? token.idToken,
-      refreshToken: data.refresh_token ?? token.refreshToken,
-      accessTokenExpiresAt:
-        typeof data.expires_in === "number"
-          ? Date.now() + data.expires_in * 1000
-          : Date.now() + 300_000,
+      accessToken,
+      idToken: idToken ?? token.idToken,
+      refreshToken: refreshToken ?? token.refreshToken,
+      accessTokenExpiresAt: Date.now() + expiresIn * 1000,
       error: undefined,
     };
   } catch (e) {
-    // Network/timeout error → transient, don't poison JWT
-    console.warn("[auth] refresh network error (transient):", e);
-    return token;
+    console.error("[auth] token refresh error:", e);
+    return expireSessionToken(token);
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: envServer.AUTH_SECRET,
   trustHost: envServer.AUTH_TRUST_HOST,
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8h — F07 fix
+  session: {
+    strategy: "jwt",
+    maxAge: envServer.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS,
+  },
+  jwt: {
+    maxAge: envServer.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS,
+    encode: authJwtEncode,
+    decode: authJwtDecode,
+  },
+  cookies: {
+    sessionToken: {
+      name: authSessionCookieName,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: sessionCookieIsSecure,
+      },
+    },
+  },
 
   // Behind NGINX reverse proxy, Node.js sees HTTP but cookies were set with
   // __Secure- prefix (browser sees HTTPS). Force useSecureCookies so NextAuth
   // reads the correct cookie names on callback. Without this, PKCE
   // code_verifier cookie is not found → InvalidCheck error.
-  useSecureCookies: true,
+  useSecureCookies: sessionCookieIsSecure,
 
   providers: [
     Keycloak({
@@ -130,10 +222,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     async jwt({ token, account }) {
+      const sessionToken = token as SessionJwt;
+
       // First login — persist all tokens from Keycloak
       if (account) {
         return {
-          ...token,
+          ...sessionToken,
           accessToken: account.access_token as string | undefined,
           idToken: account.id_token as string | undefined,
           refreshToken: account.refresh_token as string | undefined,
@@ -143,50 +237,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       }
 
+      // Once refresh is known to be invalid/expired, stop retrying.
+      if (sessionToken.error === "RefreshTokenExpired") {
+        return expireSessionToken(sessionToken);
+      }
+
       // Token still valid (with 60s safety margin)
-      if (token.accessTokenExpiresAt && Date.now() < token.accessTokenExpiresAt - 60_000) {
-        return token;
+      if (isTokenFresh(sessionToken)) {
+        return sessionToken;
       }
 
-      // Race condition guard: if we already refreshed with this same refresh token,
-      // return the cached result instead of hitting Keycloak again (which would
-      // reject the already-rotated token and kill the session).
-      if (
-        token.refreshToken &&
-        token.refreshToken === lastRefreshInput &&
-        lastRefreshOutput?.accessToken &&
-        !lastRefreshOutput.error &&
-        Date.now() - lastRefreshTime < REFRESH_CACHE_TTL
-      ) {
-        return lastRefreshOutput;
+      // Distribute refresh lock through Redis to keep token rotation safe
+      // when multiple app instances handle the same session concurrently.
+      const sid = extractSessionSid(sessionToken);
+      if (!sid) {
+        return refreshAccessToken(sessionToken);
       }
 
-      // Refresh silently (mutex prevents concurrent refresh)
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken(token)
-          .then((result) => {
-            if (result.accessToken && !result.error) {
-              lastRefreshInput = token.refreshToken ?? null;
-              lastRefreshOutput = result;
-              lastRefreshTime = Date.now();
-            }
-            return result;
-          })
-          .finally(() => {
-            refreshPromise = null;
-          });
+      const lockValue = await acquireSessionRefreshLock(sid);
+      if (lockValue) {
+        try {
+          return await refreshAccessToken(sessionToken);
+        } finally {
+          await releaseSessionRefreshLock(sid, lockValue);
+        }
       }
-      return refreshPromise;
+
+      const refreshedByPeer = await waitForPeerRefresh(sid);
+      if (refreshedByPeer) {
+        return refreshedByPeer;
+      }
+
+      return refreshAccessToken(sessionToken);
     },
 
     async session({ session, token }) {
       if (token.error) session.error = token.error;
-
-      // Pass accessToken through session for server-side BFF use.
-      // The /api/auth/session endpoint also returns this, but it's acceptable:
-      // - endpoint is same-origin only
-      // - token is already in encrypted httpOnly cookies
-      if (token.accessToken) session.accessToken = token.accessToken;
+      session.accessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
 
       // Ensure shape exists (avoids TS edge cases)
       session.user = session.user ?? { name: null, email: null, image: null };

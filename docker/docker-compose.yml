@@ -87,6 +87,7 @@ services:
       # Client secrets (for import)
       KEYCLOAK_HSS_WEB_CLIENT_SECRET: ${KEYCLOAK_HSS_WEB_CLIENT_SECRET:?set in docker/.env}
       KEYCLOAK_HSS_API_CLIENT_SECRET: ${KEYCLOAK_HSS_API_CLIENT_SECRET:?set in docker/.env}
+      KEYCLOAK_PASSWORD_REGEX: ${KEYCLOAK_PASSWORD_REGEX:?set in docker/.env}
 
       # DB
       KC_DB: ${KEYCLOAK_DATABASE:-postgres}
@@ -119,7 +120,7 @@ services:
     volumes:
       - keycloak_quarkus:/opt/keycloak/lib/quarkus
       - ./keycloak:/opt/keycloak/data/import:ro
-      - ./keycloak/themes/hss:/opt/keycloak/themes/hss:ro
+      - ./keycloak/themes/hss:/opt/keycloak/themes/hss/login:ro
 
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=256m,mode=1777
@@ -191,6 +192,55 @@ services:
     networks:
       - infra
 
+  redis:
+    image: ${REDIS_IMAGE:-redis:8.2.5}
+    container_name: ${REDIS_CONTAINER_NAME:-hss_redis}
+    hostname: ${REDIS_CONTAINER_NAME:-hss_redis}
+    user: "redis:redis"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+
+    command:
+      - /bin/sh
+      - -ec
+      - >
+        printf '%s\n' "user default off"
+        "user ${REDIS_USER:-root} on >${REDIS_PASSWORD:?set in docker/.env} ~* +@all"
+        "user ${REDIS_BFF_USER:-nextbff} on >${REDIS_BFF_PASSWORD:?set in docker/.env} ~hss:sess:* +get +set +del +eval +ping" > /tmp/users.acl
+        && exec redis-server
+        --bind 0.0.0.0
+        --port 6379
+        --appendonly ${REDIS_APPENDONLY:-yes}
+        --maxmemory ${REDIS_MAXMEMORY:-256mb}
+        --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+        --aclfile /tmp/users.acl
+        --save 60 1000
+
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+    volumes:
+      - redis_data:/data
+
+    mem_limit: ${REDIS_MEM_LIMIT:-512m}
+    cpus: ${REDIS_CPUS:-1.0}
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli --user ${REDIS_USER:-root} --pass ${REDIS_PASSWORD:?set in docker/.env} -h 127.0.0.1 -p 6379 PING | grep -q PONG" ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - infra
+
   nginx:
     image: ${NGINX_IMAGE:-nginx:1.29.4-alpine-slim}
     container_name: ${NGINX_CONTAINER_NAME:-hss_nginx}
@@ -201,6 +251,12 @@ services:
 
     mem_limit: ${NGINX_MEM_LIMIT:-256m}
     cpus: ${NGINX_CPUS:-1.0}
+
+    environment:
+      NGINX_RL_API_RATE: ${NGINX_RL_API_RATE:-10000r/s}
+      NGINX_RL_API_BURST: ${NGINX_RL_API_BURST:-10000}
+      NGINX_RL_AUTH_RATE: ${NGINX_RL_AUTH_RATE:-10000r/s}
+      NGINX_RL_AUTH_BURST: ${NGINX_RL_AUTH_BURST:-10000}
 
     depends_on:
       postgres:
@@ -215,7 +271,7 @@ services:
       - "127.0.0.1:${NGINX_HTTPS_PORT:-443}:443"
 
     volumes:
-      - ./nginx/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.dev.conf:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/502.html:/usr/share/nginx/html/502.html:ro
       - ./nginx/502-bg.webp:/usr/share/nginx/html/502-bg.webp:ro
       - ${CERTS_DIR:-./certs}/${TLS_CERT_PEM:-hss.local.pem}:/etc/nginx/certs/hss.local.pem:ro
@@ -237,6 +293,7 @@ services:
 
     read_only: true
     tmpfs:
+      - /etc/nginx/conf.d:rw,noexec,nosuid,size=2m
       - /var/run:rw,noexec,nosuid,size=16m
       - /var/cache/nginx:rw,noexec,nosuid,size=128m
       - /var/log/nginx:rw,noexec,nosuid,size=32m
@@ -255,6 +312,7 @@ volumes:
   pg_data:
   minio_data:
   keycloak_quarkus:
+  redis_data:
 
 
 networks:

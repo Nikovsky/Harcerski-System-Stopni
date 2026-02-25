@@ -92,7 +92,7 @@ export default function DashboardEditPage() {
       setSaveMsg(null);
 
       try {
-        const res = await fetch("/api/backend/dashboard", {
+        const res = await fetch("/api/backend/profile", {
           method: "GET",
           cache: "no-store",
           credentials: "include",
@@ -182,7 +182,7 @@ export default function DashboardEditPage() {
     }
 
     try {
-      const res = await fetch("/api/backend/dashboard", {
+      const res = await fetch("/api/backend/profile", {
         method: "PATCH",
         credentials: "include",
         headers: { "content-type": "application/json", accept: "application/json" },

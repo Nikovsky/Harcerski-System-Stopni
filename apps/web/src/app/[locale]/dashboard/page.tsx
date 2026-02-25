@@ -23,7 +23,7 @@ async function fetchDashboard(): Promise<
   const h = await headers();
   const baseUrl = await getBaseUrl();
 
-  const res = await fetch(`${baseUrl}/api/backend/dashboard`, {
+  const res = await fetch(`${baseUrl}/api/backend/profile`, {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -105,10 +105,9 @@ export default async function DashboardPage({
         <Row label="UUID" value={u.uuid} />
         <Row label="Keycloak UUID" value={u.keycloakUuid} />
         <Row label="Email" value={u.email ?? "—"} />
-        <Row
-          label="Name"
-          value={[u.firstName, u.secondName, u.surname].filter(Boolean).join(" ") || "—"}
-        />
+        <Row label="Imię" value={u.firstName ?? "—"} />
+        <Row label="Drugie imię" value={u.secondName ?? "—"} />
+        <Row label="Nazwisko" value={u.surname ?? "—"} />
         <Row label="Phone" value={u.phone ?? "—"} />
         <Row label="Birth date" value={u.birthDate ? new Date(u.birthDate).toLocaleDateString() : "—"} />
         <Row label="Role" value={u.role} />
