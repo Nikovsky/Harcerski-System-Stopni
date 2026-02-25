@@ -121,7 +121,7 @@ function parseRecord(raw: string): z.infer<typeof sessionRecordSchema> | null {
 }
 
 async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSchema> | null> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   const raw = await redis.get(sessionKey(sid));
   if (!raw) return null;
 
@@ -141,7 +141,7 @@ async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSche
 async function writeRecord(record: z.infer<typeof sessionRecordSchema>): Promise<void> {
   const now = Date.now();
   const ttlMs = ttlFromExpirations(now, record.idleExpiresAtMs, record.absoluteExpiresAtMs);
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
 
   if (ttlMs <= 0) {
     await redis.del(sessionKey(record.sid));
@@ -294,7 +294,9 @@ export async function touchSessionBySid(rawSid: string, extendSeconds?: number):
 
   const extensionMs = (() => {
     const byRequest = toPositiveNumber(extendSeconds);
-    if (byRequest) return byRequest * 1_000;
+    if (byRequest) {
+      return Math.min(byRequest, envServer.HSS_SESSION_MAX_EXTENSION_SECONDS) * 1_000;
+    }
     return envServer.HSS_SESSION_IDLE_TIMEOUT_SECONDS * 1_000;
   })();
 
@@ -337,14 +339,15 @@ export async function touchSessionBySid(rawSid: string, extendSeconds?: number):
 export async function destroySessionBySid(rawSid: string): Promise<void> {
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return;
-  await getRedisClient().del(sessionKey(sid));
+  const redis = await getRedisClient();
+  await redis.del(sessionKey(sid));
 }
 
 export async function acquireSessionRefreshLock(rawSid: string): Promise<string | null> {
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return null;
 
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   const lockValue = randomBytes(24).toString("base64url");
   const result = await redis.set(
     refreshLockKey(sid),
@@ -361,7 +364,8 @@ export async function releaseSessionRefreshLock(rawSid: string, lockValue: strin
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return;
 
-  await getRedisClient().eval(releaseLockLua, 1, refreshLockKey(sid), lockValue);
+  const redis = await getRedisClient();
+  await redis.eval(releaseLockLua, 1, refreshLockKey(sid), lockValue);
 }
 
 export function extractSessionSid(token: SessionJwt | null | undefined): string | null {

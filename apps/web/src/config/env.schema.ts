@@ -71,6 +71,7 @@ export const webServerEnvSchema = z
     HSS_SESSION_IDLE_TIMEOUT_SECONDS: zIntPositive,
     HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS: zIntPositive,
     HSS_SESSION_TOUCH_THROTTLE_SECONDS: zIntPositive,
+    HSS_SESSION_MAX_EXTENSION_SECONDS: zIntPositive,
     HSS_SESSION_REFRESH_LOCK_TTL_MS: zIntPositive,
     HSS_SESSION_ENCRYPTION_KEY: z.string().min(32),
 
@@ -97,6 +98,29 @@ export const webServerEnvSchema = z
       message:
         "HSS_SESSION_TOUCH_THROTTLE_SECONDS should be <= HSS_SESSION_IDLE_TIMEOUT_SECONDS",
       path: ["HSS_SESSION_TOUCH_THROTTLE_SECONDS"],
+    },
+  )
+  .refine(
+    (v) => v.HSS_SESSION_MAX_EXTENSION_SECONDS <= v.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS,
+    {
+      message:
+        "HSS_SESSION_MAX_EXTENSION_SECONDS must be <= HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS",
+      path: ["HSS_SESSION_MAX_EXTENSION_SECONDS"],
+    },
+  )
+  .refine(
+    (v) => v.HSS_SESSION_MAX_EXTENSION_SECONDS >= v.HSS_SESSION_IDLE_TIMEOUT_SECONDS,
+    {
+      message:
+        "HSS_SESSION_MAX_EXTENSION_SECONDS should be >= HSS_SESSION_IDLE_TIMEOUT_SECONDS",
+      path: ["HSS_SESSION_MAX_EXTENSION_SECONDS"],
+    },
+  )
+  .refine(
+    (v) => v.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS <= 8 * 60 * 60,
+    {
+      message: "HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS must be <= 28800 (8h)",
+      path: ["HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS"],
     },
   )
   .refine(
