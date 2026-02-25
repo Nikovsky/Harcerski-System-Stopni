@@ -2,6 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Analiza codebase — Gemini CLI
+
+**OBOWIĄZKOWO** używaj Gemini CLI zamiast Read/Glob/Grep gdy:
+- Trzeba przeanalizować cały katalog lub moduł (np. `apps/api/src/modules/`)
+- Zadanie dotyczy więcej niż 3 plików jednocześnie
+- Pytanie dotyczy architektury, wzorców lub powiązań między modułami
+- Szukasz czegoś w całym projekcie (feature, pattern, implementacja)
+
+```bash
+# Analiza modułu
+gemini -p "@apps/api/src/modules/instructor-application/ Describe the architecture"
+
+# Analiza całego projektu
+gemini -p "@apps/ @packages/ Question about the codebase"
+
+# Weryfikacja implementacji
+gemini -p "@apps/api/src/ Is X implemented? Show relevant files"
+```
+
+**NIE ładuj** dużych plików do kontekstu Claude przez Read — zamiast tego deleguj do Gemini.
+Ścieżki `@` są względne do katalogu roboczego (`C:\Users\nfedu\Desktop\ZHR\HSS\WEB\Harcerski-System-Stopni`).
+
 ## Project Overview
 
 **HSS (Harcerski System Stopni)** is a system for managing scout degree commissions in ZHR (Polish Scouting Association). It digitalizes documentation, enables asynchronous review of trials, and streamlines commission meeting organization.

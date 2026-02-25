@@ -1,0 +1,117 @@
+{
+  "title": "My Applications",
+  "newApplication": "New Application",
+  "noApplications": "You don't have any applications yet",
+  "selectTemplate": "Select template",
+  "createDraft": "Create draft",
+  "status": {
+    "DRAFT": "Draft",
+    "SUBMITTED": "Submitted",
+    "TO_FIX": "Needs Fixing",
+    "UNDER_REVIEW": "Under Review",
+    "APPROVED": "Approved",
+    "IN_PROGRESS": "In Progress",
+    "REPORT_SUBMITTED": "Report Submitted",
+    "COMPLETED_POSITIVE": "Completed (Positive)",
+    "REJECTED": "Rejected",
+    "ARCHIVED": "Archived"
+  },
+  "scoutRank": {
+    "MLODZIK": "Młodzik",
+    "WYWIADOWCA": "Wywiadowca",
+    "CWIK": "Ćwik",
+    "HARCERZ_ORLI": "Eagle Scout",
+    "HARCERZ_RZECZYPOSPOLITEJ": "Scout of the Republic"
+  },
+  "degree": {
+    "PWD": "Przewodnik",
+    "PHM": "Podharcmistrz",
+    "HM": "Harcmistrz",
+    "PRZEWODNIK": "Przewodnik",
+    "PODHARCMISTRZ": "Podharcmistrz",
+    "PODHARCMISTRZ_OTWARTA_PROBA": "Podharcmistrz (open trial)",
+    "HARCMISTRZ": "Harcmistrz"
+  },
+  "steps": {
+    "basicInfo": "Basic Information",
+    "serviceHistory": "Service History",
+    "supervisor": "Trial Supervisor",
+    "requirements": "Requirements",
+    "attachments": "Attachments & Summary",
+    "summary": "Summary"
+  },
+  "fields": {
+    "plannedFinishAt": "Planned finish date",
+    "teamFunction": "Team function",
+    "hufiecFunction": "District function",
+    "openTrialForRank": "Open trial for rank",
+    "openTrialDeadline": "Open trial deadline",
+    "hufcowyPresence": "District leader presence",
+    "hufcowyPresenceAttachment": "Attach written opinion from district leader",
+    "functionsHistory": "Functions history",
+    "coursesHistory": "Courses and trainings",
+    "campsHistory": "Camps and winter camps",
+    "successes": "Successes in educational work",
+    "failures": "Failures and conclusions",
+    "supervisorFirstName": "Supervisor first name",
+    "supervisorSecondName": "Supervisor second name",
+    "supervisorSurname": "Supervisor surname",
+    "supervisorInstructorRank": "Supervisor instructor rank",
+    "supervisorInstructorFunction": "Supervisor function"
+  },
+  "supervisorFunction": {
+    "druzynowy": "Troop leader",
+    "opiekunDruzyny": "Troop guardian",
+    "other": "Other function",
+    "otherPlaceholder": "Enter function..."
+  },
+  "presence": {
+    "IN_PERSON": "In person",
+    "REMOTE": "Remote",
+    "ATTACHMENT_OPINION": "Written opinion"
+  },
+  "requirementState": {
+    "DONE": "Done",
+    "PLANNED": "Planned"
+  },
+  "actions": {
+    "save": "Save",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit application",
+    "delete": "Delete draft",
+    "edit": "Edit",
+    "downloadPdf": "Download trial card (PDF)",
+    "view": "View",
+    "uploadFile": "Upload file",
+    "removeFile": "Remove file"
+  },
+  "confirm": {
+    "submitTitle": "Confirm submission",
+    "submitMessage": "Are you sure you want to submit? Editing will not be possible after submission.",
+    "submitConfirm": "Yes, submit",
+    "submitCancel": "Cancel",
+    "deleteTitle": "Confirm deletion",
+    "deleteMessage": "Are you sure you want to delete this draft?",
+    "deleteConfirm": "Yes, delete",
+    "deleteCancel": "Cancel"
+  },
+  "messages": {
+    "draftSaved": "Draft saved",
+    "submitted": "Application submitted",
+    "deleted": "Draft deleted",
+    "uploadSuccess": "File uploaded",
+    "uploadError": "File upload error",
+    "uploadInvalidType": "Invalid file type. Allowed formats: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadTooLarge": "File is too large. Maximum size is 50 MB.",
+    "error": "An error occurred",
+    "incompleteFields": "Please fill in all required fields before submitting:",
+    "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission."
+  },
+  "pdf": {
+    "generatingPdf": "Generating PDF..."
+  },
+  "createdAt": "Created",
+  "updatedAt": "Updated",
+  "lastSubmittedAt": "Last submitted"
+}

@@ -112,8 +112,8 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
   }
 }
 
-// IMPORTANT: in newer Next versions params may be async (Promise)
-type RouteContext = { params: { path?: string[] } | Promise<{ path?: string[] }> };
+// Next.js 16: params is always a Promise
+type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
   // ✅ params can be a Promise -> always await (await on non-promise is fine)

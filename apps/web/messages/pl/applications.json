@@ -1,0 +1,117 @@
+{
+  "title": "Moje wnioski",
+  "newApplication": "Nowy wniosek",
+  "noApplications": "Nie masz jeszcze żadnych wniosków",
+  "selectTemplate": "Wybierz wniosek",
+  "createDraft": "Utwórz szkic",
+  "status": {
+    "DRAFT": "Szkic",
+    "SUBMITTED": "Złożony",
+    "TO_FIX": "Do poprawy",
+    "UNDER_REVIEW": "W recenzji",
+    "APPROVED": "Zatwierdzony",
+    "IN_PROGRESS": "W trakcie",
+    "REPORT_SUBMITTED": "Raport złożony",
+    "COMPLETED_POSITIVE": "Ukończony pozytywnie",
+    "REJECTED": "Odrzucony",
+    "ARCHIVED": "Zarchiwizowany"
+  },
+  "degree": {
+    "PWD": "Przewodnik",
+    "PHM": "Podharcmistrz",
+    "HM": "Harcmistrz",
+    "PRZEWODNIK": "Przewodnik",
+    "PODHARCMISTRZ": "Podharcmistrz",
+    "PODHARCMISTRZ_OTWARTA_PROBA": "Podharcmistrz (otwarta próba)",
+    "HARCMISTRZ": "Harcmistrz"
+  },
+  "scoutRank": {
+    "MLODZIK": "Młodzik",
+    "WYWIADOWCA": "Wywiadowca",
+    "CWIK": "Ćwik",
+    "HARCERZ_ORLI": "Harcerz Orli",
+    "HARCERZ_RZECZYPOSPOLITEJ": "Harcerz Rzeczypospolitej"
+  },
+  "steps": {
+    "basicInfo": "Informacje podstawowe",
+    "serviceHistory": "Historia służby",
+    "supervisor": "Opiekun próby",
+    "requirements": "Wymagania",
+    "attachments": "Załączniki i podsumowanie",
+    "summary": "Podsumowanie"
+  },
+  "fields": {
+    "plannedFinishAt": "Planowany termin ukończenia próby",
+    "teamFunction": "Pełniona funkcja (drużyna)",
+    "hufiecFunction": "Pełniona funkcja (hufiec)",
+    "openTrialForRank": "Otwarta próba na stopień",
+    "openTrialDeadline": "Termin ukończenia",
+    "hufcowyPresence": "Obecność hufcowego przy otwarciu",
+    "hufcowyPresenceAttachment": "Załącz opinię pisemną hufcowego",
+    "functionsHistory": "Pełnione funkcje, oraz okres ich pełnienia",
+    "coursesHistory": "Odbyte kursy instruktorskie, harcerskie",
+    "campsHistory": "Obozy harcerskie, pełnione na nich funkcje",
+    "successes": "Sukcesy w pracy harcerskiej",
+    "failures": "Porażki w pracy harcerskiej",
+    "supervisorFirstName": "Imię opiekuna",
+    "supervisorSecondName": "Drugie imię opiekuna",
+    "supervisorSurname": "Nazwisko opiekuna",
+    "supervisorInstructorRank": "Stopień instruktorski opiekuna",
+    "supervisorInstructorFunction": "Pełniona funkcja opiekuna"
+  },
+  "supervisorFunction": {
+    "druzynowy": "Drużynowy",
+    "opiekunDruzyny": "Opiekun drużyny",
+    "other": "Inna funkcja",
+    "otherPlaceholder": "Wpisz funkcję..."
+  },
+  "presence": {
+    "IN_PERSON": "Obecność osobista",
+    "REMOTE": "Obecność zdalna",
+    "ATTACHMENT_OPINION": "Opinia w załączniku"
+  },
+  "requirementState": {
+    "DONE": "Wykonałem",
+    "PLANNED": "Wykonam"
+  },
+  "actions": {
+    "save": "Zapisz",
+    "next": "Dalej",
+    "previous": "Wstecz",
+    "submit": "Złóż wniosek",
+    "delete": "Usuń szkic",
+    "edit": "Edytuj",
+    "downloadPdf": "Pobierz kartę próby (PDF)",
+    "view": "Podgląd",
+    "uploadFile": "Dodaj załącznik",
+    "removeFile": "Usuń załącznik"
+  },
+  "confirm": {
+    "submitTitle": "Potwierdzenie złożenia",
+    "submitMessage": "Czy na pewno chcesz złożyć wniosek? Po złożeniu nie będzie możliwa edycja.",
+    "submitConfirm": "Tak, złóż wniosek",
+    "submitCancel": "Anuluj",
+    "deleteTitle": "Potwierdzenie usunięcia",
+    "deleteMessage": "Czy na pewno chcesz usunąć ten szkic wniosku?",
+    "deleteConfirm": "Tak, usuń",
+    "deleteCancel": "Anuluj"
+  },
+  "messages": {
+    "draftSaved": "Szkic zapisany",
+    "submitted": "Wniosek został złożony",
+    "deleted": "Szkic został usunięty",
+    "uploadSuccess": "Plik został przesłany",
+    "uploadError": "Błąd przesyłania pliku",
+    "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadTooLarge": "Plik jest za duży. Maksymalny rozmiar to 50 MB.",
+    "error": "Wystąpił błąd",
+    "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
+    "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa."
+  },
+  "pdf": {
+    "generatingPdf": "Generowanie PDF..."
+  },
+  "createdAt": "Utworzono",
+  "updatedAt": "Zaktualizowano",
+  "lastSubmittedAt": "Ostatnio złożono"
+}

@@ -55,6 +55,15 @@ export const envSchema = z.object({
   KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
   KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
 
+  // ===[MINIO / S3]===
+  MINIO_ENDPOINT: z.string().min(1),
+  MINIO_ACCESS_KEY: z.string().min(1),
+  MINIO_SECRET_KEY: z.string().min(1),
+  MINIO_BUCKET: z.string().min(1).default("hss"),
+  MINIO_REGION: z.string().min(1).default("us-east-1"),
+  MINIO_USE_SSL: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+  MINIO_PUBLIC_ENDPOINT: z.string().optional().default(""),
+
   // ===[SECURITY / RUNTIME]===
   TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
 });

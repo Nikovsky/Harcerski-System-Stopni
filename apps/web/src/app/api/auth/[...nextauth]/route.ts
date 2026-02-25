@@ -8,7 +8,7 @@ const { GET: originalGET, POST } = handlers;
  * The BFF proxy uses auth() server-side and doesn't need the token exposed to the client.
  */
 async function GET(req: Request) {
-  const res = await originalGET(req);
+  const res = await originalGET(req as any);
 
   if (new URL(req.url).pathname.endsWith("/session")) {
     const body = await res.json();

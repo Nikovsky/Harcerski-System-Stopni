@@ -10,10 +10,17 @@ export class ZodValidationPipe implements PipeTransform {
     const parsed = this.schema.safeParse(value);
     if (parsed.success) return parsed.data;
 
+    const flat = parsed.error.flatten();
+    const fieldErrors = Object.values(flat.fieldErrors).flat();
+    const allErrors = [...flat.formErrors, ...fieldErrors];
+    const message = allErrors.length > 0
+      ? allErrors.join('; ')
+      : 'Nieprawidłowe dane żądania.';
+
     throw new BadRequestException({
       code: 'VALIDATION_ERROR',
-      message: 'Invalid request payload.',
-      details: parsed.error.flatten(),
+      message,
+      details: flat,
     });
   }
 }

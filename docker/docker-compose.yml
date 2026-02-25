@@ -156,8 +156,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in infra/docker/compose/.env}
       MINIO_REGION: ${MINIO_REGION:-eu-central-1}
       TZ: ${TZ:-Europe/Warsaw}
-      # MINIO_SERVER_URL: ${MINIO_SERVER_URL:-http://minio:9000}
-      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9001}
+      # MINIO_SERVER_URL: ${MINIO_SERVER_URL:-https://s3.hss.local}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-https://s3console.hss.local}
       MINIO_API_CORS_ALLOW_ORIGIN: "https://s3console.hss.local,https://hss.local,https://api.hss.local,https://s3.hss.local"
 
     command: [ "server", "/data", "--address", ":9000", "--console-address", ":9001" ]

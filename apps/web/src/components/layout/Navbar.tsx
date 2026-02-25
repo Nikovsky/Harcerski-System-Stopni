@@ -10,6 +10,7 @@ const NAV: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Docs", href: "/docs" },
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Moje wnioski", href: "/applications" },
 ];
 
 export function Navbar() {

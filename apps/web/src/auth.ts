@@ -34,6 +34,13 @@ declare module "next-auth" {
 // Mutex: only one refresh at a time per Node.js process.
 let refreshPromise: Promise<import("next-auth/jwt").JWT> | null = null;
 
+// Race condition guard: cache the last refresh result so parallel requests
+// that arrive with the same (old) cookie don't re-use an already-rotated refresh token.
+let lastRefreshInput: string | null = null;
+let lastRefreshOutput: import("next-auth/jwt").JWT | null = null;
+let lastRefreshTime = 0;
+const REFRESH_CACHE_TTL = 30_000; // 30s
+
 async function refreshAccessToken(
   token: import("next-auth/jwt").JWT,
 ): Promise<import("next-auth/jwt").JWT> {
@@ -67,13 +74,20 @@ async function refreshAccessToken(
     try {
       data = JSON.parse(text);
     } catch {
-      console.error("[auth] token refresh: non-JSON response", res.status, text.slice(0, 200));
-      return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      // Non-JSON response = proxy/gateway error → transient, don't poison JWT
+      console.error("[auth] token refresh: non-JSON response (transient)", res.status, text.slice(0, 200));
+      return token;
     }
 
     if (!res.ok) {
-      console.error("[auth] token refresh failed:", data.error_description ?? data.error);
-      return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      const permanentErrors = ["invalid_grant", "invalid_token", "unauthorized_client"];
+      if (permanentErrors.includes(data.error)) {
+        console.error("[auth] refresh token rejected:", data.error_description ?? data.error);
+        return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+      }
+      // Transient Keycloak error (5xx, rate limit, etc.) → retry on next request
+      console.warn("[auth] refresh failed (transient):", data.error, data.error_description);
+      return token;
     }
 
     return {
@@ -88,8 +102,9 @@ async function refreshAccessToken(
       error: undefined,
     };
   } catch (e) {
-    console.error("[auth] token refresh error:", e);
-    return { ...token, accessToken: undefined, error: "RefreshTokenExpired" };
+    // Network/timeout error → transient, don't poison JWT
+    console.warn("[auth] refresh network error (transient):", e);
+    return token;
   }
 }
 
@@ -133,11 +148,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
+      // Race condition guard: if we already refreshed with this same refresh token,
+      // return the cached result instead of hitting Keycloak again (which would
+      // reject the already-rotated token and kill the session).
+      if (
+        token.refreshToken &&
+        token.refreshToken === lastRefreshInput &&
+        lastRefreshOutput?.accessToken &&
+        !lastRefreshOutput.error &&
+        Date.now() - lastRefreshTime < REFRESH_CACHE_TTL
+      ) {
+        return lastRefreshOutput;
+      }
+
       // Refresh silently (mutex prevents concurrent refresh)
       if (!refreshPromise) {
-        refreshPromise = refreshAccessToken(token).finally(() => {
-          refreshPromise = null;
-        });
+        refreshPromise = refreshAccessToken(token)
+          .then((result) => {
+            if (result.accessToken && !result.error) {
+              lastRefreshInput = token.refreshToken ?? null;
+              lastRefreshOutput = result;
+              lastRefreshTime = Date.now();
+            }
+            return result;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
       }
       return refreshPromise;
     },

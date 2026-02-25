@@ -82,4 +82,33 @@ export class AppConfigService {
   get keycloakApiClientSecret(): string | undefined {
     return this.cfg.get("KEYCLOAK_API_CLIENT_SECRET", { infer: true }) || undefined;
   }
+
+  // === MINIO / S3 ===
+  get minioEndpoint(): string {
+    return this.cfg.get("MINIO_ENDPOINT", { infer: true });
+  }
+
+  get minioAccessKey(): string {
+    return this.cfg.get("MINIO_ACCESS_KEY", { infer: true });
+  }
+
+  get minioSecretKey(): string {
+    return this.cfg.get("MINIO_SECRET_KEY", { infer: true });
+  }
+
+  get minioBucket(): string {
+    return this.cfg.get("MINIO_BUCKET", { infer: true });
+  }
+
+  get minioRegion(): string {
+    return this.cfg.get("MINIO_REGION", { infer: true });
+  }
+
+  get minioUseSsl(): boolean {
+    return this.cfg.get("MINIO_USE_SSL", { infer: true });
+  }
+
+  get minioPublicEndpoint(): string | undefined {
+    return this.cfg.get("MINIO_PUBLIC_ENDPOINT", { infer: true }) || undefined;
+  }
 }
