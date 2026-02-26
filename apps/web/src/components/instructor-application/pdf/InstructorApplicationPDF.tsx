@@ -305,7 +305,7 @@ function letterPart(code: string): string {
 
 // Renders one "● met. X: text np. example" bullet line
 function BulletLine({ content }: { content: string }) {
-  const metMatch = content.match(/^(met\.[^:]+:)(.*)/s);
+  const metMatch = content.match(/^(met\.[^:]+:)([\s\S]*)/);
   if (metMatch) {
     const label = metMatch[1];
     const rest = metMatch[2];
