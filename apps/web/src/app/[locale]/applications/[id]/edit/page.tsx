@@ -274,20 +274,20 @@ function StepServiceHistory({
       }}
       className="space-y-4"
     >
-      <Field label={t("fields.functionsHistory")}>
-        <textarea name="functionsHistory" rows={3} defaultValue={app.functionsHistory ?? ""} className="input" />
+      <Field label={t("fields.functionsHistory")} required>
+        <textarea name="functionsHistory" rows={3} defaultValue={app.functionsHistory ?? ""} required maxLength={10000} className="input" />
       </Field>
-      <Field label={t("fields.coursesHistory")}>
-        <textarea name="coursesHistory" rows={3} defaultValue={app.coursesHistory ?? ""} className="input" />
+      <Field label={t("fields.coursesHistory")} required>
+        <textarea name="coursesHistory" rows={3} defaultValue={app.coursesHistory ?? ""} required maxLength={10000} className="input" />
       </Field>
-      <Field label={t("fields.campsHistory")}>
-        <textarea name="campsHistory" rows={3} defaultValue={app.campsHistory ?? ""} className="input" />
+      <Field label={t("fields.campsHistory")} required>
+        <textarea name="campsHistory" rows={3} defaultValue={app.campsHistory ?? ""} required maxLength={10000} className="input" />
       </Field>
-      <Field label={t("fields.successes")}>
-        <textarea name="successes" rows={3} defaultValue={app.successes ?? ""} className="input" />
+      <Field label={t("fields.successes")} required>
+        <textarea name="successes" rows={3} defaultValue={app.successes ?? ""} required maxLength={10000} className="input" />
       </Field>
-      <Field label={t("fields.failures")}>
-        <textarea name="failures" rows={3} defaultValue={app.failures ?? ""} className="input" />
+      <Field label={t("fields.failures")} required>
+        <textarea name="failures" rows={3} defaultValue={app.failures ?? ""} required maxLength={10000} className="input" />
       </Field>
       <StepNav
         onPrev={() => onPrev(getData(document.querySelector("form")!))}
@@ -297,7 +297,7 @@ function StepServiceHistory({
   );
 }
 
-const SUPERVISOR_FUNCTION_PRESETS = ["supervisorFunction.druzynowy", "supervisorFunction.opiekunDruzyny"] as const;
+const SUPERVISOR_FUNCTION_PRESETS = ["DRUZYNOWY", "OPIEKUN_DRUZYNY"] as const;
 
 function StepSupervisor({
   app,
@@ -311,7 +311,7 @@ function StepSupervisor({
   const t = useTranslations("applications");
 
   const initialFunction = app.supervisorInstructorFunction ?? "";
-  const isPreset = SUPERVISOR_FUNCTION_PRESETS.some((p) => t(p) === initialFunction);
+  const isPreset = (SUPERVISOR_FUNCTION_PRESETS as readonly string[]).includes(initialFunction);
   const [functionSelect, setFunctionSelect] = useState<string>(isPreset ? initialFunction : (initialFunction ? "__other" : ""));
   const [functionOther, setFunctionOther] = useState<string>(isPreset || !initialFunction ? "" : initialFunction);
 
@@ -338,14 +338,14 @@ function StepSupervisor({
       }}
       className="space-y-4"
     >
-      <Field label={t("fields.supervisorFirstName")}>
-        <input name="supervisorFirstName" defaultValue={app.supervisorFirstName ?? ""} className="input" />
+      <Field label={t("fields.supervisorFirstName")} required>
+        <input name="supervisorFirstName" defaultValue={app.supervisorFirstName ?? ""} required className="input" />
       </Field>
-      <Field label={t("fields.supervisorSurname")}>
-        <input name="supervisorSurname" defaultValue={app.supervisorSurname ?? ""} className="input" />
+      <Field label={t("fields.supervisorSurname")} required>
+        <input name="supervisorSurname" defaultValue={app.supervisorSurname ?? ""} required className="input" />
       </Field>
-      <Field label={t("fields.supervisorInstructorRank")}>
-        <select name="supervisorInstructorRank" defaultValue={app.supervisorInstructorRank ?? ""} className="input">
+      <Field label={t("fields.supervisorInstructorRank")} required>
+        <select name="supervisorInstructorRank" defaultValue={app.supervisorInstructorRank ?? ""} required className="input">
           <option value="">—</option>
           <option value="PRZEWODNIK">{t("degree.PRZEWODNIK")}</option>
           <option value="PODHARCMISTRZ_OTWARTA_PROBA">{t("degree.PODHARCMISTRZ_OTWARTA_PROBA")}</option>
@@ -353,15 +353,16 @@ function StepSupervisor({
           <option value="HARCMISTRZ">{t("degree.HARCMISTRZ")}</option>
         </select>
       </Field>
-      <Field label={t("fields.supervisorInstructorFunction")}>
+      <Field label={t("fields.supervisorInstructorFunction")} required>
         <select
           value={functionSelect}
           onChange={(e) => setFunctionSelect(e.target.value)}
+          required={functionSelect !== "__other"}
           className="input mb-2"
         >
           <option value="">—</option>
           {SUPERVISOR_FUNCTION_PRESETS.map((p) => (
-            <option key={p} value={t(p)}>{t(p)}</option>
+            <option key={p} value={p}>{t(`supervisorFunction.${p === "DRUZYNOWY" ? "druzynowy" : "opiekunDruzyny"}`)}</option>
           ))}
           <option value="__other">{t("supervisorFunction.other")}</option>
         </select>
@@ -384,10 +385,12 @@ function StepSupervisor({
 
 // ── Shared UI ──────────────────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-foreground/80">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-foreground/80">
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
       <div className="[&_.input]:w-full [&_.input]:rounded-md [&_.input]:border [&_.input]:border-border [&_.input]:bg-background [&_.input]:px-3 [&_.input]:py-2 [&_.input]:text-sm">
         {children}
       </div>

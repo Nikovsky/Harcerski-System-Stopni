@@ -106,8 +106,10 @@
     "uploadTooLarge": "Plik jest za duży. Maksymalny rozmiar to 50 MB.",
     "error": "Wystąpił błąd",
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
-    "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa."
+    "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
+    "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań"
   },
+  "verificationTextRequired": "Opis załącznika (wymagane) *",
   "pdf": {
     "generatingPdf": "Generowanie PDF..."
   },

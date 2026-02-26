@@ -428,6 +428,13 @@ export class InstructorApplicationService {
       throw new NotFoundException("Requirement not found");
     }
 
+    // Validate: verificationText is required when state is DONE
+    if (dto.state === "DONE" && (!dto.verificationText || !dto.verificationText.trim())) {
+      throw new BadRequestException(
+        "Opis załącznika jest wymagany gdy wymaganie jest oznaczone jako wykonane.",
+      );
+    }
+
     await this.prisma.instructorApplicationRequirement.update({
       where: { uuid: requirementId },
       data: {
@@ -661,6 +668,11 @@ export class InstructorApplicationService {
     supervisorInstructorRank: string | null;
     supervisorInstructorFunction: string | null;
     template: { degreeCode: string };
+    requirements: Array<{
+      state: string;
+      verificationText: string | null;
+      requirementDefinition: { code: string };
+    }>;
   }) {
     const missing: string[] = [];
 
@@ -683,6 +695,13 @@ export class InstructorApplicationService {
       if (!app.teamFunction?.trim()) missing.push("teamFunction");
       if (!app.hufiecFunction?.trim()) missing.push("hufiecFunction");
       if (!app.openTrialForRank) missing.push("openTrialForRank");
+    }
+
+    // Validate requirements: DONE state requires verificationText
+    for (const req of app.requirements) {
+      if (req.state === "DONE" && (!req.verificationText || !req.verificationText.trim())) {
+        missing.push(`requirement_${req.requirementDefinition.code}_verificationText`);
+      }
     }
 
     if (missing.length > 0) {

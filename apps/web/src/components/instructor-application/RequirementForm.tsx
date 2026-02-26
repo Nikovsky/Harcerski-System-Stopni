@@ -1,11 +1,12 @@
 // @file: apps/web/src/components/instructor-application/RequirementForm.tsx
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { apiFetch, ApiError } from "@/lib/api";
 import { canPreviewInline } from "@/lib/attachment-utils";
+import { ALLOWED_EXTENSIONS_REGEX, MAX_FILE_SIZE } from "@hss/schemas";
 import type { RequirementRowResponse, AttachmentResponse } from "@hss/schemas";
 
 type Props = {
@@ -88,6 +89,9 @@ function RequirementRow({
   const qc = useQueryClient();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [state, setState] = useState<string>(req.state);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   const mutation = useMutation({
     mutationFn: (data: { state: string; actionDescription: string; verificationText?: string | null }) =>
@@ -103,12 +107,17 @@ function RequirementRow({
   const save = useCallback(
     (newState: string, actionDescription: string, verificationText?: string | null) => {
       if (readOnly) return;
+      if (newState === "DONE" && (!verificationText || !verificationText.trim())) {
+        setVerificationError(t("messages.verificationTextError"));
+        return;
+      }
+      setVerificationError(null);
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         mutation.mutate({ state: newState, actionDescription, verificationText });
       }, 500);
     },
-    [readOnly, mutation],
+    [readOnly, mutation, t],
   );
 
   const attachments = req.attachments ?? [];
@@ -141,6 +150,7 @@ function RequirementRow({
             placeholder="Opis realizacji..."
             onBlur={(e) => save(state, e.target.value, req.verificationText)}
             rows={2}
+            maxLength={5000}
             className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
           />
 
@@ -154,6 +164,7 @@ function RequirementRow({
                 placeholder="Np. zaświadczenie z kursu, zdjęcia z obozu..."
                 onBlur={(e) => save(state, req.actionDescription, e.target.value || null)}
                 rows={1}
+                maxLength={5000}
                 className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
               />
             </div>
@@ -161,15 +172,22 @@ function RequirementRow({
             <div className="space-y-2">
               <div>
                 <label className="block text-xs text-foreground/60 mb-1">
-                  Tekst weryfikacyjny (opcjonalnie)
+                  {t("verificationTextRequired")}
                 </label>
                 <textarea
                   defaultValue={req.verificationText ?? ""}
                   placeholder="Dodatkowy opis dowodu realizacji..."
                   onBlur={(e) => save(state, req.actionDescription, e.target.value || null)}
                   rows={1}
-                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  required
+                  maxLength={5000}
+                  className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                    verificationError ? "border-red-500" : "border-border"
+                  }`}
                 />
+                {verificationError && (
+                  <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{verificationError}</p>
+                )}
               </div>
               <RequirementAttachments
                 applicationId={applicationId}
@@ -239,8 +257,18 @@ function RequirementAttachments({
   });
 
   async function handleUpload(file: File) {
-    setUploading(true);
     setUploadError(null);
+
+    if (!ALLOWED_EXTENSIONS_REGEX.test(file.name)) {
+      setUploadError(t("messages.uploadInvalidType"));
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(t("messages.uploadTooLarge"));
+      return;
+    }
+
+    setUploading(true);
     try {
       const { url, objectKey } = await apiFetch<{ url: string; objectKey: string }>(
         `instructor-applications/${applicationId}/attachments/presign`,

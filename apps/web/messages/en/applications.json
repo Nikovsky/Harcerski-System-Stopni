@@ -106,8 +106,10 @@
     "uploadTooLarge": "File is too large. Maximum size is 50 MB.",
     "error": "An error occurred",
     "incompleteFields": "Please fill in all required fields before submitting:",
-    "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission."
+    "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
+    "verificationTextError": "Attachment description is required for completed requirements"
   },
+  "verificationTextRequired": "Attachment description (required) *",
   "pdf": {
     "generatingPdf": "Generating PDF..."
   },

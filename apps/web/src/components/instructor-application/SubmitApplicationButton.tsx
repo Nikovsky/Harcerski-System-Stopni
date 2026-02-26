@@ -12,6 +12,7 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const [missingFields, setMissingFields] = useState<string[] | null>(null);
+  const [genericError, setGenericError] = useState<string | null>(null);
   const mutation = useSubmitApplication(applicationId);
 
   async function handleSubmit() {
@@ -23,6 +24,10 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
       setShowConfirm(false);
       if (err instanceof ApiError && err.code === "APPLICATION_INCOMPLETE" && err.missingFields) {
         setMissingFields(err.missingFields);
+        setGenericError(null);
+      } else {
+        setGenericError(t("messages.error"));
+        setMissingFields(null);
       }
     }
   }
@@ -31,11 +36,18 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
     <>
       <button
         type="button"
-        onClick={() => { setMissingFields(null); setShowConfirm(true); }}
+        onClick={() => { setMissingFields(null); setGenericError(null); setShowConfirm(true); }}
         className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
       >
         {t("actions.submit")}
       </button>
+
+      {/* Generic error */}
+      {genericError && (
+        <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30">
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">{genericError}</p>
+        </div>
+      )}
 
       {/* Missing fields error */}
       {missingFields && (
