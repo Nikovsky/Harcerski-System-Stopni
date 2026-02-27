@@ -18,6 +18,10 @@ type LoadState =
   | { kind: "error"; message: string; status?: number }
   | { kind: "ready"; data: UserDashboardResponse };
 
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 function toDateOnly(iso: string | null): string | null {
   if (!iso) return null;
   try {
@@ -143,11 +147,11 @@ export default function DashboardEditPage() {
 
         if (cancelled) return;
         setState({ kind: "ready", data });
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
         setState({
           kind: "error",
-          message: e?.message ?? "Unknown error",
+          message: toErrorMessage(e),
         });
       }
     }
@@ -171,7 +175,7 @@ export default function DashboardEditPage() {
     (Object.keys(dirty) as (keyof UserDashboardUpdatePrivilegedBody)[]).forEach(
       (k) => {
         if (dirty[k]) {
-          (payload as Record<string, any>)[k] = values[k];
+          payload[k] = values[k];
         }
       },
     );
@@ -231,8 +235,8 @@ export default function DashboardEditPage() {
       setSaveMsg("Saved.");
       // optional: go back
       // router.push(`/${locale}/dashboard`);
-    } catch (e: any) {
-      setSaveMsg(e?.message ?? "Unknown error");
+    } catch (e: unknown) {
+      setSaveMsg(toErrorMessage(e));
     }
   });
 

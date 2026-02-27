@@ -50,6 +50,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(req.state);
     setActionDescription(req.actionDescription);
     setVerificationText(req.verificationText ?? "");

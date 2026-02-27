@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import type { Express } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
@@ -48,7 +49,7 @@ async function bootstrap() {
   const cfg = app.get(AppConfigService);
 
   if (cfg.trustProxy) {
-    const expressApp = app.getHttpAdapter().getInstance();
+    const expressApp = app.getHttpAdapter().getInstance() as Express;
     expressApp.set('trust proxy', 1);
   }
 
@@ -63,6 +64,6 @@ async function bootstrap() {
 
   await app.listen(cfg.appPort, cfg.appHost);
   Logger.debug(`${cfg.appUrl}`, 'API URL');
-  Logger.debug(`${cfg.corsOrigins}`, 'WEB URL');
+  Logger.debug(cfg.corsOrigins.join(', '), 'WEB URL');
 }
-bootstrap();
+void bootstrap();

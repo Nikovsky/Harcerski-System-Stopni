@@ -9,6 +9,9 @@
         ".next/**"
       ]
     },
+    "lint": {
+      "outputs": []
+    },
     "db:generate": {
       "cache": false
     },

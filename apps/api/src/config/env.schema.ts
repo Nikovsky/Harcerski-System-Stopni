@@ -3,7 +3,14 @@ import { z } from 'zod';
 
 const toBool = (v: unknown, def = false): boolean => {
   if (v === undefined || v === null || v === '') return def;
-  const s = String(v).trim().toLowerCase();
+  if (
+    typeof v !== 'string' &&
+    typeof v !== 'number' &&
+    typeof v !== 'boolean'
+  ) {
+    return def;
+  }
+  const s = `${v}`.trim().toLowerCase();
   if (['true', '1', 'yes', 'y', 'on'].includes(s)) return true;
   if (['false', '0', 'no', 'n', 'off'].includes(s)) return false;
   return def;
@@ -11,7 +18,14 @@ const toBool = (v: unknown, def = false): boolean => {
 
 const toCsv = (v: unknown): string[] => {
   if (v === undefined || v === null) return [];
-  const s = String(v).trim();
+  if (
+    typeof v !== 'string' &&
+    typeof v !== 'number' &&
+    typeof v !== 'boolean'
+  ) {
+    return [];
+  }
+  const s = `${v}`.trim();
   if (!s) return [];
   return s
     .split(',')

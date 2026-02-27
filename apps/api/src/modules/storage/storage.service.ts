@@ -210,7 +210,12 @@ export class StorageService implements OnModuleInit {
   }
 
   private toAsciiFilename(filename: string): string {
-    const withoutControls = filename.replace(/[\u0000-\u001F\u007F]/g, '_');
+    const withoutControls = Array.from(filename)
+      .map((ch) => {
+        const code = ch.charCodeAt(0);
+        return code <= 0x1f || code === 0x7f ? '_' : ch;
+      })
+      .join('');
     const escapedQuotes = withoutControls.replace(/["\\]/g, '_');
     const asciiOnly = escapedQuotes.replace(/[^\x20-\x7E]/g, '_').trim();
     return asciiOnly || 'file';

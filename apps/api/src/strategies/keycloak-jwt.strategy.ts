@@ -57,7 +57,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(
     });
   }
 
-  async validate(payload: KeycloakClaims): Promise<AuthPrincipal> {
+  validate(payload: KeycloakClaims): AuthPrincipal {
     const audience = this.appConfig.keycloakAudience;
 
     // Build principal in the exact shape defined by packages/schemas
