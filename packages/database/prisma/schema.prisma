@@ -295,12 +295,11 @@ model InstructorApplication {
   templateUuid                  String                             @db.Uuid
   template                      RequirementTemplate                @relation(fields: [templateUuid], references: [uuid], onDelete: Restrict)
   status                        ApplicationStatus                  @default(DRAFT)
-  targetDegree                  InstructorRank?
   plannedFinishAt               DateTime?                          @db.Date
   //-[Candidate state at application time (per-application, snapshotted)]---------------------------
   teamFunction                  String?                            @db.VarChar(64)
   hufiecFunction                String?                            @db.VarChar(64)
-  openTrialForRank              InstructorRank?
+  openTrialForRank              ScoutRank?
   openTrialDeadline             DateTime?                          @db.Date
   //-[PWD-specific fields (nullable for PHM)]-------------------------------------------------------
   hufcowyPresence               PresenceType?
@@ -535,6 +534,11 @@ model Attachment {
   uploadedAt                  DateTime                          @default(now()) @db.Timestamptz
   status                      Status                            @default(ACTIVE)
   updatedAt                   DateTime                          @updatedAt @db.Timestamptz
+
+  @@index([instructorApplicationUuid, status, uploadedAt(sort: Desc)])
+  @@index([scoutApplicationUuid, status, uploadedAt(sort: Desc)])
+  @@index([instructorRequirementUuid, status, uploadedAt(sort: Desc)])
+  @@index([scoutRequirementUuid, status, uploadedAt(sort: Desc)])
 }
 
 // =================================================================================================

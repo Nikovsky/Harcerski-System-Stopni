@@ -1,10 +1,10 @@
 // @file: apps/api/src/strategies/keycloak-jwt.strategy.ts
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
-import { PassportStrategy } from "@nestjs/passport";
-import { ExtractJwt, Strategy } from "passport-jwt";
-import { passportJwtSecret } from "jwks-rsa";
-import { AppConfigService } from "@/config/app-config.service";
-import { AuthPrincipalSchema, type AuthPrincipal } from "@hss/schemas";
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { passportJwtSecret } from 'jwks-rsa';
+import { AppConfigService } from '@/config/app-config.service';
+import { AuthPrincipalSchema, type AuthPrincipal } from '@hss/schemas';
 
 export type KeycloakClaims = {
   sub: string;
@@ -18,26 +18,33 @@ export type KeycloakClaims = {
 };
 
 @Injectable()
-export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jwt") {
+export class KeycloakJwtStrategy extends PassportStrategy(
+  Strategy,
+  'keycloak-jwt',
+) {
   private readonly logger = new Logger(KeycloakJwtStrategy.name);
 
   constructor(private readonly appConfig: AppConfigService) {
-    const issuer = appConfig.keycloakIssuer.replace(/\/$/, "");
+    const issuer = appConfig.keycloakIssuer.replace(/\/$/, '');
     const audience = appConfig.keycloakAudience;
     const jwksUri = appConfig.keycloakJwksUrl;
 
     if (!issuer || !audience || !jwksUri) {
       throw new Error(
-        "[KeycloakJwtStrategy] Missing required env vars: " +
-        [!issuer && "KEYCLOAK_ISSUER", !audience && "KEYCLOAK_AUDIENCE", !jwksUri && "KEYCLOAK_JWKS_URL"]
-          .filter(Boolean)
-          .join(", "),
+        '[KeycloakJwtStrategy] Missing required env vars: ' +
+          [
+            !issuer && 'KEYCLOAK_ISSUER',
+            !audience && 'KEYCLOAK_AUDIENCE',
+            !jwksUri && 'KEYCLOAK_JWKS_URL',
+          ]
+            .filter(Boolean)
+            .join(', '),
       );
     }
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      algorithms: ["RS256"],
+      algorithms: ['RS256'],
       issuer,
       audience,
       ignoreExpiration: false,
@@ -50,7 +57,7 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jw
     });
   }
 
-  async validate(payload: KeycloakClaims): Promise<AuthPrincipal> {
+  validate(payload: KeycloakClaims): AuthPrincipal {
     const audience = this.appConfig.keycloakAudience;
 
     // Build principal in the exact shape defined by packages/schemas
@@ -66,14 +73,10 @@ export class KeycloakJwtStrategy extends PassportStrategy(Strategy, "keycloak-jw
     // Runtime validation (single source of truth)
     const parsed = AuthPrincipalSchema.safeParse(principalCandidate);
     if (!parsed.success) {
-      // keep logs safe; don't dump full token
-      this.logger.warn("AuthPrincipal validation failed", {
-        issues: parsed.error.issues?.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
+      this.logger.warn('AuthPrincipal validation failed', {
+        issueCount: parsed.error.issues.length,
       });
-      throw new UnauthorizedException("Invalid access token claims");
+      throw new UnauthorizedException('Invalid access token claims');
     }
 
     return parsed.data;

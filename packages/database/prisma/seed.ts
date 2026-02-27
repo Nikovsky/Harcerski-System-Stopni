@@ -548,8 +548,161 @@ async function main() {
     sortOrder: 19,
   });
 
+
+  // PHM Template
+  const phmTemplate = await prisma.requirementTemplate.upsert({
+    where: {
+      degreeType_degreeCode_version: {
+        degreeType: DegreeType.INSTRUCTOR,
+        degreeCode: 'PHM',
+        version: 1,
+      }
+    },
+    update: {},
+    create: {
+      degreeType: DegreeType.INSTRUCTOR,
+      degreeCode: 'PHM',
+      version: 1,
+      status: Status.ACTIVE,
+      name: 'Próba na stopień Podharcmistrza',
+      description: 'Wymagania na stopień podharcmistrza'
+    }
+  });
+
+  const phmRequirement1 = await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '1',
+    description: 'Osiągnął sukcesy w prowadzeniu drużyny/gromady. np. udział w TDP, zdobycie kolejnej kategorii, zwiększenie liczebności, wykształcenie dobrych następców',
+    isGroup: false,
+    sortOrder: 1,
+  });
+
+  const phmRequirement2 = await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '2',
+    description: 'Poprzez zaangażowanie w prace hufca / referatu wykazał, że jest przygotowany do rozwijania środowiska harcerskiego. Potrafi:',
+    isGroup: true,
+    sortOrder: 2,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '2A',
+    description: `zaplanować roczną pracę hufca / referatu / wydziału uwzględniając cele oraz dobierając do nich odpowiednie formy pracy
+    np. wspólnie z hufcowym napisanie plan pracy i uzyskanie jego zatwierdzenia`,
+    isGroup: false,
+    sortOrder: 3,
+    parentId: phmRequirement2.uuid,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '2B',
+    description: `wspierać drużynowych w prowadzeniu pracy wychowawczej
+    np. warsztaty metodyczne, opiekun drużyny, indywidualna praca`,
+    isGroup: false,
+    sortOrder: 4,
+    parentId: phmRequirement2.uuid,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '2C',
+    description: `prowadzić formację drużynowych w sferze idei harcerskiej
+    np. dyskusja o prawie harcerskim, kuźnica, spotkanie z gościem, rekolekcje dla drużynowych, dyskusja o filmie`,
+    isGroup: false,
+    sortOrder: 5,
+    parentId: phmRequirement2.uuid,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '2D',
+    description: `przeprowadzić przedsięwzięcie z udziałem kilku drużyn
+    np. obóz, zgrupowanie obozów, turniej, biwak, pielgrzymka`,
+    isGroup: false,
+    sortOrder: 6,
+    parentId: phmRequirement2.uuid,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '3',
+    description: `Potrafi poprowadzić zajęcia na kursie drużynowych oraz poprowadzić kurs zastępowych, kurs przybocznych zuchowych lub odpowiedni kurs dla wędrowników.`,
+    isGroup: false,
+    sortOrder: 7,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '4',
+    description: `Pełniąc rolę opiekuna próby potrafi doprowadzić harcerza do zdobycia stopnia przewodnika i harcerza orlego lub harcerza rzeczypospolitej.`,
+    isGroup: false,
+    sortOrder: 8,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '5',
+    description: `Potrafi wesprzeć metodycznie rozwój istniejącego, słabszego środowiska lub powstanie nowego.
+    np. znalezienie kandydatów do służby spoza harcerstwa, funkcja opiekuna słabszej drużyny, zabranie na obóz lub zimowisko słabszej drużyny, przyjęcie na staż przybocznego ze słabszej drużyny`,
+    isGroup: false,
+    sortOrder: 9,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '6',
+    description: 'Potrafi zorganizować pracę zespołu instruktorów w konkretnym przedsięwzięciu.',
+    isGroup: false,
+    sortOrder: 10,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '7',
+    description: 'Potrafi zorganizować, poprowadzić i pełnić funkcję komendanta obozu lub kolonii zuchowej.',
+    isGroup: false,
+    sortOrder: 11,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '8',
+    description: `Poprzez współpracę z parafią i samorządem lokalnym lub jego agendami potrafił uzyskać dla ZHR istotne korzyści.
+    np. dotacja, lokal, opieka duszpasterska, umundurowanie polowe`,
+    isGroup: false,
+    sortOrder: 12,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '9',
+    description: `Potrafi przeprowadzić akcję lub cykl systematycznych działań promujących ZHR na forum publicznym.
+    np. partnerstwo w organizacji wydarzenia lokalnego, artykuł w prasie, wystąpienie w mediach, gra dla mieszkańców, festyn`,
+    isGroup: false,
+    sortOrder: 13,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '10',
+    description: 'Przeczytał 5 lektur na poziomie podharcmistrza zaaprobowanych przez opiekuna próby.',
+    isGroup: false,
+    sortOrder: 14,
+  });
+
+  await upsertRequirement({
+    templateId: phmTemplate.uuid,
+    code: '11',
+    description: 'Ewentualne dodatkowe zadanie zlecone przez Komisję',
+    isGroup: false,
+    sortOrder: 15,
+  });
+
   console.log('✅ Database seeded successfully!');
 }
+
 
 main()
   .catch((e) => {

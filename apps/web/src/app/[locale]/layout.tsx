@@ -8,6 +8,7 @@ import "../globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IdleTimeoutGuard } from "@/components/auth/IdleTimeoutGuard";
+
 import { auth } from "@/auth";
 
 type AppTheme = "dark" | "light";

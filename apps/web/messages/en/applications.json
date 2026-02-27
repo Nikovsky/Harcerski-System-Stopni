@@ -1,0 +1,161 @@
+{
+  "title": "My Applications",
+  "newApplication": "New Application",
+  "noApplications": "You don't have any applications yet",
+  "selectTemplate": "Select template",
+  "createDraft": "Create draft",
+  "status": {
+    "DRAFT": "Draft",
+    "SUBMITTED": "Submitted",
+    "TO_FIX": "Needs Fixing",
+    "UNDER_REVIEW": "Under Review",
+    "APPROVED": "Approved",
+    "IN_PROGRESS": "In Progress",
+    "REPORT_SUBMITTED": "Report Submitted",
+    "COMPLETED_POSITIVE": "Completed (Positive)",
+    "REJECTED": "Rejected",
+    "ARCHIVED": "Archived"
+  },
+  "scoutRank": {
+    "MLODZIK": "Młodzik",
+    "WYWIADOWCA": "Wywiadowca",
+    "CWIK": "Ćwik",
+    "HARCERZ_ORLI": "Eagle Scout",
+    "HARCERZ_RZECZYPOSPOLITEJ": "Scout of the Republic"
+  },
+  "degree": {
+    "PWD": "Przewodnik",
+    "PHM": "Podharcmistrz",
+    "HM": "Harcmistrz",
+    "PRZEWODNIK": "Przewodnik",
+    "PODHARCMISTRZ": "Podharcmistrz",
+    "PODHARCMISTRZ_OTWARTA_PROBA": "Podharcmistrz (open trial)",
+    "HARCMISTRZ": "Harcmistrz"
+  },
+  "steps": {
+    "basicInfo": "Basic Information",
+    "serviceHistory": "Service History",
+    "supervisor": "Trial Supervisor",
+    "requirements": "Requirements",
+    "attachments": "Attachments & Summary",
+    "summary": "Summary"
+  },
+  "fields": {
+    "profile": "User profile",
+    "profileFullName": "Full name",
+    "firstName": "First name",
+    "surname": "Surname",
+    "email": "Email",
+    "phone": "Phone",
+    "birthDate": "Date of birth",
+    "hufiecCode": "District",
+    "druzynaCode": "Troop",
+    "scoutRank": "Scout rank",
+    "scoutRankAwardedAt": "Scout rank awarded date",
+    "instructorRank": "Instructor rank",
+    "instructorRankAwardedAt": "Instructor rank awarded date",
+    "inScoutingSince": "In scouting since",
+    "inZhrSince": "In ZHR since",
+    "oathDate": "Oath date",
+    "plannedFinishAt": "Planned finish date",
+    "teamFunction": "Team function",
+    "hufiecFunction": "District function",
+    "openTrialForRank": "Open trial for rank",
+    "openTrialDeadline": "Open trial deadline",
+    "hufcowyPresence": "District leader presence",
+    "hufcowyPresenceAttachment": "Attach written opinion from district leader",
+    "functionsHistory": "Functions history",
+    "coursesHistory": "Courses and trainings",
+    "campsHistory": "Camps and winter camps",
+    "successes": "Successes in educational work",
+    "failures": "Failures and conclusions",
+    "supervisorFirstName": "Supervisor first name",
+    "supervisorSecondName": "Supervisor second name",
+    "supervisorSurname": "Supervisor surname",
+    "supervisorFullName": "Supervisor full name",
+    "supervisorInstructorRank": "Supervisor instructor rank",
+    "supervisorInstructorFunction": "Supervisor function"
+  },
+  "supervisorFunction": {
+    "druzynowy": "Troop leader",
+    "opiekunDruzyny": "Troop guardian",
+    "other": "Other function",
+    "otherPlaceholder": "Enter function..."
+  },
+  "presence": {
+    "IN_PERSON": "In person",
+    "REMOTE": "Remote",
+    "ATTACHMENT_OPINION": "Written opinion"
+  },
+  "requirementState": {
+    "DONE": "Done",
+    "PLANNED": "Planned"
+  },
+  "requirements": {
+    "actionPlaceholder": "Implementation description...",
+    "futureProofLabel": "What will be the attachment/proof in the future?",
+    "futureProofPlaceholder": "e.g. course certificate, camp photos...",
+    "verificationPlaceholder": "Additional proof description..."
+  },
+  "actions": {
+    "save": "Save",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit application",
+    "delete": "Delete draft",
+    "edit": "Edit",
+    "downloadPdf": "Download trial card (PDF)",
+    "download": "Download",
+    "view": "View",
+    "uploadFile": "Upload file",
+    "removeFile": "Remove file"
+  },
+  "sections": {
+    "candidateProfileData": "Candidate profile data",
+    "applicationData": "Application data",
+    "hufcowyWrittenOpinion": "District leader written opinion"
+  },
+  "confirm": {
+    "submitTitle": "Confirm submission",
+    "submitMessage": "Are you sure you want to submit? Editing will not be possible after submission.",
+    "submitConfirm": "Yes, submit",
+    "submitCancel": "Cancel",
+    "deleteTitle": "Confirm deletion",
+    "deleteMessage": "Are you sure you want to delete this draft?",
+    "deleteConfirm": "Yes, delete",
+    "deleteCancel": "Cancel"
+  },
+  "messages": {
+    "draftSaved": "Draft saved",
+    "submitted": "Application submitted",
+    "deleted": "Draft deleted",
+    "uploadSuccess": "File uploaded",
+    "uploadError": "File upload error",
+    "uploadInvalidType": "Invalid file type. Allowed formats: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadTooLarge": "File is too large. Maximum size is 50 MB.",
+    "error": "An error occurred",
+    "requirementSaveError": "Failed to save requirement. Please try again.",
+    "incompleteFields": "Please fill in all required fields before submitting:",
+    "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
+    "noAttachments": "No attachments",
+    "hufcowyOpinionInAttachments": "District leader written opinion is available in attachments.",
+    "hufcowyOpinionMissing": "District leader written opinion attachment is missing.",
+    "missingRequirementVerification": "Requirement {code}: provide attachment description (proof of completion)",
+    "pdfGenerationError": "Failed to generate PDF. Please try again.",
+    "verificationTextError": "Attachment description is required for completed requirements",
+    "saving": "Saving..."
+  },
+  "verificationTextRequired": "Attachment description (required) *",
+  "pdf": {
+    "generatingPdf": "Generating PDF...",
+    "defaultFilename": "application"
+  },
+  "profileIncomplete": {
+    "completeProfileInDashboard": "Complete your profile in Dashboard",
+    "prefix": "To create an application, complete missing fields in",
+    "dashboard": "Dashboard"
+  },
+  "createdAt": "Created",
+  "updatedAt": "Updated",
+  "lastSubmittedAt": "Last submitted"
+}
