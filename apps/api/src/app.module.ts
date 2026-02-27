@@ -23,4 +23,4 @@ import { ProfileModule } from './modules/user/profile/profile.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

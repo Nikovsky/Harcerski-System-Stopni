@@ -1,23 +1,24 @@
-// @file: apps/web/src/components/instructor-application/SubmitApplicationButton.tsx
+// @file: apps/web/src/components/instructor-application/ui/SubmitApplicationButton.tsx
 "use client";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useSubmitApplication } from "@/hooks/instructor-application/useSubmitApplication";
-import { ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
+import { getFieldLabel } from "@/lib/instructor-application-fields";
 
 export function SubmitApplicationButton({ applicationId }: { applicationId: string }) {
   const t = useTranslations("applications");
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const [missingFields, setMissingFields] = useState<string[] | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
-  const mutation = useSubmitApplication(applicationId);
 
   async function handleSubmit() {
+    setIsPending(true);
     try {
-      await mutation.mutateAsync();
+      await apiFetch(`instructor-applications/${applicationId}/submit`, { method: "POST" });
       setShowConfirm(false);
       router.push("/applications");
     } catch (err) {
@@ -29,6 +30,8 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
         setGenericError(t("messages.error"));
         setMissingFields(null);
       }
+    } finally {
+      setIsPending(false);
     }
   }
 
@@ -56,9 +59,9 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
             {t("messages.incompleteFields")}
           </p>
           <ul className="ml-4 list-disc text-sm text-red-700 dark:text-red-400">
-            {missingFields.map((field) => (
-              <li key={field}>{t(`fields.${field}` as any, { defaultValue: field })}</li>
-            ))}
+            {missingFields.map((field) => {
+              return <li key={field}>{getFieldLabel(field, t)}</li>;
+            })}
           </ul>
         </div>
       )}
@@ -80,10 +83,10 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={mutation.isPending}
+                disabled={isPending}
                 className="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
               >
-                {mutation.isPending ? "..." : t("confirm.submitConfirm")}
+                {isPending ? "..." : t("confirm.submitConfirm")}
               </button>
             </div>
           </div>

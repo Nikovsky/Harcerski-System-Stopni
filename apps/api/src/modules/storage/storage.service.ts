@@ -1,5 +1,5 @@
 // @file: apps/api/src/modules/storage/storage.service.ts
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   S3Client,
   PutObjectCommand,
@@ -9,14 +9,15 @@ import {
   CreateBucketCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { AppConfigService } from "@/config/app-config.service";
-import { randomUUID } from "crypto";
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { AppConfigService } from '@/config/app-config.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
+  private static readonly MAX_BUFFER_READ_BYTES = 8192;
   private readonly s3: S3Client;
   private readonly presignS3: S3Client;
   private readonly bucket: string;
@@ -48,7 +49,7 @@ export class StorageService implements OnModuleInit {
             secretAccessKey: config.minioSecretKey,
           },
           forcePathStyle: true,
-          requestChecksumCalculation: "WHEN_REQUIRED",
+          requestChecksumCalculation: 'WHEN_REQUIRED',
         })
       : this.s3;
   }
@@ -64,8 +65,8 @@ export class StorageService implements OnModuleInit {
   }
 
   generateObjectKey(prefix: string, filename: string): string {
-    const ext = filename.includes(".") ? filename.split(".").pop() : "";
-    return `${prefix}/${randomUUID()}${ext ? `.${ext}` : ""}`;
+    const ext = filename.includes('.') ? filename.split('.').pop() : '';
+    return `${prefix}/${randomUUID()}${ext ? `.${ext}` : ''}`;
   }
 
   async presignUpload(
@@ -87,11 +88,7 @@ export class StorageService implements OnModuleInit {
     options: { expiresIn?: number; inline?: boolean } = {},
   ): Promise<string> {
     const { expiresIn = 300, inline = false } = options;
-    const disposition = inline
-      ? "inline"
-      : filename
-        ? `attachment; filename="${encodeURIComponent(filename)}"`
-        : "attachment";
+    const disposition = this.buildContentDisposition(filename, inline);
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: objectKey,
@@ -100,27 +97,37 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.presignS3, command, { expiresIn });
   }
 
-  async headObject(objectKey: string): Promise<{ contentLength: number; contentType: string } | null> {
+  async headObject(
+    objectKey: string,
+  ): Promise<{ contentLength: number; contentType: string } | null> {
     try {
       const response = await this.s3.send(
         new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }),
       );
       return {
         contentLength: response.ContentLength ?? 0,
-        contentType: response.ContentType ?? "application/octet-stream",
+        contentType: response.ContentType ?? 'application/octet-stream',
       };
     } catch {
       return null;
     }
   }
 
-  async getObjectBuffer(objectKey: string, bytes = 4096): Promise<Buffer | null> {
+  async getObjectRange(
+    objectKey: string,
+    start: number,
+    endExclusive: number,
+  ): Promise<Buffer | null> {
+    if (start < 0 || endExclusive <= start) {
+      return null;
+    }
+
     try {
       const response = await this.s3.send(
         new GetObjectCommand({
           Bucket: this.bucket,
           Key: objectKey,
-          Range: `bytes=0-${bytes - 1}`,
+          Range: `bytes=${start}-${endExclusive - 1}`,
         }),
       );
       const stream = response.Body;
@@ -135,7 +142,20 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  async listObjects(prefix: string): Promise<{ key: string; lastModified: Date }[]> {
+  async getObjectBuffer(
+    objectKey: string,
+    bytes = 4096,
+  ): Promise<Buffer | null> {
+    const safeBytes = Math.max(
+      1,
+      Math.min(bytes, StorageService.MAX_BUFFER_READ_BYTES),
+    );
+    return this.getObjectRange(objectKey, 0, safeBytes);
+  }
+
+  async listObjects(
+    prefix: string,
+  ): Promise<{ key: string; lastModified: Date }[]> {
     const results: { key: string; lastModified: Date }[] = [];
     let continuationToken: string | undefined;
 
@@ -154,7 +174,9 @@ export class StorageService implements OnModuleInit {
         }
       }
 
-      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
     } while (continuationToken);
 
     return results;
@@ -168,5 +190,26 @@ export class StorageService implements OnModuleInit {
       }),
     );
     this.logger.log(`Deleted object: ${objectKey}`);
+  }
+
+  private buildContentDisposition(filename?: string, inline = false): string {
+    const dispositionType = inline ? 'inline' : 'attachment';
+    if (!filename) {
+      return dispositionType;
+    }
+
+    const asciiFilename = this.toAsciiFilename(filename);
+    const utf8Filename = encodeURIComponent(filename)
+      .replace(/['()]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`)
+      .replace(/\*/g, '%2A');
+
+    return `${dispositionType}; filename="${asciiFilename}"; filename*=UTF-8''${utf8Filename}`;
+  }
+
+  private toAsciiFilename(filename: string): string {
+    const withoutControls = filename.replace(/[\u0000-\u001F\u007F]/g, '_');
+    const escapedQuotes = withoutControls.replace(/["\\]/g, '_');
+    const asciiOnly = escapedQuotes.replace(/[^\x20-\x7E]/g, '_').trim();
+    return asciiOnly || 'file';
   }
 }

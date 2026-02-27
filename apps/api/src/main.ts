@@ -1,11 +1,11 @@
 // @file: apps/api/src/main.ts
-import { NestFactory } from "@nestjs/core";
-import { Logger } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import type { NextFunction, Request, Response } from "express";
-import helmet from "helmet";
-import { AppModule } from "./app.module";
-import { AppConfigService } from "./config/app-config.service";
+import { NestFactory } from '@nestjs/core';
+import { Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import type { NextFunction, Request, Response } from 'express';
+import helmet from 'helmet';
+import { AppModule } from './app.module';
+import { AppConfigService } from './config/app-config.service';
 
 function normalizeRequestId(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -18,10 +18,11 @@ function normalizeRequestId(value: string | undefined): string | undefined {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const requestId = normalizeRequestId(req.get("x-request-id")) ?? randomUUID();
-    req.headers["x-request-id"] = requestId;
+    const requestId =
+      normalizeRequestId(req.get('x-request-id')) ?? randomUUID();
+    req.headers['x-request-id'] = requestId;
     res.locals.requestId = requestId;
-    res.setHeader("X-Request-Id", requestId);
+    res.setHeader('X-Request-Id', requestId);
     next();
   });
   app.use(
@@ -48,17 +49,20 @@ async function bootstrap() {
 
   if (cfg.trustProxy) {
     const expressApp = app.getHttpAdapter().getInstance();
-    expressApp.set("trust proxy", 1);
+    expressApp.set('trust proxy', 1);
   }
 
   app.enableCors({
     origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,
     credentials: true,
   });
-  Logger.log(`${cfg.corsOrigins.length ? cfg.corsOrigins.join(", ") : "DISABLED"}`, "CORS");
+  Logger.log(
+    `${cfg.corsOrigins.length ? cfg.corsOrigins.join(', ') : 'DISABLED'}`,
+    'CORS',
+  );
 
   await app.listen(cfg.appPort, cfg.appHost);
-  Logger.debug(`${cfg.appUrl}`, "API URL");
-  Logger.debug(`${cfg.corsOrigins}`, "WEB URL")
+  Logger.debug(`${cfg.appUrl}`, 'API URL');
+  Logger.debug(`${cfg.corsOrigins}`, 'WEB URL');
 }
 bootstrap();

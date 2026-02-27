@@ -233,7 +233,6 @@ pnpm schemas:build          # build schemas package
 - **NestJS 11** with Express
 - **Prisma Client** from `@hss/database`
 - **Zod schemas** from `@hss/schemas`
-- **Jest** for testing
 
 **Structure:**
 - Entry point: `apps/api/src/main.ts`

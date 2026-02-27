@@ -1,15 +1,24 @@
-// @file: apps/web/src/components/instructor-application/ApplicationCard.tsx
+// @file: apps/web/src/components/instructor-application/ui/ApplicationCard.tsx
 "use client";
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { degreeKey, statusKey } from "@/lib/applications-i18n";
 import { ApplicationStatusBadge } from "./ApplicationStatusBadge";
+import {
+  IA_BUTTON_PRIMARY_SM,
+  IA_BUTTON_SECONDARY_SM,
+} from "@/components/instructor-application/ui/button-classnames";
+import { isInstructorApplicationEditable } from "@hss/schemas";
 import type { InstructorApplicationListItem } from "@hss/schemas";
 
 export function ApplicationCard({ app }: { app: InstructorApplicationListItem }) {
   const t = useTranslations("applications");
+  const translatedDegreeKey = degreeKey(app.degreeCode);
+  const translatedStatusKey = statusKey(app.status);
+  const statusLabel = translatedStatusKey ? t(translatedStatusKey) : app.status;
 
-  const isEditable = app.status === "DRAFT" || app.status === "TO_FIX";
+  const isEditable = isInstructorApplicationEditable(app.status);
 
   return (
     <div className="rounded-lg border border-border bg-background p-4 shadow-sm transition hover:shadow-md">
@@ -17,9 +26,9 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold">
-              {t(`degree.${app.degreeCode}` as any)}
+              {translatedDegreeKey ? t(translatedDegreeKey) : app.degreeCode}
             </h3>
-            <ApplicationStatusBadge status={app.status} />
+            <ApplicationStatusBadge status={app.status} label={statusLabel} />
           </div>
           <p className="mt-2 text-xs text-foreground/50">
             {t("createdAt")}: {new Date(app.createdAt).toLocaleDateString("pl-PL")}
@@ -29,14 +38,14 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
           {isEditable ? (
             <Link
               href={`/applications/${app.uuid}/edit`}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
+              className={IA_BUTTON_PRIMARY_SM}
             >
               {t("actions.edit")}
             </Link>
           ) : (
             <Link
               href={`/applications/${app.uuid}`}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              className={IA_BUTTON_SECONDARY_SM}
             >
               {t("actions.view")}
             </Link>

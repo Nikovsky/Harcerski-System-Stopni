@@ -535,10 +535,10 @@ model Attachment {
   status                      Status                            @default(ACTIVE)
   updatedAt                   DateTime                          @updatedAt @db.Timestamptz
 
-  @@index([instructorApplicationUuid, status])
-  @@index([scoutApplicationUuid, status])
-  @@index([instructorRequirementUuid])
-  @@index([scoutRequirementUuid])
+  @@index([instructorApplicationUuid, status, uploadedAt(sort: Desc)])
+  @@index([scoutApplicationUuid, status, uploadedAt(sort: Desc)])
+  @@index([instructorRequirementUuid, status, uploadedAt(sort: Desc)])
+  @@index([scoutRequirementUuid, status, uploadedAt(sort: Desc)])
 }
 
 // =================================================================================================

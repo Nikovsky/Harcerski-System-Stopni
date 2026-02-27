@@ -8,7 +8,7 @@ import "../globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { IdleTimeoutGuard } from "@/components/auth/IdleTimeoutGuard";
-import { QueryProvider } from "@/components/providers/QueryProvider";
+
 import { auth } from "@/auth";
 
 type AppTheme = "dark" | "light";
@@ -41,14 +41,12 @@ export default async function LocaleLayout({ children, params }: Props) {
   return (
     <html lang={locale} data-theme={theme}>
       <body className="flex min-h-screen flex-col">
-        <QueryProvider>
-          <NextIntlClientProvider messages={messages}>
-            <Navbar locale={locale} />
-            {isAuthenticated && <IdleTimeoutGuard />}
-            <main className="grow">{children}</main>
-            <Footer />
-          </NextIntlClientProvider>
-        </QueryProvider>
+        <NextIntlClientProvider messages={messages}>
+          <Navbar locale={locale} />
+          {isAuthenticated && <IdleTimeoutGuard />}
+          <main className="grow">{children}</main>
+          <Footer />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

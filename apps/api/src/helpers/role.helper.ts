@@ -1,5 +1,5 @@
 // @file: apps/api/src/helpers/role.helper.ts
-import { UserRole } from "@hss/database";
+import { UserRole } from '@hss/database';
 
 const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.ROOT]: 100,

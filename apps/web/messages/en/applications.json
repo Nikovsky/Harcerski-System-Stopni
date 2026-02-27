@@ -41,6 +41,18 @@
     "summary": "Summary"
   },
   "fields": {
+    "profile": "User profile",
+    "firstName": "First name",
+    "surname": "Surname",
+    "email": "Email",
+    "phone": "Phone",
+    "birthDate": "Date of birth",
+    "hufiecCode": "District",
+    "druzynaCode": "Troop",
+    "scoutRank": "Scout rank",
+    "inScoutingSince": "In scouting since",
+    "inZhrSince": "In ZHR since",
+    "oathDate": "Oath date",
     "plannedFinishAt": "Planned finish date",
     "teamFunction": "Team function",
     "hufiecFunction": "District function",
@@ -74,6 +86,12 @@
     "DONE": "Done",
     "PLANNED": "Planned"
   },
+  "requirements": {
+    "actionPlaceholder": "Implementation description...",
+    "futureProofLabel": "What will be the attachment/proof in the future?",
+    "futureProofPlaceholder": "e.g. course certificate, camp photos...",
+    "verificationPlaceholder": "Additional proof description..."
+  },
   "actions": {
     "save": "Save",
     "next": "Next",
@@ -82,9 +100,13 @@
     "delete": "Delete draft",
     "edit": "Edit",
     "downloadPdf": "Download trial card (PDF)",
+    "download": "Download",
     "view": "View",
     "uploadFile": "Upload file",
     "removeFile": "Remove file"
+  },
+  "sections": {
+    "hufcowyWrittenOpinion": "District leader written opinion"
   },
   "confirm": {
     "submitTitle": "Confirm submission",
@@ -105,13 +127,23 @@
     "uploadInvalidType": "Invalid file type. Allowed formats: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
     "uploadTooLarge": "File is too large. Maximum size is 50 MB.",
     "error": "An error occurred",
+    "requirementSaveError": "Failed to save requirement. Please try again.",
     "incompleteFields": "Please fill in all required fields before submitting:",
     "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
-    "verificationTextError": "Attachment description is required for completed requirements"
+    "noAttachments": "No attachments",
+    "pdfGenerationError": "Failed to generate PDF. Please try again.",
+    "verificationTextError": "Attachment description is required for completed requirements",
+    "saving": "Saving..."
   },
   "verificationTextRequired": "Attachment description (required) *",
   "pdf": {
-    "generatingPdf": "Generating PDF..."
+    "generatingPdf": "Generating PDF...",
+    "defaultFilename": "application"
+  },
+  "profileIncomplete": {
+    "completeProfileInDashboard": "Complete your profile in Dashboard",
+    "prefix": "To create an application, complete missing fields in",
+    "dashboard": "Dashboard"
   },
   "createdAt": "Created",
   "updatedAt": "Updated",

@@ -1,8 +1,4 @@
-// @file: apps/web/src/components/instructor-application/ApplicationStatusBadge.tsx
-"use client";
-
-import { useTranslations } from "next-intl";
-
+// @file: apps/web/src/components/instructor-application/ui/ApplicationStatusBadge.tsx
 const COLORS: Record<string, string> = {
   DRAFT: "bg-gray-200 text-gray-800",
   SUBMITTED: "bg-blue-100 text-blue-800",
@@ -16,15 +12,20 @@ const COLORS: Record<string, string> = {
   ARCHIVED: "bg-gray-100 text-gray-600",
 };
 
-export function ApplicationStatusBadge({ status }: { status: string }) {
-  const t = useTranslations("applications");
+export function ApplicationStatusBadge({
+  status,
+  label,
+}: {
+  status: string;
+  label: string;
+}) {
   const color = COLORS[status] ?? "bg-gray-200 text-gray-800";
 
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}
     >
-      {t(`status.${status}` as any)}
+      {label}
     </span>
   );
 }

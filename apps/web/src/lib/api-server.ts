@@ -27,15 +27,16 @@ export async function apiServerFetch<T = unknown>(
   }
 
   const base = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
-  const res = await fetch(`${base}/${path}`, {
+  const requestInit: RequestInit = {
     ...init,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
       ...init?.headers,
     },
-    cache: "no-store",
-  });
+  };
+
+  const res = await fetch(`${base}/${path}`, requestInit);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

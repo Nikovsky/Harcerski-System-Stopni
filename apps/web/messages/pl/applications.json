@@ -41,6 +41,18 @@
     "summary": "Podsumowanie"
   },
   "fields": {
+    "profile": "Profil użytkownika",
+    "firstName": "Imię",
+    "surname": "Nazwisko",
+    "email": "Email",
+    "phone": "Telefon",
+    "birthDate": "Data urodzenia",
+    "hufiecCode": "Hufiec",
+    "druzynaCode": "Drużyna",
+    "scoutRank": "Stopień harcerski",
+    "inScoutingSince": "W harcerstwie od",
+    "inZhrSince": "W ZHR od",
+    "oathDate": "Data przyrzeczenia",
     "plannedFinishAt": "Planowany termin ukończenia próby",
     "teamFunction": "Pełniona funkcja (drużyna)",
     "hufiecFunction": "Pełniona funkcja (hufiec)",
@@ -74,6 +86,12 @@
     "DONE": "Wykonałem",
     "PLANNED": "Wykonam"
   },
+  "requirements": {
+    "actionPlaceholder": "Opis realizacji...",
+    "futureProofLabel": "Co w przyszłości będzie załącznikiem/dowodem?",
+    "futureProofPlaceholder": "Np. zaświadczenie z kursu, zdjęcia z obozu...",
+    "verificationPlaceholder": "Dodatkowy opis dowodu realizacji..."
+  },
   "actions": {
     "save": "Zapisz",
     "next": "Dalej",
@@ -82,9 +100,13 @@
     "delete": "Usuń szkic",
     "edit": "Edytuj",
     "downloadPdf": "Pobierz kartę próby (PDF)",
+    "download": "Pobierz",
     "view": "Podgląd",
     "uploadFile": "Dodaj załącznik",
     "removeFile": "Usuń załącznik"
+  },
+  "sections": {
+    "hufcowyWrittenOpinion": "Opinia pisemna hufcowego"
   },
   "confirm": {
     "submitTitle": "Potwierdzenie złożenia",
@@ -105,13 +127,23 @@
     "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
     "uploadTooLarge": "Plik jest za duży. Maksymalny rozmiar to 50 MB.",
     "error": "Wystąpił błąd",
+    "requirementSaveError": "Nie udało się zapisać wymagania. Spróbuj ponownie.",
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
     "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
-    "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań"
+    "noAttachments": "Brak załączników",
+    "pdfGenerationError": "Nie udało się wygenerować PDF. Spróbuj ponownie.",
+    "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań",
+    "saving": "Zapisywanie..."
   },
   "verificationTextRequired": "Opis załącznika (wymagane) *",
   "pdf": {
-    "generatingPdf": "Generowanie PDF..."
+    "generatingPdf": "Generowanie PDF...",
+    "defaultFilename": "wniosek"
+  },
+  "profileIncomplete": {
+    "completeProfileInDashboard": "Uzupełnij profil w Dashboard",
+    "prefix": "Aby utworzyć wniosek, uzupełnij brakujące pola w",
+    "dashboard": "Dashboard"
   },
   "createdAt": "Utworzono",
   "updatedAt": "Zaktualizowano",
