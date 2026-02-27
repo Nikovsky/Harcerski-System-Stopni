@@ -95,7 +95,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
             <p className="mb-4 text-foreground/70">
               {t("messages.reviewBeforeSubmit")}
             </p>
-            <SubmitApplicationButton applicationId={id} />
+            <SubmitApplicationButton applicationId={id} requirements={app.requirements} />
           </div>
           <StepNav onPrev={() => navigateTo(3)} />
         </div>

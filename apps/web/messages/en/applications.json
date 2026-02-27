@@ -42,6 +42,7 @@
   },
   "fields": {
     "profile": "User profile",
+    "profileFullName": "Full name",
     "firstName": "First name",
     "surname": "Surname",
     "email": "Email",
@@ -50,6 +51,9 @@
     "hufiecCode": "District",
     "druzynaCode": "Troop",
     "scoutRank": "Scout rank",
+    "scoutRankAwardedAt": "Scout rank awarded date",
+    "instructorRank": "Instructor rank",
+    "instructorRankAwardedAt": "Instructor rank awarded date",
     "inScoutingSince": "In scouting since",
     "inZhrSince": "In ZHR since",
     "oathDate": "Oath date",
@@ -68,6 +72,7 @@
     "supervisorFirstName": "Supervisor first name",
     "supervisorSecondName": "Supervisor second name",
     "supervisorSurname": "Supervisor surname",
+    "supervisorFullName": "Supervisor full name",
     "supervisorInstructorRank": "Supervisor instructor rank",
     "supervisorInstructorFunction": "Supervisor function"
   },
@@ -106,6 +111,8 @@
     "removeFile": "Remove file"
   },
   "sections": {
+    "candidateProfileData": "Candidate profile data",
+    "applicationData": "Application data",
     "hufcowyWrittenOpinion": "District leader written opinion"
   },
   "confirm": {
@@ -131,6 +138,9 @@
     "incompleteFields": "Please fill in all required fields before submitting:",
     "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
     "noAttachments": "No attachments",
+    "hufcowyOpinionInAttachments": "District leader written opinion is available in attachments.",
+    "hufcowyOpinionMissing": "District leader written opinion attachment is missing.",
+    "missingRequirementVerification": "Requirement {code}: provide attachment description (proof of completion)",
     "pdfGenerationError": "Failed to generate PDF. Please try again.",
     "verificationTextError": "Attachment description is required for completed requirements",
     "saving": "Saving..."

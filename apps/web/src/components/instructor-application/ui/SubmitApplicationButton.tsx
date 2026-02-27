@@ -6,8 +6,15 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
+import type { RequirementRowResponse } from "@hss/schemas";
 
-export function SubmitApplicationButton({ applicationId }: { applicationId: string }) {
+export function SubmitApplicationButton({
+  applicationId,
+  requirements,
+}: {
+  applicationId: string;
+  requirements: RequirementRowResponse[];
+}) {
   const t = useTranslations("applications");
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -60,7 +67,7 @@ export function SubmitApplicationButton({ applicationId }: { applicationId: stri
           </p>
           <ul className="ml-4 list-disc text-sm text-red-700 dark:text-red-400">
             {missingFields.map((field) => {
-              return <li key={field}>{getFieldLabel(field, t)}</li>;
+              return <li key={field}>{getFieldLabel(field, t, requirements)}</li>;
             })}
           </ul>
         </div>

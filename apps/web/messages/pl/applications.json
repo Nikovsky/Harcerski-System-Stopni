@@ -42,6 +42,7 @@
   },
   "fields": {
     "profile": "Profil użytkownika",
+    "profileFullName": "Imię i nazwisko",
     "firstName": "Imię",
     "surname": "Nazwisko",
     "email": "Email",
@@ -50,6 +51,9 @@
     "hufiecCode": "Hufiec",
     "druzynaCode": "Drużyna",
     "scoutRank": "Stopień harcerski",
+    "scoutRankAwardedAt": "Data przyznania stopnia harcerskiego",
+    "instructorRank": "Stopień instruktorski",
+    "instructorRankAwardedAt": "Data przyznania stopnia instruktorskiego",
     "inScoutingSince": "W harcerstwie od",
     "inZhrSince": "W ZHR od",
     "oathDate": "Data przyrzeczenia",
@@ -68,6 +72,7 @@
     "supervisorFirstName": "Imię opiekuna",
     "supervisorSecondName": "Drugie imię opiekuna",
     "supervisorSurname": "Nazwisko opiekuna",
+    "supervisorFullName": "Imię i nazwisko opiekuna",
     "supervisorInstructorRank": "Stopień instruktorski opiekuna",
     "supervisorInstructorFunction": "Pełniona funkcja opiekuna"
   },
@@ -106,6 +111,8 @@
     "removeFile": "Usuń załącznik"
   },
   "sections": {
+    "candidateProfileData": "Dane profilu kandydata",
+    "applicationData": "Dane wniosku",
     "hufcowyWrittenOpinion": "Opinia pisemna hufcowego"
   },
   "confirm": {
@@ -131,6 +138,9 @@
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
     "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
     "noAttachments": "Brak załączników",
+    "hufcowyOpinionInAttachments": "Opinia pisemna hufcowego znajduje się w załącznikach.",
+    "hufcowyOpinionMissing": "Brakuje załączonej opinii pisemnej hufcowego.",
+    "missingRequirementVerification": "Wymaganie {code}: uzupełnij opis załącznika (dowód realizacji)",
     "pdfGenerationError": "Nie udało się wygenerować PDF. Spróbuj ponownie.",
     "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań",
     "saving": "Zapisywanie..."
