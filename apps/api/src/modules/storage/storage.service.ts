@@ -200,7 +200,10 @@ export class StorageService implements OnModuleInit {
 
     const asciiFilename = this.toAsciiFilename(filename);
     const utf8Filename = encodeURIComponent(filename)
-      .replace(/['()]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`)
+      .replace(
+        /['()]/g,
+        (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`,
+      )
       .replace(/\*/g, '%2A');
 
     return `${dispositionType}; filename="${asciiFilename}"; filename*=UTF-8''${utf8Filename}`;

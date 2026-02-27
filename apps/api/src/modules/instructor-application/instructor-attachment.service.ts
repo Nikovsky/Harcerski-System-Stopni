@@ -292,9 +292,15 @@ export class InstructorAttachmentService {
       InstructorAttachmentService.ZIP_STRUCTURE_SCAN_BYTES,
     );
 
-    const headChunk = await this.storage.getObjectRange(objectKey, 0, scanBytes);
+    const headChunk = await this.storage.getObjectRange(
+      objectKey,
+      0,
+      scanBytes,
+    );
     if (
-      headChunk?.includes(InstructorAttachmentService.OOXML_CONTENT_TYPES_MARKER)
+      headChunk?.includes(
+        InstructorAttachmentService.OOXML_CONTENT_TYPES_MARKER,
+      )
     ) {
       return true;
     }
@@ -311,8 +317,9 @@ export class InstructorAttachmentService {
     );
 
     return (
-      tailChunk?.includes(InstructorAttachmentService.OOXML_CONTENT_TYPES_MARKER) ??
-      false
+      tailChunk?.includes(
+        InstructorAttachmentService.OOXML_CONTENT_TYPES_MARKER,
+      ) ?? false
     );
   }
 

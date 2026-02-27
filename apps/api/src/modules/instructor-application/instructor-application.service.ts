@@ -498,7 +498,8 @@ export class InstructorApplicationService {
     return {
       uuid: submittedApplication.uuid,
       status: submittedApplication.status,
-      lastSubmittedAt: submittedApplication.lastSubmittedAt?.toISOString() ?? null,
+      lastSubmittedAt:
+        submittedApplication.lastSubmittedAt?.toISOString() ?? null,
     };
   }
 
@@ -541,21 +542,21 @@ export class InstructorApplicationService {
 
     const updatedRequirement =
       await this.prisma.instructorApplicationRequirement.update({
-      where: { uuid: requirementId },
-      select: {
-        uuid: true,
-        state: true,
-        actionDescription: true,
-        verificationText: true,
-      },
-      data: {
-        state: dto.state as RequirementState,
-        actionDescription: dto.actionDescription,
-        ...(dto.verificationText !== undefined && {
-          verificationText: dto.verificationText,
-        }),
-      },
-    });
+        where: { uuid: requirementId },
+        select: {
+          uuid: true,
+          state: true,
+          actionDescription: true,
+          verificationText: true,
+        },
+        data: {
+          state: dto.state as RequirementState,
+          actionDescription: dto.actionDescription,
+          ...(dto.verificationText !== undefined && {
+            verificationText: dto.verificationText,
+          }),
+        },
+      });
 
     return {
       uuid: updatedRequirement.uuid,
@@ -647,9 +648,11 @@ export class InstructorApplicationService {
     return user;
   }
 
-  private ensureCompleteProfileForWrite(user: Parameters<
-    InstructorApplicationValidationService['ensureProfileCompleteForWrite']
-  >[0]) {
+  private ensureCompleteProfileForWrite(
+    user: Parameters<
+      InstructorApplicationValidationService['ensureProfileCompleteForWrite']
+    >[0],
+  ) {
     this.validationService.ensureProfileCompleteForWrite(user);
   }
 
