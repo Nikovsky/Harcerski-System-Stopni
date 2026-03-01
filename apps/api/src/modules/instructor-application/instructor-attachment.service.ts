@@ -213,7 +213,7 @@ export class InstructorAttachmentService {
       await this.storage.deleteObject(attachment.objectKey);
     } catch (e) {
       this.logger.warn(
-        `Failed to delete S3 object ${attachment.objectKey}: ${e}`,
+        `Failed to delete storage object ${attachment.objectKey}: ${e}`,
       );
     }
 
