@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Auth Keycloak"
+  short_description: "OIDC auth and role enforcement with Keycloak"
+  default_prompt: "Use $hss-auth-keycloak to harden this auth flow with Keycloak claims mapping, RBAC, and token lifecycle checks."

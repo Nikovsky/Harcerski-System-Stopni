@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Nginx TLS"
+  short_description: "Reverse proxy TLS hardening and header enforcement"
+  default_prompt: "Use $hss-nginx-tls to configure secure routing, TLS termination, and trusted proxy header behavior."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Prisma PostgreSQL"
+  short_description: "Safe Prisma/PostgreSQL schema and migration workflows"
+  default_prompt: "Use $hss-prisma-postgres to implement this schema change with migration safety, constraints, and rollback checks."

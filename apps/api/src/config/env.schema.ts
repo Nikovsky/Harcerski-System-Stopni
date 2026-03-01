@@ -20,6 +20,22 @@ const toCsv = (v: unknown): string[] => {
 };
 
 const url = z.string().url();
+const bucketName = z
+  .string()
+  .min(3)
+  .max(63)
+  .regex(
+    /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/,
+    "MINIO_BUCKET_NAME must use [a-z0-9.-] and start/end with alphanumeric",
+  );
+const regionName = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(
+    /^[a-z0-9-]+$/,
+    "MINIO_REGION must use lowercase letters, numbers, and hyphens only",
+  );
 
 export const envSchema = z.object({
   // ===[APP]===
@@ -54,6 +70,13 @@ export const envSchema = z.object({
   // ===[KEYCLOAK | CLIENT (M2M OPTIONAL)]===
   KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
   KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
+
+  // ===[STORAGE | MINIO / S3]===
+  MINIO_ENDPOINT: url,
+  MINIO_ACCESS_KEY: z.string().min(3).max(128),
+  MINIO_SECRET_KEY: z.string().min(8).max(256),
+  MINIO_REGION: regionName,
+  MINIO_BUCKET_NAME: bucketName,
 
   // ===[SECURITY / RUNTIME]===
   TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),

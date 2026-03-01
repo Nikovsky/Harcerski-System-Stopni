@@ -35,6 +35,20 @@ export default function Page() {
         headers: { accept: "application/json" },
       });
 
+      if (!res.ok) {
+        const authRequired = res.status === 401 || res.status === 403;
+        setBackend({
+          loading: false,
+          status: res.status,
+          ok: false,
+          data: null,
+          error: authRequired
+            ? "Authentication required for /api/backend/health."
+            : `Request failed (${res.status})`,
+        });
+        return;
+      }
+
       const json = await res.json().catch(() => null);
       const parsed = GetBackendHealthResponseSchema.safeParse(json);
       const data = parsed.success ? parsed.data : null;
@@ -69,7 +83,14 @@ export default function Page() {
     return backend.ok === true;
   }, [backend.data, backend.ok]);
 
-  const healthLabel = backend.loading ? "checking…" : isHealthy ? "healthy" : "unhealthy";
+  const isAuthRequired = backend.status === 401 || backend.status === 403;
+  const healthLabel = backend.loading
+    ? "checking…"
+    : isAuthRequired
+      ? "auth required"
+      : isHealthy
+        ? "healthy"
+        : "unhealthy";
 
   return (
     <div className="flex flex-wrap gap-3 p-6 bg-background text-foreground">

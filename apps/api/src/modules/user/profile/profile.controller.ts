@@ -1,21 +1,28 @@
 // @file: apps/api/src/modules/user/profile/profile.controller.ts
-import { Body, Controller, Get, InternalServerErrorException, Patch, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  InternalServerErrorException,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import {
   userDashboardResponseSchema,
   userDashboardUpdatePrivilegedBodySchema,
   type AuthPrincipal,
   type UserDashboardUpdatePrivilegedBody,
-} from "@hss/schemas";
-import { CurrentUser } from "@/decorators/current-user.decorator";
-import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
-import { AuthPrincipalPipe } from "@/pipelines/auth-principal.pipe";
-import { ZodValidationPipe } from "@/pipelines/zod-validation.pipe";
-import { ProfileService } from "./profile.service";
+} from '@hss/schemas';
+import { CurrentUser } from '@/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
+import { AuthPrincipalPipe } from '@/pipelines/auth-principal.pipe';
+import { ZodValidationPipe } from '@/pipelines/zod-validation.pipe';
+import { ProfileService } from './profile.service';
 
-@Controller("profile")
+@Controller('profile')
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
-  constructor(private readonly profileService: ProfileService) { }
+  constructor(private readonly profileService: ProfileService) {}
 
   @Get()
   async getMyProfile(@CurrentUser(AuthPrincipalPipe) user: AuthPrincipal) {
@@ -24,8 +31,8 @@ export class ProfileController {
     const parsed = userDashboardResponseSchema.safeParse(dto);
     if (!parsed.success) {
       throw new InternalServerErrorException({
-        code: "RESPONSE_CONTRACT_MISMATCH",
-        message: "Response contract mismatch.",
+        code: 'RESPONSE_CONTRACT_MISMATCH',
+        message: 'Response contract mismatch.',
       });
     }
     return parsed.data;
@@ -42,8 +49,8 @@ export class ProfileController {
     const parsed = userDashboardResponseSchema.safeParse(out);
     if (!parsed.success) {
       throw new InternalServerErrorException({
-        code: "RESPONSE_CONTRACT_MISMATCH",
-        message: "Response contract mismatch.",
+        code: 'RESPONSE_CONTRACT_MISMATCH',
+        message: 'Response contract mismatch.',
       });
     }
 

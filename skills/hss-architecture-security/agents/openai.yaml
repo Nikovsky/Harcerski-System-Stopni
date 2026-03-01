@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Architecture Security"
+  short_description: "Cross-service architecture and security guardrails"
+  default_prompt: "Use $hss-architecture-security to evaluate this change across web, api, db, and infra security boundaries."

@@ -4,61 +4,56 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
-} from "@nestjs/common";
-import { PrismaService } from "@/database/prisma/prisma.service";
-import { hasAnyDefined } from "@/helpers/object.helper";
-import { isHigherThanUser } from "@/helpers/role.helper";
-import { dateOnlyToUtcOrNull, iso, isoOrNull } from "@/helpers";
-import {
-  Prisma,
-  Status,
-  UserRole,
-  type User,
-} from "@hss/database";
+} from '@nestjs/common';
+import { PrismaService } from '@/database/prisma/prisma.service';
+import { hasAnyDefined } from '@/helpers/object.helper';
+import { isHigherThanUser } from '@/helpers/role.helper';
+import { dateOnlyToUtcOrNull, iso, isoOrNull } from '@/helpers';
+import { Prisma, Status, UserRole, type User } from '@hss/database';
 import {
   userDashboardPrivilegedKeys,
   type AuthPrincipal,
   type UserDashboardResponse,
   type UserDashboardUpdatePrivilegedBody,
-} from "@hss/schemas";
+} from '@hss/schemas';
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private rethrowPrismaError(error: unknown): never {
     if (
-      error instanceof ConflictException
-      || error instanceof ForbiddenException
-      || error instanceof InternalServerErrorException
+      error instanceof ConflictException ||
+      error instanceof ForbiddenException ||
+      error instanceof InternalServerErrorException
     ) {
       throw error;
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
+      if (error.code === 'P2002') {
         throw new ConflictException({
-          code: "UNIQUE_CONSTRAINT_VIOLATION",
-          message: "Unique constraint violation.",
+          code: 'UNIQUE_CONSTRAINT_VIOLATION',
+          message: 'Unique constraint violation.',
         });
       }
-      if (error.code === "P2003") {
+      if (error.code === 'P2003') {
         throw new ConflictException({
-          code: "RELATION_CONSTRAINT_VIOLATION",
-          message: "Invalid relation reference.",
+          code: 'RELATION_CONSTRAINT_VIOLATION',
+          message: 'Invalid relation reference.',
         });
       }
-      if (error.code === "P2025") {
+      if (error.code === 'P2025') {
         throw new ConflictException({
-          code: "RECORD_NOT_FOUND",
-          message: "Record not found.",
+          code: 'RECORD_NOT_FOUND',
+          message: 'Record not found.',
         });
       }
     }
 
     throw new InternalServerErrorException({
-      code: "DATABASE_OPERATION_FAILED",
-      message: "Database operation failed.",
+      code: 'DATABASE_OPERATION_FAILED',
+      message: 'Database operation failed.',
     });
   }
 
@@ -78,8 +73,8 @@ export class ProfileService {
 
           if (!email) {
             throw new ConflictException({
-              code: "EMAIL_REQUIRED",
-              message: "Email is required to create a local user record.",
+              code: 'EMAIL_REQUIRED',
+              message: 'Email is required to create a local user record.',
             });
           }
 
@@ -87,8 +82,8 @@ export class ProfileService {
           if (byEmail) {
             if (byEmail.keycloakUuid && byEmail.keycloakUuid !== keycloakUuid) {
               throw new ConflictException({
-                code: "KEYCLOAK_LINK_CONFLICT",
-                message: "Account linking conflict.",
+                code: 'KEYCLOAK_LINK_CONFLICT',
+                message: 'Account linking conflict.',
               });
             }
 
@@ -114,7 +109,9 @@ export class ProfileService {
     }
   }
 
-  async getOrCreateFromKeycloak(user: AuthPrincipal): Promise<UserDashboardResponse> {
+  async getOrCreateFromKeycloak(
+    user: AuthPrincipal,
+  ): Promise<UserDashboardResponse> {
     const entity = await this.ensureUserEntity(user);
     return this.toProfileDto(entity);
   }
@@ -128,8 +125,8 @@ export class ProfileService {
 
     if (!privileged && hasAnyDefined(body, userDashboardPrivilegedKeys)) {
       throw new ForbiddenException({
-        code: "PROFILE_EDIT_FORBIDDEN",
-        message: "You cannot edit these fields.",
+        code: 'PROFILE_EDIT_FORBIDDEN',
+        message: 'You cannot edit these fields.',
       });
     }
 
@@ -145,15 +142,25 @@ export class ProfileService {
 
     if (privileged) {
       Object.assign(data, {
-        ...(body.hufiecCode !== undefined ? { hufiecCode: body.hufiecCode } : {}),
-        ...(body.druzynaCode !== undefined ? { druzynaCode: body.druzynaCode } : {}),
+        ...(body.hufiecCode !== undefined
+          ? { hufiecCode: body.hufiecCode }
+          : {}),
+        ...(body.druzynaCode !== undefined
+          ? { druzynaCode: body.druzynaCode }
+          : {}),
         ...(body.scoutRank !== undefined ? { scoutRank: body.scoutRank } : {}),
         ...(body.scoutRankAwardedAt !== undefined
           ? { scoutRankAwardedAt: dateOnlyToUtcOrNull(body.scoutRankAwardedAt) }
           : {}),
-        ...(body.instructorRank !== undefined ? { instructorRank: body.instructorRank } : {}),
+        ...(body.instructorRank !== undefined
+          ? { instructorRank: body.instructorRank }
+          : {}),
         ...(body.instructorRankAwardedAt !== undefined
-          ? { instructorRankAwardedAt: dateOnlyToUtcOrNull(body.instructorRankAwardedAt) }
+          ? {
+              instructorRankAwardedAt: dateOnlyToUtcOrNull(
+                body.instructorRankAwardedAt,
+              ),
+            }
           : {}),
         ...(body.inScoutingSince !== undefined
           ? { inScoutingSince: dateOnlyToUtcOrNull(body.inScoutingSince) }
@@ -161,16 +168,19 @@ export class ProfileService {
         ...(body.inZhrSince !== undefined
           ? { inZhrSince: dateOnlyToUtcOrNull(body.inZhrSince) }
           : {}),
-        ...(body.oathDate !== undefined ? { oathDate: dateOnlyToUtcOrNull(body.oathDate) } : {}),
+        ...(body.oathDate !== undefined
+          ? { oathDate: dateOnlyToUtcOrNull(body.oathDate) }
+          : {}),
       });
     }
 
     try {
       const updated = await this.prisma.$transaction(
-        async (tx) => tx.user.update({
-          where: { uuid: me.uuid },
-          data,
-        }),
+        async (tx) =>
+          tx.user.update({
+            where: { uuid: me.uuid },
+            data,
+          }),
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
 
@@ -183,8 +193,8 @@ export class ProfileService {
   private toProfileDto(user: User): UserDashboardResponse {
     if (!user.keycloakUuid) {
       throw new InternalServerErrorException({
-        code: "KEYCLOAK_UUID_MISSING",
-        message: "User is not linked to Keycloak.",
+        code: 'KEYCLOAK_UUID_MISSING',
+        message: 'User is not linked to Keycloak.',
       });
     }
 

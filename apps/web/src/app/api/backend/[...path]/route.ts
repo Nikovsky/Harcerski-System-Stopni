@@ -41,6 +41,14 @@ const HOP_BY_HOP = new Set([
   "upgrade",
 ]);
 
+const PUBLIC_BACKEND_PATHS = new Set(["health"]);
+
+function isPublicBackendRequest(method: string, pathParts: string[]): boolean {
+  const m = method.toUpperCase();
+  if (m !== "GET" && m !== "HEAD") return false;
+  return pathParts.length === 1 && PUBLIC_BACKEND_PATHS.has(pathParts[0] ?? "");
+}
+
 function apiOriginFromEnv(): string {
   // Prefer the validated env, allow legacy fallback for convenience
   const raw = envServer.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
@@ -56,7 +64,7 @@ function buildUpstreamUrl(req: NextRequest, pathParts: string[]): URL {
   return url;
 }
 
-function buildUpstreamHeaders(req: NextRequest, accessToken: string, requestId: string): Headers {
+function buildUpstreamHeaders(req: NextRequest, accessToken: string | undefined, requestId: string): Headers {
   const headers = new Headers(req.headers);
 
   // Never forward browser cookies to the API
@@ -64,7 +72,9 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string, requestId: 
 
   // Force our Authorization
   headers.delete("authorization");
-  headers.set("authorization", `Bearer ${accessToken}`);
+  if (accessToken) {
+    headers.set("authorization", `Bearer ${accessToken}`);
+  }
 
   // Avoid mismatches (fetch will compute content-length)
   headers.delete("content-length");
@@ -153,23 +163,29 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
 
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
+  const isPublicRequest = isPublicBackendRequest(req.method, path);
 
-  // auth() triggers the full JWT callback chain — including silent token refresh.
-  const session = await auth();
-  const accessToken = session?.accessToken;
+  let accessToken: string | undefined;
+  if (!isPublicRequest) {
+    // auth() triggers the full JWT callback chain — including silent token refresh.
+    const session = await auth();
+    accessToken = session?.accessToken;
 
-  dlog("auth context:", {
-    hasSession: !!session,
-    userId: session?.user?.id,
-    hasAccessToken: !!accessToken,
-    error: session?.error,
-    requestId,
-  });
+    dlog("auth context:", {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      hasAccessToken: !!accessToken,
+      error: session?.error,
+      requestId,
+    });
 
-  if (!accessToken) {
-    return session?.error === "RefreshTokenExpired"
-      ? errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId)
-      : errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+    if (!accessToken) {
+      return session?.error === "RefreshTokenExpired"
+        ? errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId)
+        : errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+    }
+  } else {
+    dlog("public route passthrough:", { method: req.method, path: path.join("/"), requestId });
   }
 
   let upstreamUrl: URL;

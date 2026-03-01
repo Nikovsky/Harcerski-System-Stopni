@@ -5,9 +5,9 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
-} from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { ROLES_KEY } from "../decorators/roles.decorator";
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /** Shape returned by KeycloakJwtStrategy.validate() */
 interface JwtUser {
@@ -20,7 +20,7 @@ interface JwtUser {
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) { }
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(ctx: ExecutionContext): boolean {
     const required = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
@@ -33,16 +33,16 @@ export class RolesGuard implements CanActivate {
     const user = req.user;
     if (!user) {
       throw new UnauthorizedException({
-        code: "AUTHENTICATION_REQUIRED",
-        message: "Authentication required.",
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required.',
       });
     }
 
     const roles = new Set([...user.realmRoles, ...user.clientRoles]);
     if (!required.every((r) => roles.has(r))) {
       throw new ForbiddenException({
-        code: "INSUFFICIENT_ROLE",
-        message: "Insufficient role.",
+        code: 'INSUFFICIENT_ROLE',
+        message: 'Insufficient role.',
       });
     }
 
