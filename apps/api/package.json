@@ -21,8 +21,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.993.0",
-    "@aws-sdk/s3-request-presigner": "^3.993.0",
     "@hss/database": "workspace:*",
     "@hss/schemas": "workspace:*",
     "@nestjs/common": "^11.0.1",
@@ -35,6 +33,7 @@
     "file-type": "^21.3.0",
     "helmet": "^8.1.0",
     "jwks-rsa": "^3.2.2",
+    "minio": "^8.0.6",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.18.0",

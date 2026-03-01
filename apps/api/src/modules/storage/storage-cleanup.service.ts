@@ -15,7 +15,7 @@ export class StorageCleanupService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupOrphanedObjects(): Promise<void> {
-    this.logger.log('Starting orphaned S3 objects cleanup...');
+    this.logger.log('Starting orphaned object-storage cleanup...');
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     let deleted = 0;
