@@ -1,7 +1,7 @@
 // @file: apps/web/src/app/[locale]/applications/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { apiServerFetch } from "@/lib/api-server";
+import { ApiServerError, apiServerFetch } from "@/lib/api-server";
 import { ApplicationCard } from "@/components/instructor-application/ui/ApplicationCard";
 import { IA_BUTTON_PRIMARY_MD } from "@/components/instructor-application/ui/button-classnames";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
@@ -12,13 +12,53 @@ type ProfileCheck = {
   missingFields: string[];
 };
 
-export default async function ApplicationsPage() {
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+export default async function ApplicationsPage({ params }: Props) {
+  const { locale } = await params;
   const t = await getTranslations("applications");
 
-  const [applications, profile] = await Promise.all([
-    apiServerFetch<InstructorApplicationListItem[]>("instructor-applications"),
-    apiServerFetch<ProfileCheck>("instructor-applications/profile-check"),
-  ]);
+  let applications: InstructorApplicationListItem[];
+  let profile: ProfileCheck;
+  let authRequired = false;
+  try {
+    [applications, profile] = await Promise.all([
+      apiServerFetch<InstructorApplicationListItem[]>("instructor-applications"),
+      apiServerFetch<ProfileCheck>("instructor-applications/profile-check"),
+    ]);
+  } catch (err) {
+    if (
+      err instanceof ApiServerError &&
+      (err.status === 401 || err.status === 403)
+    ) {
+      authRequired = true;
+      applications = [];
+      profile = { complete: false, missingFields: [] };
+    } else {
+      throw err;
+    }
+  }
+
+  if (authRequired) {
+    const callbackUrl = encodeURIComponent(`/${locale}/applications`);
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <div className="rounded-lg border border-neutral-200/70 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+          <p className="text-sm text-neutral-800 dark:text-neutral-200">
+            Authentication required to access applications.
+          </p>
+          <Link
+            href={`/api/auth/login?callbackUrl=${callbackUrl}`}
+            className="mt-3 inline-block text-sm font-medium underline"
+          >
+            Go to login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const profileComplete = profile.complete;
   const missingFields = profile.missingFields;

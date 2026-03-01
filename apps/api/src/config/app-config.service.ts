@@ -99,7 +99,16 @@ export class AppConfigService {
   }
 
   get minioBucket(): string {
-    return this.cfg.get('MINIO_BUCKET', { infer: true });
+    const legacy = this.cfg.get('MINIO_BUCKET', { infer: true });
+    return legacy && legacy.trim().length > 0 ? legacy : this.minioBucketName;
+  }
+
+  get minioBucketName(): string {
+    const explicit = this.cfg.get('MINIO_BUCKET_NAME', { infer: true });
+    if (explicit && explicit.trim().length > 0) return explicit;
+    const legacy = this.cfg.get('MINIO_BUCKET', { infer: true });
+    if (legacy && legacy.trim().length > 0) return legacy;
+    throw new Error('MINIO bucket name is not configured');
   }
 
   get minioRegion(): string {

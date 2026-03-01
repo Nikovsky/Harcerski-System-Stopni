@@ -14,6 +14,30 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AppConfigService } from '@/config/app-config.service';
 import { randomUUID } from 'crypto';
 
+function normalizeS3Endpoint(
+  raw: string,
+  fallbackProtocol: 'http:' | 'https:',
+): string {
+  const input = raw.trim();
+  if (!input) {
+    throw new Error('S3 endpoint cannot be empty');
+  }
+
+  const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(input)
+    ? input
+    : `${fallbackProtocol}//${input}`;
+  const parsed = new URL(withProtocol);
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('S3 endpoint must use http:// or https://');
+  }
+  if (parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    throw new Error('S3 endpoint must not include path, query, or hash');
+  }
+
+  return parsed.origin;
+}
+
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
@@ -24,10 +48,11 @@ export class StorageService implements OnModuleInit {
 
   constructor(private readonly config: AppConfigService) {
     this.bucket = config.minioBucket;
+    const internalEndpoint = normalizeS3Endpoint(config.minioEndpoint, 'http:');
 
     // Internal client — talks to MinIO directly (HTTP, localhost)
     this.s3 = new S3Client({
-      endpoint: `http://${config.minioEndpoint}`,
+      endpoint: internalEndpoint,
       region: config.minioRegion,
       credentials: {
         accessKeyId: config.minioAccessKey,
@@ -39,10 +64,13 @@ export class StorageService implements OnModuleInit {
     // Presign client — generates URLs for browser (HTTPS via NGINX)
     // requestChecksumCalculation: "WHEN_REQUIRED" prevents SDK from adding
     // x-amz-checksum-* query params that MinIO rejects when browser PUTs
-    const publicEndpoint = config.minioPublicEndpoint;
-    this.presignS3 = publicEndpoint
+    const publicEndpoint = config.minioPublicEndpoint?.trim();
+    const publicOrigin = publicEndpoint
+      ? normalizeS3Endpoint(publicEndpoint, 'https:')
+      : null;
+    this.presignS3 = publicOrigin
       ? new S3Client({
-          endpoint: `https://${publicEndpoint}`,
+          endpoint: publicOrigin,
           region: config.minioRegion,
           credentials: {
             accessKeyId: config.minioAccessKey,

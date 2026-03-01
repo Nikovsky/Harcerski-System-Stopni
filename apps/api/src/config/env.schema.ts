@@ -100,13 +100,6 @@ export const envSchema = z.object({
   ),
   MINIO_PUBLIC_ENDPOINT: z.string().optional().default(''),
 
-  // ===[STORAGE | MINIO / S3]===
-  MINIO_ENDPOINT: url,
-  MINIO_ACCESS_KEY: z.string().min(3).max(128),
-  MINIO_SECRET_KEY: z.string().min(8).max(256),
-  MINIO_REGION: regionName,
-  MINIO_BUCKET_NAME: bucketName,
-
   // ===[SECURITY / RUNTIME]===
   TRUST_PROXY: z.preprocess(
     (v) => toBool(v, false),

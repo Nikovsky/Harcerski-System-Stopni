@@ -7,26 +7,22 @@ import { AppService } from './app.service';
 import { PrismaModule } from './database/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AppConfigModule } from './config/app-config.module';
-import { StorageModule } from './modules/storage/storage.module';
+import { StorageModule as FeatureStorageModule } from './modules/storage/storage.module';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module';
 import { ProfileModule } from './modules/user/profile/profile.module';
 import { RolesGuard } from './guards/roles.guard';
+import { StorageModule as BootstrapStorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
-
     AppConfigModule,
     ScheduleModule.forRoot(),
-
     PrismaModule,
-
     AuthModule,
-
-    StorageModule,
+    FeatureStorageModule,
+    BootstrapStorageModule,
     ProfileModule,
     InstructorApplicationModule,
-    ,
-    StorageModule,
   ],
   controllers: [AppController],
   providers: [
@@ -37,4 +33,4 @@ import { RolesGuard } from './guards/roles.guard';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}
