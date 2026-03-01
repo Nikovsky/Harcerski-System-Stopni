@@ -3,12 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
-import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
-import { HttpExceptionFilter } from './filters/http-exception.filter';
-import { StorageService } from './storage/storage.service';
 
 function normalizeRequestId(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -26,7 +24,11 @@ async function bootstrap(): Promise<void> {
     const requestId =
       normalizeRequestId(req.get('x-request-id')) ?? randomUUID();
     req.headers['x-request-id'] = requestId;
+    const requestId =
+      normalizeRequestId(req.get('x-request-id')) ?? randomUUID();
+    req.headers['x-request-id'] = requestId;
     res.locals.requestId = requestId;
+    res.setHeader('X-Request-Id', requestId);
     res.setHeader('X-Request-Id', requestId);
     next();
   });
@@ -54,13 +56,18 @@ async function bootstrap(): Promise<void> {
   const storage = app.get(StorageService);
 
   if (cfg.trustProxy) {
-    app.set('trust proxy', 1);
+    const expressApp = app.getHttpAdapter().getInstance() as Express;
+    expressApp.set('trust proxy', 1);
   }
 
   app.enableCors({
     origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,
     credentials: true,
   });
+  Logger.log(
+    `${cfg.corsOrigins.length ? cfg.corsOrigins.join(', ') : 'DISABLED'}`,
+    'CORS',
+  );
   Logger.log(
     `${cfg.corsOrigins.length ? cfg.corsOrigins.join(', ') : 'DISABLED'}`,
     'CORS',

@@ -1,6 +1,8 @@
 // @file: apps/api/src/pipelines/auth-principal.pipe.ts
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { AuthPrincipalSchema, type AuthPrincipal } from '@hss/schemas';
+import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import { AuthPrincipalSchema, type AuthPrincipal } from '@hss/schemas';
 
 @Injectable()
 export class AuthPrincipalPipe implements PipeTransform {
@@ -15,3 +17,4 @@ export class AuthPrincipalPipe implements PipeTransform {
     });
   }
 }
+

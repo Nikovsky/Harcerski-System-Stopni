@@ -1,6 +1,5 @@
 // @file: apps/web/src/components/layout/Navbar.tsx
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
 
@@ -11,6 +10,7 @@ const NAV: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Docs", href: "/docs" },
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Moje wnioski", href: "/applications" },
 ];
 
 export function Navbar({ locale }: NavbarProps) {

@@ -1,20 +1,34 @@
 // @file: apps/api/src/config/env.schema.ts
-import { z } from "zod";
+import { z } from 'zod';
 
 const toBool = (v: unknown, def = false): boolean => {
-  if (v === undefined || v === null || v === "") return def;
-  const s = String(v).trim().toLowerCase();
-  if (["true", "1", "yes", "y", "on"].includes(s)) return true;
-  if (["false", "0", "no", "n", "off"].includes(s)) return false;
+  if (v === undefined || v === null || v === '') return def;
+  if (
+    typeof v !== 'string' &&
+    typeof v !== 'number' &&
+    typeof v !== 'boolean'
+  ) {
+    return def;
+  }
+  const s = `${v}`.trim().toLowerCase();
+  if (['true', '1', 'yes', 'y', 'on'].includes(s)) return true;
+  if (['false', '0', 'no', 'n', 'off'].includes(s)) return false;
   return def;
 };
 
 const toCsv = (v: unknown): string[] => {
   if (v === undefined || v === null) return [];
-  const s = String(v).trim();
+  if (
+    typeof v !== 'string' &&
+    typeof v !== 'number' &&
+    typeof v !== 'boolean'
+  ) {
+    return [];
+  }
+  const s = `${v}`.trim();
   if (!s) return [];
   return s
-    .split(",")
+    .split(',')
     .map((x) => x.trim())
     .filter(Boolean);
 };
@@ -39,9 +53,11 @@ const regionName = z
 
 export const envSchema = z.object({
   // ===[APP]===
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  APP_NAME: z.string().min(1).default("hss-api"),
-  APP_HOST: z.string().min(1).default("0.0.0.0"),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
+  APP_NAME: z.string().min(1).default('hss-api'),
+  APP_HOST: z.string().min(1).default('0.0.0.0'),
   APP_PORT: z.coerce.number().int().min(1).max(65535).default(5000),
   APP_URL: url,
 
@@ -54,8 +70,8 @@ export const envSchema = z.object({
     .string()
     .min(1)
     .refine(
-      (v) => v.startsWith("postgresql://") || v.startsWith("postgres://"),
-      "DATABASE_URL must be a PostgreSQL connection string",
+      (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
+      'DATABASE_URL must be a PostgreSQL connection string',
     ),
 
   // ===[KEYCLOAK | REALM / ISSUER]===
@@ -71,6 +87,19 @@ export const envSchema = z.object({
   KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
   KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
 
+  // ===[MINIO / S3]===
+  MINIO_ENDPOINT: url,
+  MINIO_ACCESS_KEY: z.string().min(3).max(128),
+  MINIO_SECRET_KEY: z.string().min(8).max(256),
+  MINIO_BUCKET: z.string().min(1).default('hss'),
+  MINIO_REGION: regionName,
+  MINIO_BUCKET_NAME: bucketName,
+  MINIO_USE_SSL: z.preprocess(
+    (v) => toBool(v, false),
+    z.boolean().default(false),
+  ),
+  MINIO_PUBLIC_ENDPOINT: z.string().optional().default(''),
+
   // ===[STORAGE | MINIO / S3]===
   MINIO_ENDPOINT: url,
   MINIO_ACCESS_KEY: z.string().min(3).max(128),
@@ -79,7 +108,10 @@ export const envSchema = z.object({
   MINIO_BUCKET_NAME: bucketName,
 
   // ===[SECURITY / RUNTIME]===
-  TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+  TRUST_PROXY: z.preprocess(
+    (v) => toBool(v, false),
+    z.boolean().default(false),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

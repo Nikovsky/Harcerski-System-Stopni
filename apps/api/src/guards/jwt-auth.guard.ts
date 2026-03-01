@@ -34,6 +34,7 @@ function toErrorMessage(value: unknown): string | null {
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('keycloak-jwt') {
+export class JwtAuthGuard extends AuthGuard('keycloak-jwt') {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
   override handleRequest<TUser = AuthPrincipal>(
@@ -62,11 +63,15 @@ export class JwtAuthGuard extends AuthGuard('keycloak-jwt') {
 
       this.logger.warn(
         `auth failed requestId=${requestId ?? 'n/a'} ` +
-          `name=${errorName ?? 'n/a'} ` +
-          `err=${errMessage ?? 'n/a'} ` +
-          `info=${infoMessage ?? 'n/a'}`,
+        `name=${errorName ?? 'n/a'} ` +
+        `err=${errMessage ?? 'n/a'} ` +
+        `info=${infoMessage ?? 'n/a'}`,
       );
       throw new UnauthorizedException({
+        code: isExpired ? 'ACCESS_TOKEN_EXPIRED' : 'AUTHENTICATION_REQUIRED',
+        message: isExpired
+          ? 'Access token expired.'
+          : 'Authentication required.',
         code: isExpired ? 'ACCESS_TOKEN_EXPIRED' : 'AUTHENTICATION_REQUIRED',
         message: isExpired
           ? 'Access token expired.'

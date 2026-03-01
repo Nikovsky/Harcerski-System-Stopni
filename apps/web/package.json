@@ -11,6 +11,8 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@hss/schemas": "workspace:*",
+    "@react-pdf/renderer": "^4.3.2",
+    "@tanstack/react-table": "^8.21.3",
     "ioredis": "^5.8.2",
     "next": "16.1.6",
     "next-auth": "5.0.0-beta.30",

@@ -40,17 +40,17 @@ function resolveInitialTheme(): AppTheme {
 }
 
 export function ThemeControls() {
-  // keep default consistent with SSR fallback (layout.tsx -> "light" when missing cookie)
-  const [theme, setTheme] = useState<AppTheme>("light");
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    if (typeof window === "undefined") return "light";
+    return resolveInitialTheme();
+  });
 
   const label = useMemo(() => (theme === "dark" ? "Dark" : "Light"), [theme]);
 
   useEffect(() => {
-    const initial = resolveInitialTheme();
-    document.documentElement.dataset.theme = initial;
-    setCookie("ui_theme", initial);
-    setTheme(initial);
-  }, []);
+    document.documentElement.dataset.theme = theme;
+    setCookie("ui_theme", theme);
+  }, [theme]);
 
   function toggleTheme() {
     const next: AppTheme = theme === "dark" ? "light" : "dark";
