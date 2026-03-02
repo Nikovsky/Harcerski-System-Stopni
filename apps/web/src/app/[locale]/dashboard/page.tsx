@@ -1,36 +1,45 @@
 // @file: apps/web/src/app/[locale]/dashboard/page.tsx
-import { headers } from "next/headers";
 import Link from "next/link";
 import {
   userDashboardResponseSchema,
   type UserDashboardResponse,
 } from "@hss/schemas";
-
-async function getBaseUrl(): Promise<string> {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "http";
-  const host =
-    h.get("x-forwarded-host")?.split(",")[0]?.trim() ??
-    h.get("host") ??
-    "localhost:3000";
-  return `${proto}://${host}`;
-}
+import { auth } from "@/auth";
+import { envServer } from "@/config/env.server";
 
 async function fetchDashboard(): Promise<
   | { ok: true; data: UserDashboardResponse }
   | { ok: false; status: number; message: string }
 > {
-  const h = await headers();
-  const baseUrl = await getBaseUrl();
+  const session = await auth();
+  const accessToken = session?.accessToken;
+  if (!accessToken) {
+    return {
+      ok: false,
+      status: 401,
+      message:
+        session?.error === "RefreshTokenExpired"
+          ? "Session expired. Please log in again."
+          : "Authentication required.",
+    };
+  }
 
-  const res = await fetch(`${baseUrl}/api/backend/profile`, {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      cookie: h.get("cookie") ?? "",
-      accept: "application/json",
-    },
-  });
+  const apiBaseUrl = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
+  let res: Response;
+
+  try {
+    res = await fetch(`${apiBaseUrl}/profile`, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    return { ok: false, status: 502, message: "Backend unavailable." };
+  }
 
   if (!res.ok) {
     return { ok: false, status: res.status, message: `Request failed (${res.status})` };

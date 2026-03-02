@@ -1,11 +1,14 @@
 // @file: apps/web/src/components/layout/Navbar.tsx
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import type { Session } from "next-auth";
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
 
 type NavItem = { label: string; href: string };
-type NavbarProps = { locale: string };
+type NavbarProps = {
+  locale: string;
+  session: Session | null;
+};
 
 const NAV: NavItem[] = [
   { label: "Home", href: "/" },
@@ -13,7 +16,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard" },
 ];
 
-export function Navbar({ locale }: NavbarProps) {
+export function Navbar({ locale, session }: NavbarProps) {
   return (
     <header className="border-b border-border bg-background text-foreground">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -37,7 +40,7 @@ export function Navbar({ locale }: NavbarProps) {
 
         <div className="flex items-center gap-2">
           <ThemeControls />
-          <AuthNav locale={locale} />
+          <AuthNav locale={locale} session={session} />
         </div>
 
       </div>

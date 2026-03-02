@@ -1,7 +1,6 @@
 // @file: apps/web/src/app/api/session/touch/route.ts
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -14,16 +13,17 @@ import {
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
-import { normalizeSessionSidFromCookie, touchSessionBySid } from "@/lib/server/bff-session.store";
+import { buildRateLimitKey, consumeRateLimit } from "@/server/rate-limit";
+import {
+  getClientIp,
+  getOrCreateRequestId,
+  rateLimitExceededResponse,
+  requireTrustedHost,
+} from "@/server/request-security";
+import { normalizeSessionSidFromCookie, touchSessionBySid } from "@/server/bff-session.store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getRequestId(req: NextRequest): string {
-  const raw = req.headers.get("x-request-id")?.trim();
-  if (raw && /^[A-Za-z0-9._:-]{8,128}$/.test(raw)) return raw;
-  return randomUUID();
-}
 
 function jsonNoStore(body: unknown, status: number, requestId: string): NextResponse {
   const res = NextResponse.json(body, { status });
@@ -35,6 +35,18 @@ function jsonNoStore(body: unknown, status: number, requestId: string): NextResp
 function errorNoStore(status: number, code: BffErrorCode, message: string, requestId: string): NextResponse {
   const payload: BffErrorResponse = { code, message, requestId };
   return jsonNoStore(payload, status, requestId);
+}
+
+function serviceUnavailableResponse(requestId: string): NextResponse {
+  return jsonNoStore(
+    {
+      code: "SERVICE_UNAVAILABLE",
+      message: "Service temporarily unavailable.",
+      requestId,
+    },
+    503,
+    requestId,
+  );
 }
 
 function parseOriginFromReferer(referer: string | null): string | null {
@@ -80,7 +92,24 @@ async function readTouchBody(req: NextRequest): Promise<BffSessionTouchRequest |
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const requestId = getRequestId(req);
+  const requestId = getOrCreateRequestId(req);
+  const untrustedHost = requireTrustedHost(req, requestId);
+  if (untrustedHost) return untrustedHost;
+
+  try {
+    const limit = await consumeRateLimit(
+      buildRateLimitKey("session-touch", getClientIp(req)),
+      envServer.HSS_RATE_LIMIT_SESSION_TOUCH_MAX,
+      envServer.HSS_RATE_LIMIT_SESSION_TOUCH_WINDOW_MS,
+    );
+    if (!limit.allowed) {
+      return rateLimitExceededResponse(requestId);
+    }
+  } catch (error) {
+    console.error("[session-touch] rate limit unavailable:", error);
+    return serviceUnavailableResponse(requestId);
+  }
+
   const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
 

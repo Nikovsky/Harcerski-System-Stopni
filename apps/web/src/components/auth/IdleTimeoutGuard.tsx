@@ -202,7 +202,7 @@ export function IdleTimeoutGuard() {
     [applyExpiry],
   );
 
-  const doLogout = useCallback(async () => {
+  const doLogout = useCallback(async (reason: "timeout" | "manual" = "timeout") => {
     if (logoutStartedRef.current) return;
     logoutStartedRef.current = true;
     setIsLoggingOut(true);
@@ -211,9 +211,14 @@ export function IdleTimeoutGuard() {
     try {
       broadcast({ type: "logout" });
       clearStoredExpiresAt();
-      await fetch("/api/auth/logout", {
+      const logoutUrl =
+        reason === "timeout"
+          ? "/api/auth/logout?reason=timeout"
+          : "/api/auth/logout";
+      await fetch(logoutUrl, {
         method: "POST",
         credentials: "include",
+        cache: "no-store",
       });
     } catch {
       // Ignore network errors and proceed with redirect.
@@ -450,7 +455,7 @@ export function IdleTimeoutGuard() {
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => void doLogout()}
+                    onClick={() => void doLogout("manual")}
                     className="rounded-md border border-red-400 bg-red-600 px-3 py-2 text-sm font-semibold text-white"
                   >
                     Wyloguj teraz

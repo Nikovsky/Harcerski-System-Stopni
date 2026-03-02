@@ -1,14 +1,24 @@
 // @file: apps/web/src/app/api/auth/logout/route.ts
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import { authJwtDecode, authSessionCookieName } from "@/auth";
+import {
+  authJwtDecode,
+  authSessionCookieName,
+  forceReauthCookieName,
+} from "@/auth";
 import { envServer } from "@/config/env.server";
-import { destroySessionBySid, normalizeSessionSidFromCookie } from "@/lib/server/bff-session.store";
+import { buildRateLimitKey, consumeRateLimit } from "@/server/rate-limit";
+import {
+  getClientIp,
+  getOrCreateRequestId,
+  rateLimitExceededResponse,
+  requireTrustedHost,
+} from "@/server/request-security";
+import { destroySessionBySid, normalizeSessionSidFromCookie } from "@/server/bff-session.store";
 
 function getPublicOrigin(req: NextRequest): string {
   const xfProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
@@ -26,10 +36,18 @@ function parseOriginFromReferer(referer: string | null): string | null {
   }
 }
 
-function getRequestId(req: NextRequest): string {
-  const raw = req.headers.get("x-request-id")?.trim();
-  if (raw && /^[A-Za-z0-9._:-]{8,128}$/.test(raw)) return raw;
-  return randomUUID();
+function serviceUnavailableResponse(requestId: string): NextResponse {
+  const res = NextResponse.json(
+    {
+      code: "SERVICE_UNAVAILABLE",
+      message: "Service temporarily unavailable.",
+      requestId,
+    },
+    { status: 503 },
+  );
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("x-request-id", requestId);
+  return res;
 }
 
 function expireCookie(name: string, secure: boolean): string {
@@ -37,6 +55,23 @@ function expireCookie(name: string, secure: boolean): string {
     `${name}=`,
     "Path=/",
     "Max-Age=0",
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+function setCookie(
+  name: string,
+  value: string,
+  secure: boolean,
+  maxAgeSeconds: number,
+): string {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    `Max-Age=${Math.max(0, Math.floor(maxAgeSeconds))}`,
     "HttpOnly",
     "SameSite=Lax",
   ];
@@ -138,6 +173,8 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   }
 
   const cookiesToClear = getAuthCookieNames(req);
+  const logoutReason = req.nextUrl.searchParams.get("reason");
+  const shouldForceReauthOnce = logoutReason === "timeout";
   const redirectTo = `${appOrigin}/`;
   const html = [
     "<!DOCTYPE html>",
@@ -157,6 +194,9 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   for (const name of cookiesToClear) {
     headers.append("Set-Cookie", expireCookie(name, isSecure));
   }
+  if (shouldForceReauthOnce) {
+    headers.append("Set-Cookie", setCookie(forceReauthCookieName, "1", isSecure, 300));
+  }
 
   return new NextResponse(html, { status: 200, headers });
 }
@@ -165,7 +205,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const requestId = getRequestId(req);
+  const requestId = getOrCreateRequestId(req);
+  const untrustedHost = requireTrustedHost(req, requestId);
+  if (untrustedHost) return untrustedHost;
+
+  try {
+    const limit = await consumeRateLimit(
+      buildRateLimitKey("auth-logout", getClientIp(req)),
+      envServer.HSS_RATE_LIMIT_LOGOUT_MAX,
+      envServer.HSS_RATE_LIMIT_LOGOUT_WINDOW_MS,
+    );
+    if (!limit.allowed) {
+      return rateLimitExceededResponse(requestId);
+    }
+  } catch (error) {
+    console.error("[logout] rate limit unavailable:", error);
+    return serviceUnavailableResponse(requestId);
+  }
+
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
   const allowedOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
@@ -177,6 +234,7 @@ export async function POST(req: NextRequest) {
       { code: "FORBIDDEN", message: "Forbidden." },
       { status: 403 },
     );
+    res.headers.set("Cache-Control", "no-store");
     res.headers.set("x-request-id", requestId);
     return res;
   }

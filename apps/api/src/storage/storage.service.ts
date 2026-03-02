@@ -56,22 +56,12 @@ export class StorageService {
 
   async ensureBucketReady(): Promise<void> {
     const bucketName = this.cfg.minioBucketName;
-    const region = this.cfg.minioRegion;
     const exists = await this.client.bucketExists(bucketName);
 
     if (!exists) {
-      try {
-        await this.client.makeBucket(bucketName, region);
-        this.logger.log(`Created bucket "${bucketName}".`);
-      } catch (error: unknown) {
-        const minioError = error as MinioError;
-        if (
-          minioError.code !== 'BucketAlreadyOwnedByYou' &&
-          minioError.code !== 'BucketAlreadyExists'
-        ) {
-          throw error;
-        }
-      }
+      throw new Error(
+        `Bucket "${bucketName}" is missing. Provision it via the MinIO bootstrap job before starting API.`,
+      );
     }
 
     await this.assertBucketIsPrivate(bucketName);
@@ -84,6 +74,9 @@ export class StorageService {
     const endpoint = new URL(this.cfg.minioEndpoint);
     if (endpoint.protocol !== 'http:' && endpoint.protocol !== 'https:') {
       throw new Error('MINIO_ENDPOINT must use http:// or https://');
+    }
+    if (this.cfg.nodeEnv === 'production' && endpoint.protocol !== 'https:') {
+      throw new Error('MINIO_ENDPOINT must use https:// in production');
     }
     if (endpoint.pathname !== '/' || endpoint.search || endpoint.hash) {
       throw new Error('MINIO_ENDPOINT must not include path, query, or hash');
@@ -124,6 +117,19 @@ export class StorageService {
         minioError.code === 'NoSuchBucketPolicy' ||
         minioError.code === 'NoSuchPolicy'
       ) {
+        return;
+      }
+      if (minioError.code === 'AccessDenied') {
+        if (this.cfg.nodeEnv === 'production') {
+          throw new Error(
+            `Cannot verify bucket policy for "${bucketName}" (AccessDenied). ` +
+              'Grant s3:GetBucketPolicy to API credentials in production.',
+          );
+        }
+
+        this.logger.warn(
+          `Skipping bucket policy verification for "${bucketName}" (AccessDenied).`,
+        );
         return;
       }
 

@@ -1,13 +1,19 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { BffErrorCode, BffErrorResponse } from "@hss/schemas";
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
+import { buildRateLimitKey, consumeRateLimit } from "@/server/rate-limit";
+import {
+  getClientIp,
+  getOrCreateRequestId,
+  rateLimitExceededResponse,
+  requireTrustedHost,
+} from "@/server/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,10 +56,7 @@ function isPublicBackendRequest(method: string, pathParts: string[]): boolean {
 }
 
 function apiOriginFromEnv(): string {
-  // Prefer the validated env, allow legacy fallback for convenience
-  const raw = envServer.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
-  if (!raw) throw new Error("Missing HSS_API_BASE_URL (or API_URL) env");
-  return raw.replace(/\/$/, "");
+  return envServer.HSS_API_BASE_URL.replace(/\/$/, "");
 }
 
 function buildUpstreamUrl(req: NextRequest, pathParts: string[]): URL {
@@ -156,14 +159,45 @@ async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefine
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const incomingRequestId = req.headers.get("x-request-id")?.trim();
-  const requestId = incomingRequestId || randomUUID();
+  const requestId = getOrCreateRequestId(req);
+  const untrustedHost = requireTrustedHost(req, requestId);
+  if (untrustedHost) return untrustedHost;
+
   const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
 
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
   const isPublicRequest = isPublicBackendRequest(req.method, path);
+
+  const rateLimitKey = buildRateLimitKey(
+    `bff:${req.method.toUpperCase()}:${path.join("/") || "_root"}`,
+    getClientIp(req),
+  );
+
+  try {
+    const limit = await consumeRateLimit(
+      rateLimitKey,
+      envServer.HSS_RATE_LIMIT_BFF_MAX,
+      envServer.HSS_RATE_LIMIT_BFF_WINDOW_MS,
+    );
+    if (!limit.allowed) {
+      return rateLimitExceededResponse(requestId);
+    }
+  } catch (error) {
+    dlog("rate limit unavailable:", String(error));
+    if (!isPublicRequest) {
+      return jsonNoStore(
+        {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Service temporarily unavailable.",
+          requestId,
+        },
+        503,
+        requestId,
+      );
+    }
+  }
 
   let accessToken: string | undefined;
   if (!isPublicRequest) {

@@ -1,16 +1,15 @@
 // @file: apps/web/src/components/ui/AuthNav.tsx
-import { auth } from "@/auth";
+import type { Session } from "next-auth";
 import { SignInButton } from "./SignInButton";
 import { SignOutButton } from "./SignOutButton";
 import { SessionRemainingBadge } from "./SessionRemainingBadge";
 
 type AuthNavProps = {
   locale: string;
+  session: Session | null;
 };
 
-export async function AuthNav({ locale }: AuthNavProps) {
-  const session = await auth();
-
+export function AuthNav({ locale, session }: AuthNavProps) {
   if (!session?.user) {
     return <SignInButton locale={locale} />;
   }

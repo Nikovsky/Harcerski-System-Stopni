@@ -15,7 +15,7 @@ import {
   readSessionBySid,
   releaseSessionRefreshLock,
   type SessionJwt,
-} from "@/lib/server/bff-session.store";
+} from "@/server/bff-session.store";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -45,6 +45,7 @@ declare module "next-auth" {
 
 const sessionCookieIsSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://");
 export const authSessionCookieName = envServer.HSS_SESSION_COOKIE_NAME;
+export const forceReauthCookieName = "hss_force_reauth_once";
 
 export async function authJwtEncode(params: JWTEncodeParams): Promise<string> {
   return encodeOpaqueSessionToken(params);

@@ -58,6 +58,8 @@ Komponenty wspierające:
 - `KEYCLOAK` -> auth/rbac (OIDC)
 - `POSTGRESQL` -> database engine (^v18)
 - `MINIO` -> S3/bucket storage
+- `MINIO_MC` -> konsola do MINIO
+- `REDIS` -> warstwa Cache
 
 ### Technologie
 
