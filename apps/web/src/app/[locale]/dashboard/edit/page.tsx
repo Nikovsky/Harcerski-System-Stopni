@@ -171,13 +171,16 @@ export default function DashboardEditPage() {
     >;
 
     const payload: Partial<UserDashboardUpdatePrivilegedBody> = {};
+    const assignDirtyField = <K extends keyof UserDashboardUpdatePrivilegedBody>(
+      key: K,
+    ) => {
+      if (dirty[key]) {
+        payload[key] = values[key];
+      }
+    };
 
     (Object.keys(dirty) as (keyof UserDashboardUpdatePrivilegedBody)[]).forEach(
-      (k) => {
-        if (dirty[k]) {
-          payload[k] = values[k];
-        }
-      },
+      assignDirtyField,
     );
 
     if (Object.keys(payload).length === 0) {
