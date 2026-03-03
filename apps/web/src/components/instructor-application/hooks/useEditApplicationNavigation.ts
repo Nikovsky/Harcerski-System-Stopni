@@ -54,7 +54,10 @@ function collectRequirementMissingFields(
   const missing: string[] = [];
 
   for (const req of requirements) {
-    if (req.state === "DONE" && isBlank(req.verificationText)) {
+    if (isBlank(req.actionDescription)) {
+      missing.push(`requirement_${req.definition.code}_actionDescription`);
+    }
+    if (isBlank(req.verificationText)) {
       missing.push(`requirement_${req.definition.code}_verificationText`);
     }
   }
@@ -287,7 +290,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
             // Refresh before validation so we do not validate against stale data.
             shouldRefetch = true;
           }
-        } else if (currentStep === 3 && requirementFlushRef.current) {
+        } else if (currentStep === 3 && movingForward && requirementFlushRef.current) {
           await requirementFlushRef.current();
           shouldRefetch = true;
         }
@@ -318,7 +321,8 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           }
           return;
         }
-        throw error;
+        setNavigationMissingFields([]);
+        return;
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);

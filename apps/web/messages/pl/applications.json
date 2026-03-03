@@ -140,9 +140,11 @@
     "noAttachments": "Brak załączników",
     "hufcowyOpinionInAttachments": "Opinia pisemna hufcowego znajduje się w załącznikach.",
     "hufcowyOpinionMissing": "Brakuje załączonej opinii pisemnej hufcowego.",
-    "missingRequirementVerification": "Wymaganie {code}: uzupełnij opis załącznika (dowód realizacji)",
+    "missingRequirementActionDescription": "Wymaganie {code}: uzupełnij opis realizacji zadania",
+    "missingRequirementVerification": "Wymaganie {code}: uzupełnij opis dowodu/załącznika",
     "pdfGenerationError": "Nie udało się wygenerować PDF. Spróbuj ponownie.",
-    "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań",
+    "actionDescriptionError": "Opis realizacji zadania jest wymagany",
+    "verificationTextError": "Opis dowodu/załącznika jest wymagany",
     "saving": "Zapisywanie..."
   },
   "verificationTextRequired": "Opis załącznika (wymagane) *",
