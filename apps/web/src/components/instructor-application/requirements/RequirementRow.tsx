@@ -16,6 +16,10 @@ import {
 const REQUIREMENT_SAVE_DEBOUNCE_MS = 500;
 const REQUIREMENT_TEXT_MAX_LENGTH = 5000;
 
+function isBlank(value: string | null | undefined): boolean {
+  return !value || value.trim().length === 0;
+}
+
 type Props = {
   applicationId: string;
   req: RequirementRowResponse;
@@ -30,6 +34,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   const [state, setState] = useState<string>(req.state);
   const [actionDescription, setActionDescription] = useState<string>(req.actionDescription);
   const [verificationText, setVerificationText] = useState<string>(req.verificationText ?? "");
+  const [actionDescriptionError, setActionDescriptionError] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -57,6 +62,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     setState(req.state);
     setActionDescription(req.actionDescription);
     setVerificationText(req.verificationText ?? "");
+    setActionDescriptionError(null);
     setVerificationError(null);
   }, [req.actionDescription, req.state, req.verificationText]);
 
@@ -68,16 +74,34 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   }, [persistPayload]);
 
   const ensureRequirementIsValid = useCallback(() => {
-    if (state === "DONE" && (!verificationText || !verificationText.trim())) {
-      const message = t("messages.verificationTextError");
-      setVerificationError(message);
-      throw new RequirementValidationError(
-        message,
-        `requirement_${req.definition.code}_verificationText`,
-      );
+    const actionIsMissing = isBlank(actionDescription);
+    const verificationIsMissing = isBlank(verificationText);
+
+    if (actionIsMissing || verificationIsMissing) {
+      const actionMessage = actionIsMissing ? t("messages.actionDescriptionError") : null;
+      const verificationMessage = verificationIsMissing ? t("messages.verificationTextError") : null;
+
+      setActionDescriptionError(actionMessage);
+      setVerificationError(verificationMessage);
+
+      if (actionMessage) {
+        throw new RequirementValidationError(
+          actionMessage,
+          `requirement_${req.definition.code}_actionDescription`,
+        );
+      }
+
+      if (verificationMessage) {
+        throw new RequirementValidationError(
+          verificationMessage,
+          `requirement_${req.definition.code}_verificationText`,
+        );
+      }
     }
+
+    setActionDescriptionError(null);
     setVerificationError(null);
-  }, [req.definition.code, state, verificationText, t]);
+  }, [actionDescription, req.definition.code, verificationText, t]);
 
   const flush = useCallback(async () => {
     clearTimeout(debounceRef.current);
@@ -101,11 +125,6 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   const save = useCallback(
     (newState: string, actionDescription: string, verificationText?: string | null) => {
       if (readOnly) return;
-      if (newState === "DONE" && (!verificationText || !verificationText.trim())) {
-        setVerificationError(t("messages.verificationTextError"));
-        return;
-      }
-      setVerificationError(null);
       setSaveError(null);
       const payload = { state: newState, actionDescription, verificationText };
       pendingRef.current = payload;
@@ -115,7 +134,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
         void persistPayload(payload).catch(() => undefined);
       }, REQUIREMENT_SAVE_DEBOUNCE_MS);
     },
-    [readOnly, persistPayload, t],
+    [readOnly, persistPayload],
   );
 
   const attachments = req.attachments ?? [];
@@ -148,27 +167,49 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
           <textarea
             value={actionDescription}
             placeholder={t("requirements.actionPlaceholder")}
-            onChange={(event) => setActionDescription(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setActionDescription(value);
+              if (!isBlank(value)) {
+                setActionDescriptionError(null);
+              }
+            }}
             onBlur={() => save(state, actionDescription, verificationText || null)}
             rows={2}
             maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-            className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+              actionDescriptionError ? "border-red-500" : "border-border"
+            }`}
           />
+          {actionDescriptionError && (
+            <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{actionDescriptionError}</p>
+          )}
 
           {state === "PLANNED" ? (
             <div>
               <label className="mb-1 block text-xs text-foreground/60">
-                {t("requirements.futureProofLabel")}
+                {t("requirements.futureProofLabel")} *
               </label>
               <textarea
                 value={verificationText}
                 placeholder={t("requirements.futureProofPlaceholder")}
-                onChange={(event) => setVerificationText(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setVerificationText(value);
+                  if (!isBlank(value)) {
+                    setVerificationError(null);
+                  }
+                }}
                 onBlur={() => save(state, actionDescription, verificationText || null)}
                 rows={1}
                 maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                  verificationError ? "border-red-500" : "border-border"
+                }`}
               />
+              {verificationError && (
+                <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{verificationError}</p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -179,7 +220,13 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
                 <textarea
                   value={verificationText}
                   placeholder={t("requirements.verificationPlaceholder")}
-                  onChange={(event) => setVerificationText(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setVerificationText(value);
+                    if (!isBlank(value)) {
+                      setVerificationError(null);
+                    }
+                  }}
                   onBlur={() => save(state, actionDescription, verificationText || null)}
                   rows={1}
                   required
