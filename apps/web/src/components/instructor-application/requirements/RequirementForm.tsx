@@ -20,7 +20,13 @@ export function RequirementForm({
     if (!flushRef) return;
     const registryMap = registry.current;
     flushRef.current = async () => {
-      await Promise.all([...registryMap.values()].map((fn) => fn()));
+      const results = await Promise.allSettled(
+        [...registryMap.values()].map((fn) => fn()),
+      );
+      const firstRejected = results.find((result) => result.status === "rejected");
+      if (firstRejected?.status === "rejected") {
+        throw firstRejected.reason;
+      }
     };
     return () => {
       flushRef.current = null;

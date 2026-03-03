@@ -8,7 +8,10 @@ import { toUserFriendlyRequirementSaveErrorFromUnknown } from "@/lib/upload-util
 import { RequirementAttachments } from "@/components/instructor-application/requirements/RequirementAttachments";
 import { AttachmentReadonlyList } from "@/components/instructor-application/attachments/AttachmentReadonlyList";
 import type { RequirementRowResponse } from "@hss/schemas";
-import type { FlushRegistry } from "@/components/instructor-application/requirements/requirement-form.types";
+import {
+  RequirementValidationError,
+  type FlushRegistry,
+} from "@/components/instructor-application/requirements/requirement-form.types";
 
 const REQUIREMENT_SAVE_DEBOUNCE_MS = 500;
 const REQUIREMENT_TEXT_MAX_LENGTH = 5000;
@@ -54,6 +57,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     setState(req.state);
     setActionDescription(req.actionDescription);
     setVerificationText(req.verificationText ?? "");
+    setVerificationError(null);
   }, [req.actionDescription, req.state, req.verificationText]);
 
   useEffect(() => {
@@ -63,21 +67,34 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     };
   }, [persistPayload]);
 
+  const ensureRequirementIsValid = useCallback(() => {
+    if (state === "DONE" && (!verificationText || !verificationText.trim())) {
+      const message = t("messages.verificationTextError");
+      setVerificationError(message);
+      throw new RequirementValidationError(
+        message,
+        `requirement_${req.definition.code}_verificationText`,
+      );
+    }
+    setVerificationError(null);
+  }, [req.definition.code, state, verificationText, t]);
+
   const flush = useCallback(async () => {
     clearTimeout(debounceRef.current);
+    ensureRequirementIsValid();
     if (pendingRef.current) {
       const payload = pendingRef.current;
       pendingRef.current = null;
       await persistPayload(payload);
     }
-  }, [persistPayload]);
+  }, [ensureRequirementIsValid, persistPayload]);
 
   useEffect(() => {
     const registryMap = flushRegistry.current;
     registryMap.set(req.uuid, flush);
     return () => {
       registryMap.delete(req.uuid);
-      void flush();
+      void flush().catch(() => undefined);
     };
   }, [req.uuid, flush, flushRegistry]);
 

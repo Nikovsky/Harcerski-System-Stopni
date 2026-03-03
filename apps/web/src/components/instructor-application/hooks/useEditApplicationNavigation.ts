@@ -3,7 +3,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import type { InstructorApplicationDetail, UpdateInstructorApplication } from "@hss/schemas";
+import { RequirementValidationError } from "@/components/instructor-application/requirements/requirement-form.types";
+import type {
+  InstructorApplicationDetail,
+  RequirementRowResponse,
+  UpdateInstructorApplication,
+} from "@hss/schemas";
 
 type Params = {
   initialApp: InstructorApplicationDetail;
@@ -27,14 +32,128 @@ const INSTRUCTOR_RANK_VALUES = [
   "HARCMISTRZ",
 ] as const;
 
+const BASIC_DEGREES = new Set(["PWD", "PHM"]);
+
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
+}
+
+function isBlank(value: string | null | undefined): boolean {
+  return !value || value.trim().length === 0;
 }
 
 function getOptionalString(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function collectRequirementMissingFields(
+  requirements: RequirementRowResponse[],
+): string[] {
+  const missing: string[] = [];
+
+  for (const req of requirements) {
+    if (req.state === "DONE" && isBlank(req.verificationText)) {
+      missing.push(`requirement_${req.definition.code}_verificationText`);
+    }
+  }
+
+  return missing;
+}
+
+function getMissingFieldsForStep(
+  currentStep: number,
+  draft: InstructorApplicationDetail,
+): string[] {
+  if (currentStep === 0) {
+    const missing: string[] = [];
+
+    if (isBlank(draft.plannedFinishAt)) {
+      missing.push("plannedFinishAt");
+    }
+    if (isBlank(draft.hufcowyPresence)) {
+      missing.push("hufcowyPresence");
+    }
+
+    if (draft.hufcowyPresence === "ATTACHMENT_OPINION" && !draft.hufcowyPresenceAttachmentUuid) {
+      missing.push("hufcowyPresenceAttachment");
+    }
+
+    if (!BASIC_DEGREES.has(draft.template.degreeCode)) {
+      if (isBlank(draft.teamFunction)) {
+        missing.push("teamFunction");
+      }
+      if (isBlank(draft.hufiecFunction)) {
+        missing.push("hufiecFunction");
+      }
+      if (isBlank(draft.openTrialForRank)) {
+        missing.push("openTrialForRank");
+      }
+    }
+
+    return missing;
+  }
+
+  if (currentStep === 1) {
+    const missing: string[] = [];
+
+    if (isBlank(draft.functionsHistory)) {
+      missing.push("functionsHistory");
+    }
+    if (isBlank(draft.coursesHistory)) {
+      missing.push("coursesHistory");
+    }
+    if (isBlank(draft.campsHistory)) {
+      missing.push("campsHistory");
+    }
+    if (isBlank(draft.successes)) {
+      missing.push("successes");
+    }
+    if (isBlank(draft.failures)) {
+      missing.push("failures");
+    }
+
+    return missing;
+  }
+
+  if (currentStep === 2) {
+    const missing: string[] = [];
+
+    if (isBlank(draft.supervisorFirstName)) {
+      missing.push("supervisorFirstName");
+    }
+    if (isBlank(draft.supervisorSurname)) {
+      missing.push("supervisorSurname");
+    }
+    if (isBlank(draft.supervisorInstructorRank)) {
+      missing.push("supervisorInstructorRank");
+    }
+    if (isBlank(draft.supervisorInstructorFunction)) {
+      missing.push("supervisorInstructorFunction");
+    }
+
+    return missing;
+  }
+
+  if (currentStep === 3) {
+    return collectRequirementMissingFields(draft.requirements);
+  }
+
+  return [];
+}
+
+function collectMissingFieldsBeforeStep(
+  targetStep: number,
+  draft: InstructorApplicationDetail,
+): string[] {
+  const allMissing = new Set<string>();
+  for (let i = 0; i < targetStep; i += 1) {
+    for (const field of getMissingFieldsForStep(i, draft)) {
+      allMissing.add(field);
+    }
+  }
+  return [...allMissing];
 }
 
 function extractStepDataFromDraft(
@@ -91,6 +210,9 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
   const [step, setStep] = useState(0);
   const [app, setApp] = useState(initialApp);
   const [isSaving, setIsSaving] = useState(false);
+  const [navigationMissingFields, setNavigationMissingFields] = useState<string[]>(
+    [],
+  );
 
   const requirementFlushRef = useRef<(() => Promise<void>) | null>(null);
   const stepRef = useRef(step);
@@ -116,6 +238,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
       appRef.current = next;
       return next;
     });
+    setNavigationMissingFields([]);
   }, []);
 
   const getChangedPatchData = useCallback(
@@ -141,6 +264,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     async (targetStep: number) => {
       const currentStep = stepRef.current;
       if (targetStep === currentStep || isSavingRef.current) return;
+      const movingForward = targetStep > currentStep;
 
       isSavingRef.current = true;
       setIsSaving(true);
@@ -158,6 +282,11 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
               persistedAppRef.current = { ...persistedAppRef.current, ...changed };
             }
           }
+          if (currentStep === 0 && movingForward) {
+            // Attachment in step 0 is updated through a separate endpoint.
+            // Refresh before validation so we do not validate against stale data.
+            shouldRefetch = true;
+          }
         } else if (currentStep === 3 && requirementFlushRef.current) {
           await requirementFlushRef.current();
           shouldRefetch = true;
@@ -171,6 +300,25 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           appRef.current = fresh;
           setApp(fresh);
         }
+        if (movingForward) {
+          const missingFields = collectMissingFieldsBeforeStep(
+            targetStep,
+            appRef.current,
+          );
+          if (missingFields.length > 0) {
+            setNavigationMissingFields(missingFields);
+            return;
+          }
+        }
+        setNavigationMissingFields([]);
+      } catch (error: unknown) {
+        if (error instanceof RequirementValidationError) {
+          if (error.field) {
+            setNavigationMissingFields([error.field]);
+          }
+          return;
+        }
+        throw error;
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);
@@ -185,6 +333,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
   return {
     app,
     isSaving,
+    navigationMissingFields,
     step,
     setStep,
     updateDraft,
