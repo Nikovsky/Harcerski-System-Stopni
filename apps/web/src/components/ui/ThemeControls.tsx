@@ -6,17 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { MoonStars, Sun } from "react-bootstrap-icons";
 
 type AppTheme = "dark" | "light";
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function getCookie(name: string): string | null {
-  const m = document.cookie.match(
-    new RegExp(`(?:^|; )${escapeRegExp(name)}=([^;]*)`)
-  );
-  return m ? decodeURIComponent(m[1]) : null;
-}
+type ThemeControlsProps = { initialTheme: AppTheme };
 
 function setCookie(name: string, value: string) {
   const secure = typeof window !== "undefined" && window.location.protocol === "https:";
@@ -26,24 +16,8 @@ function setCookie(name: string, value: string) {
     (secure ? "; Secure" : "");
 }
 
-function resolveInitialTheme(): AppTheme {
-  const root = document.documentElement;
-
-  const cookieTheme = getCookie("ui_theme") as AppTheme | null;
-  if (cookieTheme === "light" || cookieTheme === "dark") return cookieTheme;
-
-  const dataTheme = root.dataset.theme as AppTheme | undefined;
-  if (dataTheme === "light" || dataTheme === "dark") return dataTheme;
-
-  // optional fallback: system preference (only if nothing else is set)
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-export function ThemeControls() {
-  const [theme, setTheme] = useState<AppTheme>(() => {
-    if (typeof window === "undefined") return "light";
-    return resolveInitialTheme();
-  });
+export function ThemeControls({ initialTheme }: ThemeControlsProps) {
+  const [theme, setTheme] = useState<AppTheme>(initialTheme);
 
   const label = useMemo(() => (theme === "dark" ? "Dark" : "Light"), [theme]);
 

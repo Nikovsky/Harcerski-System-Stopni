@@ -3,6 +3,16 @@
 import type { MutableRefObject } from "react";
 import type { RequirementRowResponse } from "@hss/schemas";
 
+export class RequirementValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly field?: string,
+  ) {
+    super(message);
+    this.name = "RequirementValidationError";
+  }
+}
+
 export type GroupDefinition = {
   uuid: string;
   code: string;

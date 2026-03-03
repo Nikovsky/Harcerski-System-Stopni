@@ -3,6 +3,7 @@
 
 import { useTranslations } from "next-intl";
 import { degreeKey } from "@/lib/applications-i18n";
+import { getFieldLabel } from "@/lib/instructor-application-fields";
 import { useEditApplicationNavigation } from "@/components/instructor-application/hooks/useEditApplicationNavigation";
 import { RequirementForm } from "@/components/instructor-application/requirements/RequirementForm";
 import { SubmitApplicationButton } from "@/components/instructor-application/ui/SubmitApplicationButton";
@@ -21,6 +22,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
   const {
     app,
     isSaving,
+    navigationMissingFields,
     step,
     updateDraft,
     requirementFlushRef,
@@ -42,7 +44,9 @@ export function EditApplicationClient({ initialApp, id }: Props) {
           <button
             key={s}
             type="button"
-            onClick={() => navigateTo(i)}
+            onClick={() => {
+              void navigateTo(i);
+            }}
             className={`flex-1 rounded-sm px-2 py-1 text-xs transition ${
               i === step
                 ? "bg-primary text-primary-foreground"
@@ -54,28 +58,51 @@ export function EditApplicationClient({ initialApp, id }: Props) {
         ))}
       </div>
 
+      {navigationMissingFields.length > 0 && (
+        <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30">
+          <p className="mb-2 text-sm font-medium text-red-800 dark:text-red-300">
+            {t("messages.incompleteFields")}
+          </p>
+          <ul className="ml-4 list-disc text-sm text-red-700 dark:text-red-400">
+            {navigationMissingFields.map((field) => (
+              <li key={field}>{getFieldLabel(field, t, app.requirements)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Step content */}
       {step === 0 && (
         <StepBasicInfo
           app={app}
           updateDraft={updateDraft}
-          onNext={() => navigateTo(1)}
+          onNext={() => {
+            void navigateTo(1);
+          }}
         />
       )}
       {step === 1 && (
         <StepServiceHistory
           app={app}
           updateDraft={updateDraft}
-          onNext={() => navigateTo(2)}
-          onPrev={() => navigateTo(0)}
+          onNext={() => {
+            void navigateTo(2);
+          }}
+          onPrev={() => {
+            void navigateTo(0);
+          }}
         />
       )}
       {step === 2 && (
         <StepSupervisor
           app={app}
           updateDraft={updateDraft}
-          onNext={() => navigateTo(3)}
-          onPrev={() => navigateTo(1)}
+          onNext={() => {
+            void navigateTo(3);
+          }}
+          onPrev={() => {
+            void navigateTo(1);
+          }}
         />
       )}
       {step === 3 && (
@@ -86,7 +113,14 @@ export function EditApplicationClient({ initialApp, id }: Props) {
             groupDefinitions={app.template.groupDefinitions}
             flushRef={requirementFlushRef}
           />
-          <StepNav onPrev={() => navigateTo(2)} onNext={() => navigateTo(4)} />
+          <StepNav
+            onPrev={() => {
+              void navigateTo(2);
+            }}
+            onNext={() => {
+              void navigateTo(4);
+            }}
+          />
         </div>
       )}
       {step === 4 && (
@@ -97,7 +131,11 @@ export function EditApplicationClient({ initialApp, id }: Props) {
             </p>
             <SubmitApplicationButton applicationId={id} requirements={app.requirements} />
           </div>
-          <StepNav onPrev={() => navigateTo(3)} />
+          <StepNav
+            onPrev={() => {
+              void navigateTo(3);
+            }}
+          />
         </div>
       )}
 
