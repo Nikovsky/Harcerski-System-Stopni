@@ -44,5 +44,6 @@ Primary goal: keep `apps/web` and `apps/api` horizontally scalable and stateless
 
 ## Commits & Pull Requests
 - Branches: `feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`.
-- Prefer Conventional Commits (e.g., `feat(api): ...`); area-prefix style is also used in history.
+- Commit message format (required): `OBSZAR - Opis` (e.g., `I18N - Aktualizacja tlumaczen`, `TURBOREPO - Dodanie zadan`).
+- Do not mix areas in one commit: one commit must include changes from exactly one area.
 - PR must include: what changed, why, risk, verification steps, docs updates, and touched MUST controls.
