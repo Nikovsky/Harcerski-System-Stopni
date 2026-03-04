@@ -137,6 +137,7 @@
     "createError": "Failed to create an application. Please try again.",
     "downloadError": "Failed to download attachment. Please try again.",
     "requirementSaveError": "Failed to save requirement. Please try again.",
+    "incompleteCurrentStep": "Please complete required fields in this step to continue:",
     "incompleteFields": "Please fill in all required fields before submitting:",
     "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
     "noAttachments": "No attachments",
