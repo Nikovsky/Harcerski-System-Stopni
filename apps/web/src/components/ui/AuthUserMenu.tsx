@@ -1,22 +1,19 @@
 // @file: apps/web/src/components/ui/AuthUserMenu.tsx
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown } from "react-bootstrap-icons";
+import type { AuthUserMenuProps } from "@/components/props/ui";
 import { SessionRemainingBadge } from "./SessionRemainingBadge";
 import { SignOutButton } from "./SignOutButton";
-
-type AuthUserMenuProps = {
-  displayName: string;
-  email: string;
-  triggerLabel: string;
-};
 
 export function AuthUserMenu({
   displayName,
   email,
   triggerLabel,
 }: AuthUserMenuProps) {
+  const t = useTranslations("common.authUserMenu");
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -65,11 +62,11 @@ export function AuthUserMenu({
         <div
           id={menuId}
           role="menu"
-          aria-label="Account menu"
+          aria-label={t("ariaLabel")}
           className="absolute right-0 z-90 mt-2 w-72 rounded-xl border border-border bg-card p-4 shadow-lg"
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Signed in as
+            {t("signedInAs")}
           </p>
           <p className="mt-2 truncate text-sm font-semibold text-foreground">
             {displayName}
@@ -78,13 +75,13 @@ export function AuthUserMenu({
 
           <div className="mt-4 border-t border-border pt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Session
+              {t("session")}
             </p>
             <SessionRemainingBadge />
           </div>
 
           <div className="mt-4 border-t border-border pt-4">
-            <SignOutButton label="Log out" className="w-full justify-center" />
+            <SignOutButton label={t("logout")} className="w-full justify-center" />
           </div>
         </div>
       ) : null}

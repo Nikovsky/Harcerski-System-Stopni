@@ -1,20 +1,18 @@
 // @file: apps/web/src/components/ui/AuthNav.tsx
-import type { Session } from "next-auth";
+import { getTranslations } from "next-intl/server";
+import type { AuthNavProps } from "@/components/props/auth";
 import { SignInButton } from "./SignInButton";
 import { AuthUserMenu } from "./AuthUserMenu";
 
-type AuthNavProps = {
-  locale: string;
-  session: Session | null;
-};
+export async function AuthNav({ locale, session }: AuthNavProps) {
+  const t = await getTranslations("common.auth");
 
-export function AuthNav({ locale, session }: AuthNavProps) {
   if (!session?.user) {
-    return <SignInButton locale={locale} />;
+    return <SignInButton locale={locale} label={t("login")} />;
   }
 
-  const displayName = session.user.name ?? session.user.email ?? "User";
-  const email = session.user.email ?? "No email";
+  const displayName = session.user.name ?? session.user.email ?? t("userFallback");
+  const email = session.user.email ?? t("noEmail");
   const triggerLabel = session.user.email ?? displayName;
 
   return (

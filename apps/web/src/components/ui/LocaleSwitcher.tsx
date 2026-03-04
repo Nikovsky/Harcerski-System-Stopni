@@ -3,6 +3,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
+import type { LocaleSwitcherProps } from "@/components/props/ui";
 import {
   useCallback,
   useEffect,
@@ -15,7 +16,6 @@ import {
 import { ChevronDown, Translate } from "react-bootstrap-icons";
 
 type LocaleCode = "pl" | "en";
-type LocaleSwitcherVariant = "full" | "icon";
 
 type LocaleDefinition = {
   code: LocaleCode;
@@ -64,7 +64,7 @@ function setNextLocaleCookie(nextLocale: LocaleCode): void {
     (secure ? "; Secure" : "");
 }
 
-export function LocaleSwitcher({ variant = "full" }: { variant?: LocaleSwitcherVariant }) {
+export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
   const t = useTranslations("common.localeSwitcher");
   const menuId = useId();
   const rawLocale = useLocale();

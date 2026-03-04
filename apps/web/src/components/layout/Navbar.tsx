@@ -1,26 +1,20 @@
 // @file: apps/web/src/components/layout/Navbar.tsx
 import Link from "next/link";
-import type { Session } from "next-auth";
+import { getTranslations } from "next-intl/server";
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
 import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 import { NavbarLinks } from "@/components/layout/NavbarLinks";
+import type { NavItem, NavbarProps } from "@/components/props/layout";
 
-type NavItem = { label: string; href: string };
-type NavbarProps = {
-  locale: string;
-  session: Session | null;
-};
-
-const NAV_BASE: NavItem[] = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Docs", href: "/docs" },
-];
-
-export function Navbar({ locale, session }: NavbarProps) {
+export async function Navbar({ locale, session }: NavbarProps) {
+  const t = await getTranslations("common.nav");
+  const NAV_BASE: NavItem[] = [
+    { label: t("home"), href: "/" },
+    { label: t("about"), href: "/about" },
+  ];
   const navItems: NavItem[] = session?.user
-    ? [...NAV_BASE, { label: "Dashboard", href: "/dashboard" }]
+    ? [...NAV_BASE, { label: t("dashboard"), href: "/dashboard" }]
     : NAV_BASE;
 
   return (

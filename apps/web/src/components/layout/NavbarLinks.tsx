@@ -3,16 +3,7 @@
 
 import { Fragment } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
-
-type NavItem = {
-  label: string;
-  href: string;
-};
-
-type NavbarLinksProps = {
-  items: NavItem[];
-  mobile?: boolean;
-};
+import type { NavbarLinksProps } from "@/components/props/layout";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") {

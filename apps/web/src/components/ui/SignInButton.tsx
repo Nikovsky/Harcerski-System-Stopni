@@ -3,17 +3,14 @@
 import { cookies } from "next/headers"
 import { forceReauthCookieName, signIn } from "@/auth"
 import { envServer } from "@/config/env.server"
+import type { SignInButtonProps } from "@/components/props/ui"
 import { Button } from "./Button"
-
-type SignInButtonProps = {
-  locale: string
-}
 
 function normalizeUiLocale(locale: string): "pl" | "en" {
   return locale === "en" ? "en" : "pl"
 }
 
-export function SignInButton({ locale }: SignInButtonProps) {
+export function SignInButton({ locale, label }: SignInButtonProps) {
   const uiLocale = normalizeUiLocale(locale)
   const isSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://")
 
@@ -39,7 +36,7 @@ export function SignInButton({ locale }: SignInButtonProps) {
         })
       }}
     >
-      <Button type="submit">LOGIN</Button>
+      <Button type="submit">{label ?? "LOGIN"}</Button>
     </form>
   )
 }

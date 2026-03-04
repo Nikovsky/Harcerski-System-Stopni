@@ -1,19 +1,7 @@
 // @file: apps/web/src/components/ui/Button.tsx
 "use client";
 
-import type { ComponentPropsWithoutRef } from "react";
-
-type Tone = "main" | "accent";
-
-type Props = ComponentPropsWithoutRef<"button"> & {
-  tone?: Tone;
-  /**
-   * Optional Tailwind color override, e.g.:
-   * "bg-emerald-600 text-white border-emerald-700"
-   * (You can also pass hover:/active: classes if you want.)
-   */
-  colorClass?: string;
-};
+import type { ButtonProps, ButtonTone } from "@/components/props/ui";
 
 const BASE =
   [
@@ -40,7 +28,7 @@ const BASE =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   ].join(" ");
 
-const TONES: Record<Tone, string> = {
+const TONES: Record<ButtonTone, string> = {
   // neutral / “main”
   main: "bg-card text-card-foreground border-border",
   // accent / primary
@@ -53,7 +41,7 @@ export function Button({
   className = "",
   type = "button",
   ...rest
-}: Props) {
+}: ButtonProps) {
   return (
     <button
       {...rest}

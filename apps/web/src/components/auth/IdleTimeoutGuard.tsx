@@ -1,6 +1,7 @@
 // @file: apps/web/src/components/auth/IdleTimeoutGuard.tsx
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@hss/schemas";
 
 import { envPublic } from "@/config/env.client";
+import { Button } from "@/components/ui/Button";
 import { Popup } from "@/components/ui/Popup";
 
 const CHANNEL_NAME = "hss-idle-timeout";
@@ -120,6 +122,7 @@ async function touchSession(extendSeconds?: number): Promise<SessionStatus | nul
 }
 
 export function IdleTimeoutGuard() {
+  const t = useTranslations("common.idleTimeout");
   const pathname = usePathname();
 
   const sessionTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
@@ -242,10 +245,6 @@ export function IdleTimeoutGuard() {
     },
     [applyExpiry, doLogout],
   );
-
-  const stayLoggedIn = useCallback(() => {
-    void touchServerSession();
-  }, [touchServerSession]);
 
   const extendSession = useCallback(() => {
     void touchServerSession(selectedExtendMinutes * 60);
@@ -382,18 +381,18 @@ export function IdleTimeoutGuard() {
   return (
     <>
       {showSessionButton && (
-        <button
+        <Button
           type="button"
+          tone="main"
           onClick={() => setIsDialogOpen(true)}
           className={[
-            "fixed right-5 top-[100px] z-[9900] inline-flex items-center gap-3 rounded-full border px-3 py-2 shadow-lg",
-            "bg-white/95 text-neutral-900 backdrop-blur dark:bg-neutral-900/95 dark:text-neutral-100",
-            "border-neutral-300 dark:border-neutral-700",
+            "fixed right-5 top-100px z-9900 h-auto items-center gap-3 rounded-full px-3 py-2 shadow-lg",
+            "backdrop-blur",
             "transition-colors",
             isUrgent ? "ring-2 ring-red-500/50" : "",
           ].join(" ")}
         >
-          <span className="text-sm font-semibold">SESSJA</span>
+          <span className="text-sm font-semibold">{t("sessionButton")}</span>
           <span
             className={[
               "inline-flex min-w-16 justify-center rounded-full px-2 py-1 text-xs font-semibold tabular-nums",
@@ -404,83 +403,77 @@ export function IdleTimeoutGuard() {
           >
             {timerText}
           </span>
-        </button>
+        </Button>
       )}
 
       {(isDialogOpen || isLoggingOut) && (
-        <Popup onClose={closeDialog} ariaLabel="SESSJA">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">SESSJA</h2>
-                <p className="mt-1 text-sm opacity-90">
-                  Twoja sesja wygaśnie za {timerText}.
+        <Popup
+          onClose={closeDialog}
+          ariaLabel={t("ariaLabel")}
+          closeButtonAriaLabel={t("closeButtonAria")}
+          title={t("title")}
+          disableClose={isLoggingOut}
+          showCloseButton={!isLoggingOut}
+          content={
+            <div className="space-y-2 text-sm">
+              <p className="text-foreground">
+                {t("willExpireIn")}{" "}
+                <span className="font-semibold tabular-nums">{timerText}</span>.
+              </p>
+              {isLoggingOut ? (
+                <p className="text-muted-foreground">{t("loggingOut")}</p>
+              ) : (
+                <p className="text-muted-foreground">
+                  {t("helpText")}
                 </p>
-              </div>
-
-              {!isLoggingOut && (
-                <button
-                  type="button"
-                  onClick={closeDialog}
-                  aria-label="Zamknij"
-                  className="rounded-md border border-white/20 px-2 py-1 text-sm"
-                >
-                  X
-                </button>
               )}
             </div>
-
-            {isLoggingOut ? (
-              <p className="text-sm opacity-90">Wylogowywanie...</p>
-            ) : (
-              <>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="session-extend-select">
-                    Przedłuż sesję o
+          }
+          actions={
+            isLoggingOut ? undefined : (
+              <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <label
+                    className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    htmlFor="session-extend-select"
+                  >
+                    {t("extendLabel")}
                   </label>
                   <select
                     id="session-extend-select"
-                    className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm"
+                    className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={selectedExtendMinutes}
                     onChange={(e) => setSelectedExtendMinutes(Number.parseInt(e.target.value, 10))}
                   >
                     {extendOptionsMinutes.map((min) => (
                       <option key={min} value={min}>
-                        {min} min
+                        {t("minutesOption", { minutes: min })}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="flex items-center justify-end gap-2">
-                  <button
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
                     type="button"
+                    colorClass="bg-red-600 text-white border-red-700"
                     onClick={() => void doLogout("manual")}
-                    className="rounded-md border border-red-400 bg-red-600 px-3 py-2 text-sm font-semibold text-white"
                   >
-                    Wyloguj teraz
-                  </button>
+                    {t("logoutNow")}
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    colorClass="bg-blue-600 text-white border-blue-700"
                     onClick={extendSession}
-                    className="rounded-md border border-blue-400 bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
                   >
-                    Przedłuż sesję
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={stayLoggedIn}
-                    className="rounded-md border border-white/20 px-3 py-2 text-sm font-semibold"
-                  >
-                    Przywróć czas bazowy
-                  </button>
+                    {t("extendSession")}
+                  </Button>
                 </div>
-              </>
-            )}
-          </div>
-        </Popup>
+              </div>
+            )
+          }
+        />
       )}
     </>
   );

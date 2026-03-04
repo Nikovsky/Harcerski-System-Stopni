@@ -1,11 +1,12 @@
 // @file: apps/web/src/components/ui/ThemeControls.tsx
 "use client";
 
+import { useTranslations } from "next-intl";
+import type { ThemeControlsProps } from "@/components/props/ui";
 import { Button } from "@/components/ui/Button";
 import { MoonStars, Sun } from "react-bootstrap-icons";
 
 type AppTheme = "dark" | "light";
-type ThemeControlsVariant = "default" | "icon";
 
 const THEME_COOKIE_NAME = "ui_theme";
 
@@ -52,7 +53,9 @@ function resolveCurrentTheme(): AppTheme {
   return resolveInitialTheme();
 }
 
-export function ThemeControls({ variant = "default" }: { variant?: ThemeControlsVariant }) {
+export function ThemeControls({ variant = "default" }: ThemeControlsProps) {
+  const t = useTranslations("common.theme");
+
   function toggleTheme() {
     const current = resolveCurrentTheme();
     const next: AppTheme = current === "dark" ? "light" : "dark";
@@ -65,8 +68,8 @@ export function ThemeControls({ variant = "default" }: { variant?: ThemeControls
         onClick={toggleTheme}
         className="inline-flex h-8 w-8 items-center justify-center rounded border border-border p-0 text-sm"
         type="button"
-        aria-label="Toggle theme"
-        title="Toggle theme"
+        aria-label={t("toggle")}
+        title={t("toggle")}
       >
         <MoonStars size={16} className="theme-toggle__moon shrink-0" />
         <Sun size={16} className="theme-toggle__sun shrink-0" />
@@ -80,13 +83,13 @@ export function ThemeControls({ variant = "default" }: { variant?: ThemeControls
         onClick={toggleTheme}
         className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm"
         type="button"
-        aria-label="Toggle theme"
-        title="Toggle theme"
+        aria-label={t("toggle")}
+        title={t("toggle")}
       >
         <MoonStars size={16} className="theme-toggle__moon shrink-0" />
         <Sun size={16} className="theme-toggle__sun shrink-0" />
-        <span className="theme-toggle__label-dark">Dark</span>
-        <span className="theme-toggle__label-light">Light</span>
+        <span className="theme-toggle__label-dark">{t("dark")}</span>
+        <span className="theme-toggle__label-light">{t("light")}</span>
       </Button>
     </div>
   );
