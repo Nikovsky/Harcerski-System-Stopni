@@ -12,7 +12,10 @@ type ProfileCheck = {
   missingFields: string[];
 };
 
-export default async function ApplicationsPage() {
+type Props = { params: Promise<{ locale: string }> };
+
+export default async function ApplicationsPage({ params }: Props) {
+  const { locale } = await params;
   const t = await getTranslations("applications");
 
   const [applications, profile] = await Promise.all([
@@ -29,7 +32,7 @@ export default async function ApplicationsPage() {
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         {profileComplete ? (
           <Link
-            href="/applications/new"
+            href={`/${locale}/applications/new`}
             className={`${IA_BUTTON_PRIMARY_MD} font-medium`}
           >
             {t("newApplication")}
@@ -48,7 +51,7 @@ export default async function ApplicationsPage() {
         <div className="mb-6 rounded-lg border border-orange-300 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-950/30">
           <p className="mb-2 font-medium text-orange-800 dark:text-orange-300">
             {t("profileIncomplete.prefix")} {" "}
-            <Link href="/dashboard" className="underline hover:no-underline">
+            <Link href={`/${locale}/dashboard`} className="underline hover:no-underline">
               {t("profileIncomplete.dashboard")}
             </Link>
             :

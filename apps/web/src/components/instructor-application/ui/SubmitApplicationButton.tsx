@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
@@ -16,6 +16,7 @@ export function SubmitApplicationButton({
   requirements: RequirementRowResponse[];
 }) {
   const t = useTranslations("applications");
+  const locale = useLocale();
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -76,7 +77,7 @@ export function SubmitApplicationButton({
     try {
       await apiFetch(`instructor-applications/${applicationId}/submit`, { method: "POST" });
       setShowConfirm(false);
-      router.push("/applications");
+      router.push(`/${locale}/applications`);
     } catch (err) {
       setShowConfirm(false);
       if (err instanceof ApiError && err.code === "APPLICATION_INCOMPLETE" && err.missingFields) {

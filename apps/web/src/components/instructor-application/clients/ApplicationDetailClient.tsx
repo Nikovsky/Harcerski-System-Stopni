@@ -72,7 +72,7 @@ export function ApplicationDetailClient({ app, id }: Props) {
           )}
           {isEditable && (
             <Link
-              href={`/applications/${id}/edit`}
+              href={`/${locale}/applications/${id}/edit`}
               className={IA_BUTTON_PRIMARY_MD}
             >
               {t("actions.edit")}

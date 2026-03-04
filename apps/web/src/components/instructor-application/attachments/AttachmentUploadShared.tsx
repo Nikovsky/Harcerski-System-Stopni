@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/instructor-application/attachments/AttachmentUploadShared.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { AttachmentUploadButton } from "@/components/instructor-application/attachments/AttachmentUploadButton";
@@ -37,6 +37,10 @@ export function AttachmentUploadShared({
     clearUploadError,
     uploadAttachment,
   } = useAttachmentUpload(applicationId, { requirementUuid, isHufcowyPresence });
+
+  useEffect(() => {
+    setAttachments(initialAttachments);
+  }, [initialAttachments]);
 
   async function handleDelete(attachmentId: string) {
     setDeletingId(attachmentId);

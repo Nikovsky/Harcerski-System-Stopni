@@ -8,10 +8,10 @@ import { EditApplicationClient } from "@/components/instructor-application/clien
 import { isInstructorApplicationEditable } from "@hss/schemas";
 import type { InstructorApplicationDetail } from "@hss/schemas";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ locale: string; id: string }> };
 
 export default async function EditApplicationPage({ params }: Props) {
-  const { id } = await params;
+  const { id, locale } = await params;
 
   let app: InstructorApplicationDetail;
   try {
@@ -22,7 +22,7 @@ export default async function EditApplicationPage({ params }: Props) {
   }
 
   if (!isInstructorApplicationEditable(app.status)) {
-    redirect(`/applications/${id}`);
+    redirect(`/${locale}/applications/${id}`);
   }
 
   return <EditApplicationClient initialApp={app} id={id} />;
