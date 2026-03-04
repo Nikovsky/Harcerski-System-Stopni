@@ -2,23 +2,26 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
 import { ApplicationStatusBadge } from "./ApplicationStatusBadge";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
+import { DeleteDraftButton } from "@/components/instructor-application/ui/DeleteDraftButton";
 import { isInstructorApplicationEditable } from "@hss/schemas";
 import type { InstructorApplicationListItem } from "@hss/schemas";
 
 export function ApplicationCard({ app }: { app: InstructorApplicationListItem }) {
   const t = useTranslations("applications");
+  const locale = useLocale();
   const translatedDegreeKey = degreeKey(app.degreeCode);
   const translatedStatusKey = statusKey(app.status);
   const statusLabel = translatedStatusKey ? t(translatedStatusKey) : app.status;
 
   const isEditable = isInstructorApplicationEditable(app.status);
+  const isDraft = app.status === "DRAFT";
 
   return (
     <div className="rounded-lg border border-border bg-background p-4 shadow-sm transition hover:shadow-md">
@@ -36,15 +39,23 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
         </div>
         <div className="flex gap-2">
           {isEditable ? (
-            <Link
-              href={`/applications/${app.uuid}/edit`}
-              className={IA_BUTTON_PRIMARY_SM}
-            >
-              {t("actions.edit")}
-            </Link>
+            <>
+              <Link
+                href={`/${locale}/applications/${app.uuid}/edit`}
+                className={IA_BUTTON_PRIMARY_SM}
+              >
+                {t("actions.edit")}
+              </Link>
+              {isDraft && (
+                <DeleteDraftButton
+                  applicationId={app.uuid}
+                  mode="list"
+                />
+              )}
+            </>
           ) : (
             <Link
-              href={`/applications/${app.uuid}`}
+              href={`/${locale}/applications/${app.uuid}`}
               className={IA_BUTTON_SECONDARY_SM}
             >
               {t("actions.view")}

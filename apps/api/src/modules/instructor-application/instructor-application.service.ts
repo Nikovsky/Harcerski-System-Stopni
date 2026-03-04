@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { InstructorAttachmentService } from '@/modules/instructor-application/instructor-attachment.service';
 import { InstructorApplicationValidationService } from '@/modules/instructor-application/instructor-application-validation.service';
 import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
+import { StorageService } from '@/modules/storage/storage.service';
 import type { AuthPrincipal } from '@hss/schemas';
 import { isInstructorApplicationEditable } from '@hss/schemas';
 import type {
@@ -89,6 +90,7 @@ export class InstructorApplicationService {
     private readonly attachmentService: InstructorAttachmentService,
     private readonly validationService: InstructorApplicationValidationService,
     private readonly auditService: InstructorApplicationAuditService,
+    private readonly storage: StorageService,
   ) {}
 
   // ── Profile check ─────────────────────────────────────────────────────────
@@ -433,72 +435,104 @@ export class InstructorApplicationService {
     dto: UpdateInstructorApplication,
     requestId?: string | null,
   ) {
-    const app = await this.ensureOwnDraft(principal, applicationId);
-    const beforeAuditSnapshot = await this.prisma.instructorApplication.findUnique({
-      where: { uuid: app.uuid },
-      select: INSTRUCTOR_APPLICATION_AUDIT_SELECT,
-    });
-    if (!beforeAuditSnapshot) {
-      throw new NotFoundException('Application not found');
-    }
+    const { beforeAuditSnapshot, updated } = await this.prisma.$transaction(
+      async (tx) => {
+        await this.lockApplicationRow(tx, applicationId);
 
-    const updated = await this.prisma.instructorApplication.update({
-      where: { uuid: app.uuid },
-      select: INSTRUCTOR_APPLICATION_UPDATE_SELECT,
-      data: {
-        ...(dto.plannedFinishAt !== undefined && {
-          plannedFinishAt: dto.plannedFinishAt
-            ? new Date(dto.plannedFinishAt)
-            : null,
-        }),
-        ...(dto.teamFunction !== undefined && {
-          teamFunction: dto.teamFunction,
-        }),
-        ...(dto.hufiecFunction !== undefined && {
-          hufiecFunction: dto.hufiecFunction,
-        }),
-        ...(dto.openTrialForRank !== undefined && {
-          openTrialForRank: dto.openTrialForRank,
-        }),
-        ...(dto.openTrialDeadline !== undefined && {
-          openTrialDeadline: dto.openTrialDeadline
-            ? new Date(dto.openTrialDeadline)
-            : null,
-        }),
-        ...(dto.hufcowyPresence !== undefined && {
-          hufcowyPresence: dto.hufcowyPresence,
-          ...(dto.hufcowyPresence !== 'ATTACHMENT_OPINION' && {
-            hufcowyPresenceAttachmentUuid: null,
-          }),
-        }),
-        ...(dto.functionsHistory !== undefined && {
-          functionsHistory: dto.functionsHistory,
-        }),
-        ...(dto.coursesHistory !== undefined && {
-          coursesHistory: dto.coursesHistory,
-        }),
-        ...(dto.campsHistory !== undefined && {
-          campsHistory: dto.campsHistory,
-        }),
-        ...(dto.successes !== undefined && { successes: dto.successes }),
-        ...(dto.failures !== undefined && { failures: dto.failures }),
-        ...(dto.supervisorFirstName !== undefined && {
-          supervisorFirstName: dto.supervisorFirstName,
-        }),
-        ...(dto.supervisorSecondName !== undefined && {
-          supervisorSecondName: dto.supervisorSecondName,
-        }),
-        ...(dto.supervisorSurname !== undefined && {
-          supervisorSurname: dto.supervisorSurname,
-        }),
-        ...(dto.supervisorInstructorRank !== undefined && {
-          supervisorInstructorRank: dto.supervisorInstructorRank,
-        }),
-        ...(dto.supervisorInstructorFunction !== undefined && {
-          supervisorInstructorFunction: dto.supervisorInstructorFunction,
-        }),
+        const ownedApp = await tx.instructorApplication.findUnique({
+          where: { uuid: applicationId },
+          select: {
+            uuid: true,
+            status: true,
+            candidate: {
+              select: {
+                keycloakUuid: true,
+              },
+            },
+          },
+        });
+        if (!ownedApp) {
+          throw new NotFoundException('Application not found');
+        }
+        if (ownedApp.candidate.keycloakUuid !== principal.sub) {
+          throw new ForbiddenException();
+        }
+        if (!isInstructorApplicationEditable(ownedApp.status)) {
+          throw new BadRequestException({
+            code: 'APPLICATION_NOT_EDITABLE',
+            message: 'Application is not editable',
+          });
+        }
+
+        const beforeAuditSnapshot = await tx.instructorApplication.findUnique({
+          where: { uuid: ownedApp.uuid },
+          select: INSTRUCTOR_APPLICATION_AUDIT_SELECT,
+        });
+        if (!beforeAuditSnapshot) {
+          throw new NotFoundException('Application not found');
+        }
+
+        const updated = await tx.instructorApplication.update({
+          where: { uuid: ownedApp.uuid },
+          select: INSTRUCTOR_APPLICATION_UPDATE_SELECT,
+          data: {
+            ...(dto.plannedFinishAt !== undefined && {
+              plannedFinishAt: dto.plannedFinishAt
+                ? new Date(dto.plannedFinishAt)
+                : null,
+            }),
+            ...(dto.teamFunction !== undefined && {
+              teamFunction: dto.teamFunction,
+            }),
+            ...(dto.hufiecFunction !== undefined && {
+              hufiecFunction: dto.hufiecFunction,
+            }),
+            ...(dto.openTrialForRank !== undefined && {
+              openTrialForRank: dto.openTrialForRank,
+            }),
+            ...(dto.openTrialDeadline !== undefined && {
+              openTrialDeadline: dto.openTrialDeadline
+                ? new Date(dto.openTrialDeadline)
+                : null,
+            }),
+            ...(dto.hufcowyPresence !== undefined && {
+              hufcowyPresence: dto.hufcowyPresence,
+              ...(dto.hufcowyPresence !== 'ATTACHMENT_OPINION' && {
+                hufcowyPresenceAttachmentUuid: null,
+              }),
+            }),
+            ...(dto.functionsHistory !== undefined && {
+              functionsHistory: dto.functionsHistory,
+            }),
+            ...(dto.coursesHistory !== undefined && {
+              coursesHistory: dto.coursesHistory,
+            }),
+            ...(dto.campsHistory !== undefined && {
+              campsHistory: dto.campsHistory,
+            }),
+            ...(dto.successes !== undefined && { successes: dto.successes }),
+            ...(dto.failures !== undefined && { failures: dto.failures }),
+            ...(dto.supervisorFirstName !== undefined && {
+              supervisorFirstName: dto.supervisorFirstName,
+            }),
+            ...(dto.supervisorSecondName !== undefined && {
+              supervisorSecondName: dto.supervisorSecondName,
+            }),
+            ...(dto.supervisorSurname !== undefined && {
+              supervisorSurname: dto.supervisorSurname,
+            }),
+            ...(dto.supervisorInstructorRank !== undefined && {
+              supervisorInstructorRank: dto.supervisorInstructorRank,
+            }),
+            ...(dto.supervisorInstructorFunction !== undefined && {
+              supervisorInstructorFunction: dto.supervisorInstructorFunction,
+            }),
+          },
+        });
+
+        return { beforeAuditSnapshot, updated };
       },
-    });
+    );
     const fieldChanges = this.buildApplicationFieldChanges(
       beforeAuditSnapshot,
       updated,
@@ -532,6 +566,8 @@ export class InstructorApplicationService {
     requestId?: string | null,
   ) {
     const submittedApplication = await this.prisma.$transaction(async (tx) => {
+      await this.lockApplicationRow(tx, applicationId);
+
       // All checks inside transaction to prevent TOCTOU race conditions
       const fullApp = await tx.instructorApplication.findUnique({
         where: { uuid: applicationId },
@@ -546,7 +582,10 @@ export class InstructorApplicationService {
       if (fullApp.candidate.keycloakUuid !== principal.sub)
         throw new ForbiddenException();
       if (!isInstructorApplicationEditable(fullApp.status)) {
-        throw new BadRequestException('Application is not editable');
+        throw new BadRequestException({
+          code: 'APPLICATION_NOT_EDITABLE',
+          message: 'Application is not editable',
+        });
       }
 
       this.ensureCompleteProfileForWrite(fullApp.candidate);
@@ -555,15 +594,22 @@ export class InstructorApplicationService {
       this.validationService.validateRequiredFieldsForSubmit(fullApp);
 
       // Count existing snapshots inside transaction
-      const snapshotCount = await tx.instructorApplicationSnapshot.count({
+      const latestSnapshot = await tx.instructorApplicationSnapshot.findFirst({
         where: { applicationUuid: applicationId },
+        orderBy: {
+          revision: 'desc',
+        },
+        select: {
+          revision: true,
+        },
       });
+      const nextRevision = (latestSnapshot?.revision ?? 0) + 1;
 
       // Create snapshot
       await tx.instructorApplicationSnapshot.create({
         data: {
           applicationUuid: fullApp.uuid,
-          revision: snapshotCount + 1,
+          revision: nextRevision,
           templateUuid: fullApp.template.uuid,
           templateVersion: fullApp.template.version,
           candidateSnapshot: {
@@ -648,21 +694,87 @@ export class InstructorApplicationService {
     applicationId: string,
     requestId?: string | null,
   ) {
-    const app = await this.ensureOwnDraft(principal, applicationId);
+    const {
+      deletedApplicationUuid,
+      deletedAttachmentKeys,
+      deletedAttachmentCount,
+    } = await this.prisma.$transaction(async (tx) => {
+      await this.lockApplicationRow(tx, applicationId);
 
-    await this.prisma.instructorApplication.delete({
-      where: { uuid: app.uuid },
+      const ownedApp = await tx.instructorApplication.findUnique({
+        where: { uuid: applicationId },
+        select: {
+          uuid: true,
+          status: true,
+          candidate: {
+            select: {
+              keycloakUuid: true,
+            },
+          },
+          attachments: {
+            select: {
+              objectKey: true,
+            },
+          },
+        },
+      });
+      if (!ownedApp) {
+        throw new NotFoundException('Application not found');
+      }
+      if (ownedApp.candidate.keycloakUuid !== principal.sub) {
+        throw new ForbiddenException();
+      }
+      if (ownedApp.status !== ApplicationStatus.DRAFT) {
+        throw new BadRequestException({
+          code: 'APPLICATION_NOT_DRAFT',
+          message: 'Only draft applications can be deleted',
+        });
+      }
+
+      await tx.meetingRegistration.deleteMany({
+        where: { instructorApplicationUuid: ownedApp.uuid },
+      });
+
+      const deletedAttachments = await tx.attachment.deleteMany({
+        where: { instructorApplicationUuid: ownedApp.uuid },
+      });
+
+      await tx.instructorApplication.delete({
+        where: { uuid: ownedApp.uuid },
+      });
+
+      return {
+        deletedApplicationUuid: ownedApp.uuid,
+        deletedAttachmentKeys: ownedApp.attachments.map(
+          (attachment) => attachment.objectKey,
+        ),
+        deletedAttachmentCount: deletedAttachments.count,
+      };
     });
+
+    let failedStorageDeleteCount = 0;
+    for (const objectKey of deletedAttachmentKeys) {
+      try {
+        await this.storage.deleteObject(objectKey);
+      } catch {
+        // DB is already cleaned. If storage deletion fails, nightly orphan cleanup will retry.
+        failedStorageDeleteCount += 1;
+      }
+    }
 
     await this.auditService.log({
       principal,
       action: 'INSTRUCTOR_APPLICATION_DELETED',
       targetType: 'INSTRUCTOR_APPLICATION',
-      targetUuid: app.uuid,
+      targetUuid: deletedApplicationUuid,
       requestId,
+      metadata: {
+        deletedAttachmentCount,
+        failedStorageDeleteCount,
+      },
     });
 
-    return { uuid: app.uuid };
+    return { uuid: deletedApplicationUuid };
   }
 
   // ── Update requirement ───────────────────────────────────────────────────
@@ -673,27 +785,6 @@ export class InstructorApplicationService {
     dto: UpdateInstructorRequirement,
     requestId?: string | null,
   ) {
-    await this.ensureOwnDraft(principal, applicationId);
-
-    const req = await this.prisma.instructorApplicationRequirement.findUnique({
-      where: { uuid: requirementId },
-      select: {
-        uuid: true,
-        applicationUuid: true,
-        state: true,
-        actionDescription: true,
-        verificationText: true,
-        requirementDefinition: {
-          select: {
-            code: true,
-          },
-        },
-      },
-    });
-    if (!req || req.applicationUuid !== applicationId) {
-      throw new NotFoundException('Requirement not found');
-    }
-
     if (!dto.actionDescription?.trim()) {
       throw new BadRequestException(
         'Opis realizacji zadania jest wymagany.',
@@ -709,26 +800,77 @@ export class InstructorApplicationService {
     const actionDescription = dto.actionDescription.trim();
     const verificationText = dto.verificationText.trim();
 
-    const updatedRequirement =
-      await this.prisma.instructorApplicationRequirement.update({
-        where: { uuid: requirementId },
-        select: {
-          uuid: true,
-          state: true,
-          actionDescription: true,
-          verificationText: true,
-          requirementDefinition: {
-            select: {
-              code: true,
+    const { req, updatedRequirement } = await this.prisma.$transaction(
+      async (tx) => {
+        await this.lockApplicationRow(tx, applicationId);
+
+        const ownedApp = await tx.instructorApplication.findUnique({
+          where: { uuid: applicationId },
+          select: {
+            status: true,
+            candidate: {
+              select: {
+                keycloakUuid: true,
+              },
             },
           },
-        },
-        data: {
-          state: dto.state as RequirementState,
-          actionDescription,
-          verificationText,
-        },
-      });
+        });
+        if (!ownedApp) {
+          throw new NotFoundException('Application not found');
+        }
+        if (ownedApp.candidate.keycloakUuid !== principal.sub) {
+          throw new ForbiddenException();
+        }
+        if (!isInstructorApplicationEditable(ownedApp.status)) {
+          throw new BadRequestException({
+            code: 'APPLICATION_NOT_EDITABLE',
+            message: 'Application is not editable',
+          });
+        }
+
+        const req = await tx.instructorApplicationRequirement.findUnique({
+          where: { uuid: requirementId },
+          select: {
+            uuid: true,
+            applicationUuid: true,
+            state: true,
+            actionDescription: true,
+            verificationText: true,
+            requirementDefinition: {
+              select: {
+                code: true,
+              },
+            },
+          },
+        });
+        if (!req || req.applicationUuid !== applicationId) {
+          throw new NotFoundException('Requirement not found');
+        }
+
+        const updatedRequirement =
+          await tx.instructorApplicationRequirement.update({
+            where: { uuid: requirementId },
+            select: {
+              uuid: true,
+              state: true,
+              actionDescription: true,
+              verificationText: true,
+              requirementDefinition: {
+                select: {
+                  code: true,
+                },
+              },
+            },
+            data: {
+              state: dto.state as RequirementState,
+              actionDescription,
+              verificationText,
+            },
+          });
+
+        return { req, updatedRequirement };
+      },
+    );
 
     await this.auditService.log({
       principal,
@@ -957,24 +1099,17 @@ export class InstructorApplicationService {
     return existing?.uuid ?? null;
   }
 
-  private async ensureOwnDraft(
-    principal: AuthPrincipal,
+  private async lockApplicationRow(
+    tx: Prisma.TransactionClient,
     applicationId: string,
-  ) {
-    const app = await this.prisma.instructorApplication.findUnique({
-      where: { uuid: applicationId },
-      include: {
-        candidate: {
-          select: { keycloakUuid: true },
-        },
-      },
-    });
-    if (!app) throw new NotFoundException('Application not found');
-    if (app.candidate.keycloakUuid !== principal.sub)
-      throw new ForbiddenException();
-    if (!isInstructorApplicationEditable(app.status)) {
-      throw new BadRequestException('Application is not editable');
-    }
-    return app;
+  ): Promise<void> {
+    await tx.$executeRaw(
+      Prisma.sql`
+        SELECT 1
+          FROM "InstructorApplication"
+         WHERE "uuid" = ${applicationId}::uuid
+         FOR UPDATE
+      `,
+    );
   }
 }

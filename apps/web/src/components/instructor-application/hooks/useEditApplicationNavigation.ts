@@ -7,6 +7,12 @@ import {
   RequirementValidationError,
   type RequirementFlushHandler,
 } from "@/components/instructor-application/requirements/requirement-form.types";
+import {
+  BASIC_DEGREES,
+  INSTRUCTOR_RANK_VALUES,
+  PRESENCE_VALUES,
+  SCOUT_RANK_VALUES,
+} from "@/components/instructor-application/instructor-application.constants";
 import type {
   InstructorApplicationDetail,
   RequirementRowResponse,
@@ -17,25 +23,6 @@ type Params = {
   initialApp: InstructorApplicationDetail;
   id: string;
 };
-
-const SCOUT_RANK_VALUES = [
-  "MLODZIK",
-  "WYWIADOWCA",
-  "CWIK",
-  "HARCERZ_ORLI",
-  "HARCERZ_RZECZYPOSPOLITEJ",
-] as const;
-
-const PRESENCE_VALUES = ["IN_PERSON", "REMOTE", "ATTACHMENT_OPINION"] as const;
-
-const INSTRUCTOR_RANK_VALUES = [
-  "PRZEWODNIK",
-  "PODHARCMISTRZ_OTWARTA_PROBA",
-  "PODHARCMISTRZ",
-  "HARCMISTRZ",
-] as const;
-
-const BASIC_DEGREES = new Set(["PWD", "PHM"]);
 
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);

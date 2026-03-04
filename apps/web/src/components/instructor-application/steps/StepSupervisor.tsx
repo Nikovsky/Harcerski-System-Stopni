@@ -4,15 +4,10 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Field, StepNav } from "@/components/instructor-application/steps/shared";
+import { INSTRUCTOR_RANK_VALUES as SUPERVISOR_INSTRUCTOR_RANK_VALUES } from "@/components/instructor-application/instructor-application.constants";
 import type { InstructorApplicationDetail, UpdateInstructorApplication } from "@hss/schemas";
 
 const SUPERVISOR_FUNCTION_PRESETS = ["DRUZYNOWY", "OPIEKUN_DRUZYNY"] as const;
-const SUPERVISOR_INSTRUCTOR_RANK_VALUES = [
-  "PRZEWODNIK",
-  "PODHARCMISTRZ_OTWARTA_PROBA",
-  "PODHARCMISTRZ",
-  "HARCMISTRZ",
-] as const;
 
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
