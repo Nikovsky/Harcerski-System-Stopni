@@ -15,9 +15,11 @@ export function NewApplicationClient({ templates }: Props) {
   const locale = useLocale();
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function handleCreate(templateUuid: string) {
     setIsPending(true);
+    setCreateError(null);
     try {
       const data = await apiFetch<{ uuid: string }>("instructor-applications", {
         method: "POST",
@@ -29,7 +31,7 @@ export function NewApplicationClient({ templates }: Props) {
         router.push(`/${locale}/applications/${err.existingUuid}/edit`);
         return;
       }
-      console.error("Create application error:", err);
+      setCreateError(err instanceof ApiError ? err.message : t("messages.createError"));
     } finally {
       setIsPending(false);
     }
@@ -38,6 +40,15 @@ export function NewApplicationClient({ templates }: Props) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold">{t("selectTemplate")}</h1>
+
+      {createError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-700 dark:bg-red-950/30 dark:text-red-300"
+        >
+          {createError}
+        </div>
+      )}
 
       <div className="space-y-3">
         {templates.map((tmpl) => {

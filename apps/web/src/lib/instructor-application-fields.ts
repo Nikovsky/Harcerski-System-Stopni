@@ -34,8 +34,9 @@ const REQUIREMENT_FIELD_REGEX = /^requirement_(.+)_(actionDescription|verificati
 export function getFieldLabel(
   field: string,
   t: FieldLabelTranslator,
-  requirements?: RequirementRowResponse[],
+  _requirements?: RequirementRowResponse[],
 ): string {
+  void _requirements;
   const requirementMatch = REQUIREMENT_FIELD_REGEX.exec(field);
   if (requirementMatch) {
     const requirementCode = requirementMatch[1];

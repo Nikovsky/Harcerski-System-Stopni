@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/instructor-application/ui/SubmitApplicationButton.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -21,6 +21,55 @@ export function SubmitApplicationButton({
   const [isPending, setIsPending] = useState(false);
   const [missingFields, setMissingFields] = useState<string[] | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  const titleId = `submit-application-title-${applicationId}`;
+  const descriptionId = `submit-application-description-${applicationId}`;
+
+  useEffect(() => {
+    if (!showConfirm) return;
+
+    lastActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    cancelButtonRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowConfirm(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const root = dialogRef.current;
+      if (!root) return;
+
+      const focusable = root.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      lastActiveElementRef.current?.focus();
+    };
+  }, [showConfirm]);
 
   async function handleSubmit() {
     setIsPending(true);
@@ -54,14 +103,20 @@ export function SubmitApplicationButton({
 
       {/* Generic error */}
       {genericError && (
-        <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30">
+        <div
+          role="alert"
+          className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30"
+        >
           <p className="text-sm font-medium text-red-800 dark:text-red-300">{genericError}</p>
         </div>
       )}
 
       {/* Missing fields error */}
       {missingFields && (
-        <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30">
+        <div
+          role="alert"
+          className="mt-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30"
+        >
           <p className="mb-2 text-sm font-medium text-red-800 dark:text-red-300">
             {t("messages.incompleteFields")}
           </p>
@@ -76,11 +131,19 @@ export function SubmitApplicationButton({
       {/* Confirm dialog */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-background p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold">{t("confirm.submitTitle")}</h3>
-            <p className="mb-4 text-sm text-foreground/70">{t("confirm.submitMessage")}</p>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
+            className="mx-4 w-full max-w-md rounded-lg bg-background p-6 shadow-xl"
+          >
+            <h3 id={titleId} className="mb-2 text-lg font-semibold">{t("confirm.submitTitle")}</h3>
+            <p id={descriptionId} className="mb-4 text-sm text-foreground/70">{t("confirm.submitMessage")}</p>
             <div className="flex justify-end gap-2">
               <button
+                ref={cancelButtonRef}
                 type="button"
                 onClick={() => setShowConfirm(false)}
                 className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
@@ -88,6 +151,7 @@ export function SubmitApplicationButton({
                 {t("confirm.submitCancel")}
               </button>
               <button
+                ref={confirmButtonRef}
                 type="button"
                 onClick={handleSubmit}
                 disabled={isPending}

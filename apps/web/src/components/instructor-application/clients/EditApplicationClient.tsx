@@ -23,6 +23,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
     app,
     isSaving,
     navigationMissingFields,
+    navigationError,
     step,
     updateDraft,
     requirementFlushRef,
@@ -68,6 +69,15 @@ export function EditApplicationClient({ initialApp, id }: Props) {
               <li key={field}>{getFieldLabel(field, t, app.requirements)}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {navigationError && (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-700 dark:bg-red-950/30 dark:text-red-300"
+        >
+          {navigationError}
         </div>
       )}
 

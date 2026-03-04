@@ -10,6 +10,8 @@ import { RequirementForm } from "@/components/instructor-application/requirement
 import {
   ApplicationDetailTabsNav,
   type ApplicationDetailTab,
+  applicationDetailPanelId,
+  applicationDetailTabId,
 } from "@/components/instructor-application/detail-tabs/ApplicationDetailTabsNav";
 import {
   IA_BUTTON_PRIMARY_MD,
@@ -37,6 +39,8 @@ export function ApplicationDetailClient({ app, id }: Props) {
   const degreeTitle = translatedDegreeKey ? t(translatedDegreeKey) : app.template.degreeCode;
   const translatedStatusKey = statusKey(app.status);
   const statusLabel = translatedStatusKey ? t(translatedStatusKey) : app.status;
+  const panelId = applicationDetailPanelId(tab);
+  const tabId = applicationDetailTabId(tab);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -83,14 +87,16 @@ export function ApplicationDetailClient({ app, id }: Props) {
 
       <ApplicationDetailTabsNav tab={tab} onChange={setTab} />
 
-      {/* Tab content */}
-      {tab === "basicInfo" && <TabBasicInfo app={app} />}
-      {tab === "serviceHistory" && <TabServiceHistory app={app} />}
-      {tab === "supervisor" && <TabSupervisor app={app} />}
-      {tab === "requirements" && (
-        <RequirementForm applicationId={id} requirements={app.requirements} groupDefinitions={app.template.groupDefinitions} readOnly />
-      )}
-      {tab === "attachments" && <TabAttachments app={app} applicationId={id} />}
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId} tabIndex={0} className="outline-none">
+        {/* Tab content */}
+        {tab === "basicInfo" && <TabBasicInfo app={app} />}
+        {tab === "serviceHistory" && <TabServiceHistory app={app} />}
+        {tab === "supervisor" && <TabSupervisor app={app} />}
+        {tab === "requirements" && (
+          <RequirementForm applicationId={id} requirements={app.requirements} groupDefinitions={app.template.groupDefinitions} readOnly />
+        )}
+        {tab === "attachments" && <TabAttachments app={app} applicationId={id} />}
+      </div>
     </div>
   );
 }

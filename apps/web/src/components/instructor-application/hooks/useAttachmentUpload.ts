@@ -55,11 +55,14 @@ export function useAttachmentUpload(
           },
         );
 
-        await fetch(url, {
+        const uploadResponse = await fetch(url, {
           method: "PUT",
           headers: { "Content-Type": resolvedContentType },
           body: file,
         });
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload to object storage failed with status ${uploadResponse.status}`);
+        }
 
         const confirmed = await apiFetch<AttachmentResponse>(
           `instructor-applications/${applicationId}/attachments/confirm`,

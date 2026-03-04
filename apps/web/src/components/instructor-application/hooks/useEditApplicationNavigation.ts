@@ -2,8 +2,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch } from "@/lib/api";
-import { RequirementValidationError } from "@/components/instructor-application/requirements/requirement-form.types";
+import { apiFetch, ApiError } from "@/lib/api";
+import {
+  RequirementValidationError,
+  type RequirementFlushHandler,
+} from "@/components/instructor-application/requirements/requirement-form.types";
 import type {
   InstructorApplicationDetail,
   RequirementRowResponse,
@@ -159,6 +162,39 @@ function collectMissingFieldsBeforeStep(
   return [...allMissing];
 }
 
+function scrollToTop(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function focusFirstMissingField(missingFields: string[]): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const firstField = missingFields[0];
+  if (!firstField) {
+    scrollToTop();
+    return;
+  }
+
+  const fieldElements = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-field]"),
+  );
+  const fieldElement = fieldElements.find(
+    (element) => element.dataset.field === firstField,
+  );
+
+  if (fieldElement) {
+    fieldElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    fieldElement.focus({ preventScroll: true });
+    return;
+  }
+
+  scrollToTop();
+}
+
 function extractStepDataFromDraft(
   currentStep: number,
   draft: InstructorApplicationDetail,
@@ -216,8 +252,9 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
   const [navigationMissingFields, setNavigationMissingFields] = useState<string[]>(
     [],
   );
+  const [navigationError, setNavigationError] = useState<string | null>(null);
 
-  const requirementFlushRef = useRef<(() => Promise<void>) | null>(null);
+  const requirementFlushRef = useRef<RequirementFlushHandler | null>(null);
   const stepRef = useRef(step);
   const appRef = useRef(app);
   const persistedAppRef = useRef(initialApp);
@@ -242,6 +279,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
       return next;
     });
     setNavigationMissingFields([]);
+    setNavigationError(null);
   }, []);
 
   const getChangedPatchData = useCallback(
@@ -290,8 +328,10 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
             // Refresh before validation so we do not validate against stale data.
             shouldRefetch = true;
           }
-        } else if (currentStep === 3 && movingForward && requirementFlushRef.current) {
-          await requirementFlushRef.current();
+        } else if (currentStep === 3 && requirementFlushRef.current) {
+          await requirementFlushRef.current({
+            mode: movingForward ? "strict" : "lenient",
+          });
           shouldRefetch = true;
         }
 
@@ -310,18 +350,28 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           );
           if (missingFields.length > 0) {
             setNavigationMissingFields(missingFields);
+            setNavigationError(null);
+            focusFirstMissingField(missingFields);
             return;
           }
         }
         setNavigationMissingFields([]);
+        setNavigationError(null);
       } catch (error: unknown) {
         if (error instanceof RequirementValidationError) {
-          if (error.field) {
-            setNavigationMissingFields([error.field]);
-          }
+          const missingFields = error.field ? [error.field] : [];
+          setNavigationMissingFields(missingFields);
+          focusFirstMissingField(missingFields);
+          setNavigationError(error.message);
           return;
         }
         setNavigationMissingFields([]);
+        setNavigationError(
+          error instanceof ApiError
+            ? error.message
+            : "Nie udało się zapisać zmian. Spróbuj ponownie.",
+        );
+        scrollToTop();
         return;
       } finally {
         isSavingRef.current = false;
@@ -338,6 +388,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     app,
     isSaving,
     navigationMissingFields,
+    navigationError,
     step,
     setStep,
     updateDraft,
