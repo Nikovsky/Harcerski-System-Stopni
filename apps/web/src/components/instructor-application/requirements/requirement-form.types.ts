@@ -21,14 +21,30 @@ export type GroupDefinition = {
   parentId: string | null;
 };
 
-export type FlushRegistry = MutableRefObject<Map<string, () => Promise<void>>>;
+export type RequirementFlushMode = "strict" | "lenient";
+
+export type RequirementFlushOptions = {
+  mode?: RequirementFlushMode;
+};
+
+export type RequirementRowFlushHandler = (
+  options?: RequirementFlushOptions,
+) => Promise<void>;
+
+export type RequirementFlushHandler = (
+  options?: RequirementFlushOptions,
+) => Promise<void>;
+
+export type FlushRegistry = MutableRefObject<
+  Map<string, RequirementRowFlushHandler>
+>;
 
 export type RequirementFormProps = {
   applicationId: string;
   requirements: RequirementRowResponse[];
   groupDefinitions?: GroupDefinition[];
   readOnly?: boolean;
-  flushRef?: MutableRefObject<(() => Promise<void>) | null>;
+  flushRef?: MutableRefObject<RequirementFlushHandler | null>;
 };
 
 export type TopEntry =

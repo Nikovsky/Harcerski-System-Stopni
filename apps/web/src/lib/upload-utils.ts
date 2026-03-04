@@ -20,11 +20,10 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
-  doc: "application/x-cfb",
-  docx: "application/zip",
-  odt: "application/zip",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   mp4: "video/mp4",
-  ppt: "application/x-cfb",
+  ppt: "application/vnd.ms-powerpoint",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 };
 
@@ -35,14 +34,26 @@ function getExtension(filename: string): string | null {
 }
 
 export function resolveUploadContentType(file: File): string | null {
+  const ext = getExtension(file.name);
+  const extensionMime = ext ? EXTENSION_TO_MIME[ext] ?? null : null;
   const normalizedBrowserType = file.type.trim().toLowerCase();
+
+  if (
+    extensionMime &&
+    (normalizedBrowserType === "" ||
+      normalizedBrowserType === "application/octet-stream" ||
+      normalizedBrowserType === "application/zip" ||
+      normalizedBrowserType === "application/x-cfb" ||
+      normalizedBrowserType === "application/x-msword")
+  ) {
+    return extensionMime;
+  }
+
   if (normalizedBrowserType && normalizedBrowserType !== "application/octet-stream") {
     return normalizedBrowserType;
   }
 
-  const ext = getExtension(file.name);
-  if (!ext) return null;
-  return EXTENSION_TO_MIME[ext] ?? null;
+  return extensionMime;
 }
 
 export function toUserFriendlyUploadError(
