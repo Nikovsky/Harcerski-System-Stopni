@@ -62,7 +62,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
       {navigationMissingFields.length > 0 && (
         <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-950/30">
           <p className="mb-2 text-sm font-medium text-red-800 dark:text-red-300">
-            {t("messages.incompleteFields")}
+            {t("messages.incompleteCurrentStep")}
           </p>
           <ul className="ml-4 list-disc text-sm text-red-700 dark:text-red-400">
             {navigationMissingFields.map((field) => (

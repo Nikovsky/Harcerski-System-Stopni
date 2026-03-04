@@ -52,13 +52,20 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   const verificationFieldName = getVerificationFieldName(req.definition.code);
 
   const persistPayload = useCallback(
-    async (payload: {
-      state: string;
-      actionDescription: string;
-      verificationText: string;
-    }) => {
+    async (
+      payload: {
+        state: string;
+        actionDescription: string;
+        verificationText: string;
+      },
+      options?: { keepalive?: boolean },
+    ) => {
       try {
-        await apiFetch(endpoint, { method: "PATCH", body: JSON.stringify(payload) });
+        await apiFetch(endpoint, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+          ...(options?.keepalive ? { keepalive: true } : {}),
+        });
         setSaveError(null);
       } catch (error: unknown) {
         setSaveError(toUserFriendlyRequirementSaveErrorFromUnknown(error, t));
@@ -145,7 +152,8 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
       }
 
       pendingRef.current = null;
-      await persistPayload(payload);
+      const keepalive = mode === "lenient";
+      await persistPayload(payload, { keepalive });
     },
     [
       actionDescription,
@@ -164,17 +172,21 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     registryMap.set(req.uuid, flush);
     return () => {
       registryMap.delete(req.uuid);
-      if (pendingRef.current) {
+      if (!readOnly) {
         void flush({ mode: "lenient" }).catch(() => undefined);
       }
     };
-  }, [req.uuid, flush, flushRegistry]);
+  }, [flush, flushRegistry, readOnly, req.uuid]);
 
   const save = useCallback(
-    (newState: string, actionDescription: string, verificationText: string) => {
+    (newState: string, nextActionDescription: string, nextVerificationText: string) => {
       if (readOnly) return;
       setSaveError(null);
-      const payload = { state: newState, actionDescription, verificationText };
+      const payload = {
+        state: newState,
+        actionDescription: nextActionDescription,
+        verificationText: nextVerificationText,
+      };
       pendingRef.current = payload;
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {

@@ -146,7 +146,11 @@ export function StepBasicInfo({ app, updateDraft, onNext }: Props) {
         </select>
       </Field>
       {hufcowyPresence === "ATTACHMENT_OPINION" && (
-        <div className="rounded-lg border border-border p-4">
+        <div
+          data-field="hufcowyPresenceAttachment"
+          tabIndex={-1}
+          className="rounded-lg border border-border p-4 outline-none"
+        >
           <p className="mb-3 text-sm font-medium text-foreground/80">
             {t("fields.hufcowyPresenceAttachment")}
           </p>
