@@ -1,24 +1,17 @@
 // @file: apps/web/src/components/layout/Footer.tsx
-import Link from "next/link";
+import { ThemeControls } from "@/components/ui/ThemeControls";
+import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 
 export function Footer() {
   const year = new Date().getFullYear();
 
   return (
     <footer className="border-t border-border bg-background text-foreground">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 md:flex-row md:items-center md:justify-between">
-        <p className="text-sm text-foreground/70">&copy; {year} HSS. All rights reserved.</p>
-
-        <div className="flex flex-wrap gap-4">
-          <Link href="/privacy" className="text-sm text-foreground/70 hover:text-foreground">
-            Privacy
-          </Link>
-          <Link href="/terms" className="text-sm text-foreground/70 hover:text-foreground">
-            Terms
-          </Link>
-          <Link href="/contact" className="text-sm text-foreground/70 hover:text-foreground">
-            Contact
-          </Link>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-1">
+        <p className="text-sm text-foreground/70">&copy; {year} HSS &bull; AGPL-3.0 License</p>
+        <div className="flex items-center gap-2">
+          <ThemeControls />
+          <LocaleSwitcher variant="full" />
         </div>
       </div>
     </footer>

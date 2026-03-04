@@ -9,5 +9,10 @@
     "stayLoggedIn": "Zostań zalogowany",
     "extendMinutes": "+{minutes} min",
     "loggingOut": "Wylogowywanie..."
+  },
+  "localeSwitcher": {
+    "label": "Język",
+    "pl": "Polski",
+    "en": "Angielski"
   }
 }

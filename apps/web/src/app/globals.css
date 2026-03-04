@@ -74,3 +74,19 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* Theme toggle visibility is CSS-driven to avoid hydration mismatches. */
+.theme-toggle__sun,
+.theme-toggle__label-light {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-toggle__moon,
+html[data-theme="dark"] .theme-toggle__label-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-toggle__sun,
+html[data-theme="dark"] .theme-toggle__label-light {
+  display: inline;
+}

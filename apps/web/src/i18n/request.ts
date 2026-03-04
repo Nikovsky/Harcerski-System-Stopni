@@ -9,7 +9,8 @@ function isLocale(v: unknown): v is Locale {
 }
 
 export default getRequestConfig(async ({ requestLocale }) => {
-  const locale: Locale = isLocale(requestLocale) ? requestLocale : 'pl';
+  const resolvedRequestLocale = await requestLocale;
+  const locale: Locale = isLocale(resolvedRequestLocale) ? resolvedRequestLocale : 'pl';
 
   const [common, home] = await Promise.all([
     import(`../../messages/${locale}/common.json`).then(m => m.default),

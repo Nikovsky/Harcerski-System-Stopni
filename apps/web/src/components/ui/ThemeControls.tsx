@@ -1,11 +1,13 @@
 // @file: apps/web/src/components/ui/ThemeControls.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MoonStars, Sun } from "react-bootstrap-icons";
 
 type AppTheme = "dark" | "light";
+type ThemeControlsVariant = "default" | "icon";
+
+const THEME_COOKIE_NAME = "ui_theme";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -29,7 +31,7 @@ function setCookie(name: string, value: string) {
 function resolveInitialTheme(): AppTheme {
   const root = document.documentElement;
 
-  const cookieTheme = getCookie("ui_theme") as AppTheme | null;
+  const cookieTheme = getCookie(THEME_COOKIE_NAME) as AppTheme | null;
   if (cookieTheme === "light" || cookieTheme === "dark") return cookieTheme;
 
   const dataTheme = root.dataset.theme as AppTheme | undefined;
@@ -39,43 +41,52 @@ function resolveInitialTheme(): AppTheme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-export function ThemeControls() {
-  // keep default consistent with SSR fallback (layout.tsx -> "light" when missing cookie)
-  const [theme, setTheme] = useState<AppTheme>("light");
+function applyTheme(theme: AppTheme) {
+  document.documentElement.dataset.theme = theme;
+  setCookie(THEME_COOKIE_NAME, theme);
+}
 
-  const label = useMemo(() => (theme === "dark" ? "Dark" : "Light"), [theme]);
+function resolveCurrentTheme(): AppTheme {
+  const dataTheme = document.documentElement.dataset.theme;
+  if (dataTheme === "light" || dataTheme === "dark") return dataTheme;
+  return resolveInitialTheme();
+}
 
-  useEffect(() => {
-    const initial = resolveInitialTheme();
-    document.documentElement.dataset.theme = initial;
-    setCookie("ui_theme", initial);
-    setTheme(initial);
-  }, []);
-
+export function ThemeControls({ variant = "default" }: { variant?: ThemeControlsVariant }) {
   function toggleTheme() {
-    const next: AppTheme = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    setCookie("ui_theme", next);
-    setTheme(next);
+    const current = resolveCurrentTheme();
+    const next: AppTheme = current === "dark" ? "light" : "dark";
+    applyTheme(next);
   }
 
-  // show "what you switch to"
-  const ThemeIcon = theme === "dark" ? Sun : MoonStars;
-  const nextLabel = theme === "dark" ? "Light" : "Dark";
+  if (variant === "icon") {
+    return (
+      <Button
+        onClick={toggleTheme}
+        className="inline-flex h-8 w-8 items-center justify-center rounded border border-border p-0 text-sm"
+        type="button"
+        aria-label="Toggle theme"
+        title="Toggle theme"
+      >
+        <MoonStars size={16} className="theme-toggle__moon shrink-0" />
+        <Sun size={16} className="theme-toggle__sun shrink-0" />
+      </Button>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden text-xs text-foreground/70 md:inline">{label}</span>
-
       <Button
         onClick={toggleTheme}
         className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm"
         type="button"
-        aria-label={`Switch to ${nextLabel} theme`}
-        title={`Switch to ${nextLabel} theme`}
+        aria-label="Toggle theme"
+        title="Toggle theme"
       >
-        <ThemeIcon size={16} />
-        Theme
+        <MoonStars size={16} className="theme-toggle__moon shrink-0" />
+        <Sun size={16} className="theme-toggle__sun shrink-0" />
+        <span className="theme-toggle__label-dark">Dark</span>
+        <span className="theme-toggle__label-light">Light</span>
       </Button>
     </div>
   );

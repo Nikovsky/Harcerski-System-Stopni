@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
+import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 
 type NavItem = { label: string; href: string };
 type NavbarProps = {
@@ -18,8 +19,8 @@ const NAV: NavItem[] = [
 
 export function Navbar({ locale, session }: NavbarProps) {
   return (
-    <header className="border-b border-border bg-background text-foreground">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-80 border-b border-border bg-background text-foreground">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
         <div className="flex items-center gap-6">
           <Link href="/" className="font-semibold tracking-tight">
             HSS
@@ -39,7 +40,8 @@ export function Navbar({ locale, session }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <ThemeControls />
+          <LocaleSwitcher variant="icon" />
+          <ThemeControls variant="icon" />
           <AuthNav locale={locale} session={session} />
         </div>
 

@@ -79,7 +79,7 @@ export default async function LocaleLayout({ children, params }: Props) {
         <NextIntlClientProvider messages={messages}>
           <Navbar locale={locale} session={session} />
           {isAuthenticated && <IdleTimeoutGuard />}
-          <main className="grow">{children}</main>
+          <main className="grow mx-auto max-w-6xl w-full">{children}</main>
           <Footer />
         </NextIntlClientProvider>
       </body>
