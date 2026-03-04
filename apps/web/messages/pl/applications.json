@@ -131,9 +131,11 @@
     "deleted": "Szkic został usunięty",
     "uploadSuccess": "Plik został przesłany",
     "uploadError": "Błąd przesyłania pliku",
-    "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, MP4, PPT, PPTX.",
     "uploadTooLarge": "Plik jest za duży. Maksymalny rozmiar to 50 MB.",
     "error": "Wystąpił błąd",
+    "createError": "Nie udało się utworzyć wniosku. Spróbuj ponownie.",
+    "downloadError": "Nie udało się pobrać załącznika. Spróbuj ponownie.",
     "requirementSaveError": "Nie udało się zapisać wymagania. Spróbuj ponownie.",
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
     "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
@@ -159,5 +161,8 @@
   },
   "createdAt": "Utworzono",
   "updatedAt": "Zaktualizowano",
-  "lastSubmittedAt": "Ostatnio złożono"
+  "lastSubmittedAt": "Ostatnio złożono",
+  "a11y": {
+    "detailTabsLabel": "Zakładki szczegółów wniosku"
+  }
 }
