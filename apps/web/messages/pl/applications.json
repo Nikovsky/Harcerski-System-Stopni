@@ -137,6 +137,7 @@
     "createError": "Nie udało się utworzyć wniosku. Spróbuj ponownie.",
     "downloadError": "Nie udało się pobrać załącznika. Spróbuj ponownie.",
     "requirementSaveError": "Nie udało się zapisać wymagania. Spróbuj ponownie.",
+    "incompleteCurrentStep": "Uzupełnij wymagane pola w tym kroku, aby przejść dalej:",
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
     "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
     "noAttachments": "Brak załączników",
