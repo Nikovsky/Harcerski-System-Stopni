@@ -34,6 +34,7 @@ type ApplicationForSubmitValidation = {
   template: { degreeCode: string };
   requirements: Array<{
     state: string;
+    actionDescription: string | null;
     verificationText: string | null;
     requirementDefinition: { code: string };
   }>;
@@ -109,10 +110,12 @@ export class InstructorApplicationValidationService {
     }
 
     for (const req of app.requirements) {
-      if (
-        req.state === 'DONE' &&
-        (!req.verificationText || !req.verificationText.trim())
-      ) {
+      if (!req.actionDescription || !req.actionDescription.trim()) {
+        missing.push(
+          `requirement_${req.requirementDefinition.code}_actionDescription`,
+        );
+      }
+      if (!req.verificationText || !req.verificationText.trim()) {
         missing.push(
           `requirement_${req.requirementDefinition.code}_verificationText`,
         );
