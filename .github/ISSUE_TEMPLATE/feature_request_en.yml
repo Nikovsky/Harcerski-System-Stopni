@@ -1,0 +1,113 @@
+name: Feature request (EN)
+description: Propose a new feature for HSS
+title: "[FEATURE][EN] "
+labels: ["feature", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature request (EN)
+        Describe the problem and expected value.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What is currently missing or inefficient?
+      placeholder: "Describe the current pain point and its impact."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed solution
+      description: How should it work?
+      placeholder: "Describe preferred behavior."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User story (optional)
+      description: "Format: As a [persona], I want [action], so that [benefit]."
+      placeholder: "As a ..., I want ..., so that ..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - apps/web
+        - apps/api
+        - packages/schemas
+        - packages/database
+        - docker/infra
+        - docs
+        - cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_notes
+    attributes:
+      label: Technical notes
+      description: Endpoints, contracts, migrations, integrations, constraints.
+      placeholder: |
+        - API:
+        - Schemas:
+        - DB/migrations:
+        - Other:
+    validations:
+      required: false
+
+  - type: dropdown
+    id: security_impact
+    attributes:
+      label: Security impact
+      options:
+        - None
+        - Affects auth/session/cookies
+        - Affects RBAC/permissions
+        - Affects PII/sensitive data
+        - Affects upload/S3/MinIO
+        - Affects infra hardening
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scaling_impact
+    attributes:
+      label: Scaling impact
+      options:
+        - No impact (stateless)
+        - Requires external state (DB/Redis)
+        - Possible SINGLE-INSTANCE risk (requires explicit justification)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked there is no duplicate feature request.
+          required: true
+        - label: I provided measurable acceptance criteria.
+          required: true
+        - label: I considered security and scaling impact.
+          required: true
