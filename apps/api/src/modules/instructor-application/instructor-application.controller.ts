@@ -9,8 +9,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { RolesGuard } from '@/guards/roles.guard';
 import { Roles } from '@/decorators/roles.decorator';
@@ -33,6 +35,12 @@ import {
 } from '@hss/schemas';
 import { InstructorApplicationService } from './instructor-application.service';
 
+function extractRequestId(req: Request): string | null {
+  const headerValue = req.headers['x-request-id'];
+  const requestId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  return typeof requestId === 'string' ? requestId : null;
+}
+
 @Controller('instructor-applications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.USER)
@@ -54,8 +62,9 @@ export class InstructorApplicationController {
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Body(new ZodValidationPipe(createInstructorApplicationSchema))
     dto: CreateInstructorApplication,
+    @Req() req: Request,
   ) {
-    return this.service.create(principal, dto);
+    return this.service.create(principal, dto, extractRequestId(req));
   }
 
   @Get()
@@ -77,24 +86,27 @@ export class InstructorApplicationController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateInstructorApplicationSchema))
     dto: UpdateInstructorApplication,
+    @Req() req: Request,
   ) {
-    return this.service.update(principal, id, dto);
+    return this.service.update(principal, id, dto, extractRequestId(req));
   }
 
   @Post(':id/submit')
   async submit(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ) {
-    return this.service.submit(principal, id);
+    return this.service.submit(principal, id, extractRequestId(req));
   }
 
   @Delete(':id')
   async deleteDraft(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ) {
-    return this.service.deleteDraft(principal, id);
+    return this.service.deleteDraft(principal, id, extractRequestId(req));
   }
 
   @Patch(':id/requirements/:reqId')
@@ -104,8 +116,15 @@ export class InstructorApplicationController {
     @Param('reqId', ParseUUIDPipe) reqId: string,
     @Body(new ZodValidationPipe(updateInstructorRequirementSchema))
     dto: UpdateInstructorRequirement,
+    @Req() req: Request,
   ) {
-    return this.service.updateRequirement(principal, id, reqId, dto);
+    return this.service.updateRequirement(
+      principal,
+      id,
+      reqId,
+      dto,
+      extractRequestId(req),
+    );
   }
 
   @Post(':id/attachments/presign')
@@ -114,8 +133,14 @@ export class InstructorApplicationController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(presignUploadRequestSchema))
     dto: PresignUploadRequest,
+    @Req() req: Request,
   ) {
-    return this.service.presignAttachment(principal, id, dto);
+    return this.service.presignAttachment(
+      principal,
+      id,
+      dto,
+      extractRequestId(req),
+    );
   }
 
   @Post(':id/attachments/confirm')
@@ -124,8 +149,14 @@ export class InstructorApplicationController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(confirmUploadRequestSchema))
     dto: ConfirmUploadRequest,
+    @Req() req: Request,
   ) {
-    return this.service.confirmAttachment(principal, id, dto);
+    return this.service.confirmAttachment(
+      principal,
+      id,
+      dto,
+      extractRequestId(req),
+    );
   }
 
   @Delete(':id/attachments/:attachmentId')
@@ -133,8 +164,14 @@ export class InstructorApplicationController {
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Req() req: Request,
   ) {
-    return this.service.deleteAttachment(principal, id, attachmentId);
+    return this.service.deleteAttachment(
+      principal,
+      id,
+      attachmentId,
+      extractRequestId(req),
+    );
   }
 
   @Get(':id/attachments/:attachmentId/download')
@@ -142,6 +179,7 @@ export class InstructorApplicationController {
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Req() req: Request,
     @Query('inline') inline?: string,
   ) {
     return this.service.getAttachmentDownloadUrl(
@@ -149,6 +187,7 @@ export class InstructorApplicationController {
       id,
       attachmentId,
       inline === 'true',
+      extractRequestId(req),
     );
   }
 }

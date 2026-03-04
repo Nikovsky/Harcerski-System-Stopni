@@ -9,6 +9,7 @@ import {
 import { fileTypeFromBuffer } from 'file-type';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from '@/modules/storage/storage.service';
+import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
 import { isInstructorApplicationEditable, MAX_FILE_SIZE } from '@hss/schemas';
 import type {
   AuthPrincipal,
@@ -37,12 +38,16 @@ export class InstructorAttachmentService {
     'video/mp4',
     'application/zip',
     'application/x-cfb',
+    'application/msword',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ]);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly auditService: InstructorApplicationAuditService,
   ) {}
 
   static sanitizeFilename(raw: string): string {
@@ -64,6 +69,7 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: PresignUploadRequest,
+    requestId?: string | null,
   ) {
     await this.ensureOwnDraft(principal, applicationId);
     await this.cleanupOrphanedUploads(applicationId);
@@ -87,6 +93,20 @@ export class InstructorAttachmentService {
 
     const url = await this.storage.presignUpload(objectKey, dto.contentType);
 
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_PRESIGNED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: applicationId,
+      requestId,
+      metadata: {
+        objectKey,
+        contentType: dto.contentType,
+        sizeBytes: dto.sizeBytes,
+        requirementUuid: dto.requirementUuid ?? null,
+      },
+    });
+
     return { url, objectKey };
   }
 
@@ -94,6 +114,7 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: ConfirmUploadRequest,
+    requestId?: string | null,
   ) {
     await this.ensureOwnDraft(principal, applicationId);
 
@@ -186,6 +207,21 @@ export class InstructorAttachmentService {
       });
     }
 
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_CONFIRMED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachment.uuid,
+      requestId,
+      metadata: {
+        applicationId,
+        requirementUuid: dto.requirementUuid ?? null,
+        isHufcowyPresence: dto.isHufcowyPresence ?? false,
+        contentType: attachment.contentType,
+        sizeBytes: Number(attachment.sizeBytes),
+      },
+    });
+
     return {
       uuid: attachment.uuid,
       originalFilename: attachment.originalFilename,
@@ -199,6 +235,7 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     attachmentId: string,
+    requestId?: string | null,
   ) {
     const app = await this.ensureOwnDraft(principal, applicationId);
 
@@ -226,6 +263,17 @@ export class InstructorAttachmentService {
 
     await this.prisma.attachment.delete({ where: { uuid: attachmentId } });
 
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_DELETED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachmentId,
+      requestId,
+      metadata: {
+        applicationId,
+      },
+    });
+
     return { uuid: attachmentId };
   }
 
@@ -234,6 +282,7 @@ export class InstructorAttachmentService {
     applicationId: string,
     attachmentId: string,
     inline = false,
+    requestId?: string | null,
   ) {
     const app = await this.prisma.instructorApplication.findUnique({
       where: { uuid: applicationId },
@@ -259,6 +308,19 @@ export class InstructorAttachmentService {
       attachment.originalFilename,
       { inline },
     );
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_DOWNLOAD_URL_ISSUED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachment.uuid,
+      requestId,
+      metadata: {
+        applicationId,
+        inline,
+      },
+    });
+
     return { url, filename: attachment.originalFilename };
   }
 

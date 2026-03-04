@@ -7,9 +7,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { ApplicationStatus, RequirementState } from '@hss/database';
+import { ApplicationStatus, Prisma, RequirementState } from '@hss/database';
+import { createHash } from 'node:crypto';
 import { InstructorAttachmentService } from '@/modules/instructor-application/instructor-attachment.service';
 import { InstructorApplicationValidationService } from '@/modules/instructor-application/instructor-application-validation.service';
+import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
 import type { AuthPrincipal } from '@hss/schemas';
 import { isInstructorApplicationEditable } from '@hss/schemas';
 import type {
@@ -20,12 +22,73 @@ import type {
   ConfirmUploadRequest,
 } from '@hss/schemas';
 
+const INSTRUCTOR_APPLICATION_AUDIT_SELECT = {
+  plannedFinishAt: true,
+  teamFunction: true,
+  hufiecFunction: true,
+  openTrialForRank: true,
+  openTrialDeadline: true,
+  hufcowyPresence: true,
+  hufcowyPresenceAttachmentUuid: true,
+  functionsHistory: true,
+  coursesHistory: true,
+  campsHistory: true,
+  successes: true,
+  failures: true,
+  supervisorFirstName: true,
+  supervisorSecondName: true,
+  supervisorSurname: true,
+  supervisorInstructorRank: true,
+  supervisorInstructorFunction: true,
+} satisfies Prisma.InstructorApplicationSelect;
+
+const INSTRUCTOR_APPLICATION_UPDATE_SELECT = {
+  uuid: true,
+  status: true,
+  updatedAt: true,
+  ...INSTRUCTOR_APPLICATION_AUDIT_SELECT,
+} satisfies Prisma.InstructorApplicationSelect;
+
+type InstructorApplicationAuditSnapshot = Prisma.InstructorApplicationGetPayload<{
+  select: typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
+}>;
+
+type InstructorApplicationAuditField =
+  keyof typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
+
+type AuditJsonPrimitive = string | number | boolean | null;
+type AuditJsonValue =
+  | AuditJsonPrimitive
+  | AuditJsonValue[]
+  | { [key: string]: AuditJsonValue };
+
+const INSTRUCTOR_APPLICATION_TEXT_AUDIT_FIELDS = new Set<
+  InstructorApplicationAuditField
+>([
+  'teamFunction',
+  'hufiecFunction',
+  'functionsHistory',
+  'coursesHistory',
+  'campsHistory',
+  'successes',
+  'failures',
+  'supervisorFirstName',
+  'supervisorSecondName',
+  'supervisorSurname',
+  'supervisorInstructorFunction',
+]);
+
+const INSTRUCTOR_APPLICATION_DATE_AUDIT_FIELDS = new Set<
+  InstructorApplicationAuditField
+>(['plannedFinishAt', 'openTrialDeadline']);
+
 @Injectable()
 export class InstructorApplicationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly attachmentService: InstructorAttachmentService,
     private readonly validationService: InstructorApplicationValidationService,
+    private readonly auditService: InstructorApplicationAuditService,
   ) {}
 
   // ── Profile check ─────────────────────────────────────────────────────────
@@ -63,7 +126,11 @@ export class InstructorApplicationService {
   }
 
   // ── Create DRAFT ─────────────────────────────────────────────────────────
-  async create(principal: AuthPrincipal, dto: CreateInstructorApplication) {
+  async create(
+    principal: AuthPrincipal,
+    dto: CreateInstructorApplication,
+    requestId?: string | null,
+  ) {
     const user = await this.resolveUserForWrite(principal);
 
     const template = await this.prisma.requirementTemplate.findUnique({
@@ -79,41 +146,76 @@ export class InstructorApplicationService {
       throw new BadRequestException('Invalid instructor template');
     }
 
-    // Duplicate check + create in a single transaction to prevent race conditions
-    const application = await this.prisma.$transaction(async (tx) => {
-      const CLOSED_STATUSES: ApplicationStatus[] = [
-        ApplicationStatus.REJECTED,
-        ApplicationStatus.ARCHIVED,
-      ];
-      const existing = await tx.instructorApplication.findFirst({
-        where: {
-          candidateUuid: user.uuid,
-          template: { degreeCode: template.degreeCode },
-          status: { notIn: CLOSED_STATUSES },
-        },
+    let application: { uuid: string };
+    try {
+      // Duplicate check + create in a single transaction to prevent race conditions
+      application = await this.prisma.$transaction(async (tx) => {
+        const CLOSED_STATUSES: ApplicationStatus[] = [
+          ApplicationStatus.REJECTED,
+          ApplicationStatus.ARCHIVED,
+        ];
+        const existing = await tx.instructorApplication.findFirst({
+          where: {
+            candidateUuid: user.uuid,
+            template: { degreeCode: template.degreeCode },
+            status: { notIn: CLOSED_STATUSES },
+          },
+        });
+        if (existing) {
+          throw new ConflictException({
+            code: 'APPLICATION_ALREADY_EXISTS',
+            message: `Masz już aktywny wniosek na stopień ${template.degreeCode}.`,
+            existingUuid: existing.uuid,
+          });
+        }
+
+        return tx.instructorApplication.create({
+          select: { uuid: true },
+          data: {
+            candidateUuid: user.uuid,
+            templateUuid: template.uuid,
+            status: ApplicationStatus.DRAFT,
+            requirements: {
+              create: template.definitions.map((def) => ({
+                requirementDefinitionUuid: def.uuid,
+                state: RequirementState.PLANNED,
+                actionDescription: '',
+                verificationText: '',
+              })),
+            },
+          },
+        });
       });
-      if (existing) {
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      if (this.isActiveDegreeGuardConflict(error)) {
+        const existingUuid = await this.findActiveApplicationUuidByDegreeCode(
+          user.uuid,
+          template.degreeCode,
+        );
         throw new ConflictException({
           code: 'APPLICATION_ALREADY_EXISTS',
           message: `Masz już aktywny wniosek na stopień ${template.degreeCode}.`,
-          existingUuid: existing.uuid,
+          existingUuid,
         });
       }
 
-      return tx.instructorApplication.create({
-        data: {
-          candidateUuid: user.uuid,
-          templateUuid: template.uuid,
-          status: ApplicationStatus.DRAFT,
-          requirements: {
-            create: template.definitions.map((def) => ({
-              requirementDefinitionUuid: def.uuid,
-              state: RequirementState.PLANNED,
-              actionDescription: '',
-            })),
-          },
-        },
-      });
+      throw error;
+    }
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_APPLICATION_CREATED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: application.uuid,
+      requestId,
+      metadata: {
+        templateUuid: template.uuid,
+        degreeCode: template.degreeCode,
+      },
     });
 
     return { uuid: application.uuid };
@@ -329,16 +431,20 @@ export class InstructorApplicationService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: UpdateInstructorApplication,
+    requestId?: string | null,
   ) {
     const app = await this.ensureOwnDraft(principal, applicationId);
+    const beforeAuditSnapshot = await this.prisma.instructorApplication.findUnique({
+      where: { uuid: app.uuid },
+      select: INSTRUCTOR_APPLICATION_AUDIT_SELECT,
+    });
+    if (!beforeAuditSnapshot) {
+      throw new NotFoundException('Application not found');
+    }
 
     const updated = await this.prisma.instructorApplication.update({
       where: { uuid: app.uuid },
-      select: {
-        uuid: true,
-        status: true,
-        updatedAt: true,
-      },
+      select: INSTRUCTOR_APPLICATION_UPDATE_SELECT,
       data: {
         ...(dto.plannedFinishAt !== undefined && {
           plannedFinishAt: dto.plannedFinishAt
@@ -393,6 +499,24 @@ export class InstructorApplicationService {
         }),
       },
     });
+    const fieldChanges = this.buildApplicationFieldChanges(
+      beforeAuditSnapshot,
+      updated,
+    );
+    const changedFields = Object.keys(fieldChanges);
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_APPLICATION_UPDATED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: updated.uuid,
+      requestId,
+      metadata: {
+        applicationId: updated.uuid,
+        changedFields,
+        fieldChanges,
+      },
+    });
 
     return {
       uuid: updated.uuid,
@@ -402,7 +526,11 @@ export class InstructorApplicationService {
   }
 
   // ── Submit ───────────────────────────────────────────────────────────────
-  async submit(principal: AuthPrincipal, applicationId: string) {
+  async submit(
+    principal: AuthPrincipal,
+    applicationId: string,
+    requestId?: string | null,
+  ) {
     const submittedApplication = await this.prisma.$transaction(async (tx) => {
       // All checks inside transaction to prevent TOCTOU race conditions
       const fullApp = await tx.instructorApplication.findUnique({
@@ -495,6 +623,17 @@ export class InstructorApplicationService {
       });
     });
 
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_APPLICATION_SUBMITTED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: submittedApplication.uuid,
+      requestId,
+      metadata: {
+        status: submittedApplication.status,
+      },
+    });
+
     return {
       uuid: submittedApplication.uuid,
       status: submittedApplication.status,
@@ -504,11 +643,23 @@ export class InstructorApplicationService {
   }
 
   // ── Delete draft ─────────────────────────────────────────────────────────
-  async deleteDraft(principal: AuthPrincipal, applicationId: string) {
+  async deleteDraft(
+    principal: AuthPrincipal,
+    applicationId: string,
+    requestId?: string | null,
+  ) {
     const app = await this.ensureOwnDraft(principal, applicationId);
 
     await this.prisma.instructorApplication.delete({
       where: { uuid: app.uuid },
+    });
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_APPLICATION_DELETED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: app.uuid,
+      requestId,
     });
 
     return { uuid: app.uuid };
@@ -520,25 +671,43 @@ export class InstructorApplicationService {
     applicationId: string,
     requirementId: string,
     dto: UpdateInstructorRequirement,
+    requestId?: string | null,
   ) {
     await this.ensureOwnDraft(principal, applicationId);
 
     const req = await this.prisma.instructorApplicationRequirement.findUnique({
       where: { uuid: requirementId },
+      select: {
+        uuid: true,
+        applicationUuid: true,
+        state: true,
+        actionDescription: true,
+        verificationText: true,
+        requirementDefinition: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
     if (!req || req.applicationUuid !== applicationId) {
       throw new NotFoundException('Requirement not found');
     }
 
-    // Validate: verificationText is required when state is DONE
-    if (
-      dto.state === 'DONE' &&
-      (!dto.verificationText || !dto.verificationText.trim())
-    ) {
+    if (!dto.actionDescription?.trim()) {
       throw new BadRequestException(
-        'Opis załącznika jest wymagany gdy wymaganie jest oznaczone jako wykonane.',
+        'Opis realizacji zadania jest wymagany.',
       );
     }
+
+    if (!dto.verificationText?.trim()) {
+      throw new BadRequestException(
+        'Opis załącznika jest wymagany.',
+      );
+    }
+
+    const actionDescription = dto.actionDescription.trim();
+    const verificationText = dto.verificationText.trim();
 
     const updatedRequirement =
       await this.prisma.instructorApplicationRequirement.update({
@@ -548,15 +717,42 @@ export class InstructorApplicationService {
           state: true,
           actionDescription: true,
           verificationText: true,
+          requirementDefinition: {
+            select: {
+              code: true,
+            },
+          },
         },
         data: {
           state: dto.state as RequirementState,
-          actionDescription: dto.actionDescription,
-          ...(dto.verificationText !== undefined && {
-            verificationText: dto.verificationText,
-          }),
+          actionDescription,
+          verificationText,
         },
       });
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_REQUIREMENT_UPDATED',
+      targetType: 'INSTRUCTOR_REQUIREMENT',
+      targetUuid: updatedRequirement.uuid,
+      requestId,
+      metadata: {
+        applicationId,
+        requirementCode: updatedRequirement.requirementDefinition.code,
+        state: {
+          from: req.state,
+          to: updatedRequirement.state,
+        },
+        actionDescription: this.buildTextAuditChange(
+          req.actionDescription,
+          updatedRequirement.actionDescription,
+        ),
+        verificationText: this.buildTextAuditChange(
+          req.verificationText,
+          updatedRequirement.verificationText,
+        ),
+      },
+    });
 
     return {
       uuid: updatedRequirement.uuid,
@@ -571,11 +767,13 @@ export class InstructorApplicationService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: PresignUploadRequest,
+    requestId?: string | null,
   ) {
     return this.attachmentService.presignAttachment(
       principal,
       applicationId,
       dto,
+      requestId,
     );
   }
 
@@ -584,11 +782,13 @@ export class InstructorApplicationService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: ConfirmUploadRequest,
+    requestId?: string | null,
   ) {
     return this.attachmentService.confirmAttachment(
       principal,
       applicationId,
       dto,
+      requestId,
     );
   }
 
@@ -597,11 +797,13 @@ export class InstructorApplicationService {
     principal: AuthPrincipal,
     applicationId: string,
     attachmentId: string,
+    requestId?: string | null,
   ) {
     return this.attachmentService.deleteAttachment(
       principal,
       applicationId,
       attachmentId,
+      requestId,
     );
   }
 
@@ -611,12 +813,14 @@ export class InstructorApplicationService {
     applicationId: string,
     attachmentId: string,
     inline = false,
+    requestId?: string | null,
   ) {
     return this.attachmentService.getAttachmentDownloadUrl(
       principal,
       applicationId,
       attachmentId,
       inline,
+      requestId,
     );
   }
 
@@ -654,6 +858,103 @@ export class InstructorApplicationService {
     >[0],
   ) {
     this.validationService.ensureProfileCompleteForWrite(user);
+  }
+
+  private buildApplicationFieldChanges(
+    before: InstructorApplicationAuditSnapshot,
+    after: InstructorApplicationAuditSnapshot,
+  ): Record<string, AuditJsonValue> {
+    const changes: Record<string, AuditJsonValue> = {};
+
+    for (const field of Object.keys(
+      INSTRUCTOR_APPLICATION_AUDIT_SELECT,
+    ) as InstructorApplicationAuditField[]) {
+      if (INSTRUCTOR_APPLICATION_DATE_AUDIT_FIELDS.has(field)) {
+        const beforeDate = this.toIsoDate(
+          before[field] as Date | null | undefined,
+        );
+        const afterDate = this.toIsoDate(after[field] as Date | null | undefined);
+        if (beforeDate !== afterDate) {
+          changes[field] = {
+            from: beforeDate,
+            to: afterDate,
+          };
+        }
+        continue;
+      }
+
+      if (INSTRUCTOR_APPLICATION_TEXT_AUDIT_FIELDS.has(field)) {
+        const beforeText = before[field] as string | null;
+        const afterText = after[field] as string | null;
+        if (beforeText !== afterText) {
+          changes[field] = this.buildTextAuditChange(beforeText, afterText);
+        }
+        continue;
+      }
+
+      const beforeValue = before[field] as string | null;
+      const afterValue = after[field] as string | null;
+      if (beforeValue !== afterValue) {
+        changes[field] = {
+          from: beforeValue,
+          to: afterValue,
+        };
+      }
+    }
+
+    return changes;
+  }
+
+  private buildTextAuditChange(before: string | null, after: string | null) {
+    return {
+      from: this.describeTextValue(before),
+      to: this.describeTextValue(after),
+    };
+  }
+
+  private describeTextValue(value: string | null) {
+    const normalized = value?.trim() ?? '';
+    return {
+      length: normalized.length,
+      isBlank: normalized.length === 0,
+      digest:
+        normalized.length > 0
+          ? createHash('sha256').update(normalized).digest('hex').slice(0, 16)
+          : null,
+    };
+  }
+
+  private toIsoDate(value: Date | null | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+    return value.toISOString().split('T')[0] ?? null;
+  }
+
+  private isActiveDegreeGuardConflict(error: unknown): boolean {
+    const details =
+      error instanceof Prisma.PrismaClientKnownRequestError
+        ? `${error.message} ${JSON.stringify(error.meta ?? {})}`
+        : String(error);
+    return details.includes('InstructorApplication_active_degree_unique');
+  }
+
+  private async findActiveApplicationUuidByDegreeCode(
+    candidateUuid: string,
+    degreeCode: string,
+  ): Promise<string | null> {
+    const existing = await this.prisma.instructorApplication.findFirst({
+      where: {
+        candidateUuid,
+        template: { degreeCode },
+        status: {
+          notIn: [ApplicationStatus.REJECTED, ApplicationStatus.ARCHIVED],
+        },
+      },
+      select: { uuid: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return existing?.uuid ?? null;
   }
 
   private async ensureOwnDraft(

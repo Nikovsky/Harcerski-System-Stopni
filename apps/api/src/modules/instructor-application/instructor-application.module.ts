@@ -4,6 +4,7 @@ import { InstructorApplicationController } from './instructor-application.contro
 import { InstructorApplicationService } from './instructor-application.service';
 import { InstructorAttachmentService } from './instructor-attachment.service';
 import { InstructorApplicationValidationService } from './instructor-application-validation.service';
+import { InstructorApplicationAuditService } from './instructor-application-audit.service';
 
 @Module({
   controllers: [InstructorApplicationController],
@@ -11,6 +12,7 @@ import { InstructorApplicationValidationService } from './instructor-application
     InstructorApplicationService,
     InstructorAttachmentService,
     InstructorApplicationValidationService,
+    InstructorApplicationAuditService,
   ],
 })
 export class InstructorApplicationModule {}
