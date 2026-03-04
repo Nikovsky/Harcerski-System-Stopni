@@ -51,6 +51,20 @@ function getOptionalString(value: string | undefined): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function getNullableOptionalString(value: string | undefined): string | null {
+  return getOptionalString(value) ?? null;
+}
+
+function getNullableEnumValue<const T extends string>(
+  values: readonly T[],
+  value: string | undefined,
+): T | null {
+  if (!value) {
+    return null;
+  }
+  return includes(values, value) ? value : null;
+}
+
 function collectRequirementMissingFields(
   requirements: RequirementRowResponse[],
 ): string[] {
@@ -149,17 +163,18 @@ function getMissingFieldsForStep(
   return [];
 }
 
-function collectMissingFieldsBeforeStep(
-  targetStep: number,
+function findFirstInvalidStepInRange(
+  fromStep: number,
+  toStepExclusive: number,
   draft: InstructorApplicationDetail,
-): string[] {
-  const allMissing = new Set<string>();
-  for (let i = 0; i < targetStep; i += 1) {
-    for (const field of getMissingFieldsForStep(i, draft)) {
-      allMissing.add(field);
+): { step: number; missingFields: string[] } | null {
+  for (let step = fromStep; step < toStepExclusive; step += 1) {
+    const missingFields = getMissingFieldsForStep(step, draft);
+    if (missingFields.length > 0) {
+      return { step, missingFields };
     }
   }
-  return [...allMissing];
+  return null;
 }
 
 function scrollToTop(): void {
@@ -179,12 +194,15 @@ function focusFirstMissingField(missingFields: string[]): void {
     return;
   }
 
-  const fieldElements = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-field]"),
+  const fieldElementByDataAttribute = document.querySelector<HTMLElement>(
+    `[data-field="${firstField}"]`,
   );
-  const fieldElement = fieldElements.find(
-    (element) => element.dataset.field === firstField,
+
+  const fieldElementByNameAttribute = document.querySelector<HTMLElement>(
+    `[name="${firstField}"]`,
   );
+
+  const fieldElement = fieldElementByDataAttribute ?? fieldElementByNameAttribute;
 
   if (fieldElement) {
     fieldElement.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -206,40 +224,36 @@ function extractStepDataFromDraft(
     const hufcowyPresence = getOptionalString(draft.hufcowyPresence ?? undefined);
 
     return {
-      teamFunction: getOptionalString(draft.teamFunction ?? undefined),
-      hufiecFunction: getOptionalString(draft.hufiecFunction ?? undefined),
-      plannedFinishAt: getOptionalString(draft.plannedFinishAt ?? undefined),
-      openTrialForRank:
-        openTrialForRank && includes(SCOUT_RANK_VALUES, openTrialForRank)
-          ? openTrialForRank
-          : undefined,
-      openTrialDeadline: getOptionalString(draft.openTrialDeadline ?? undefined),
-      hufcowyPresence:
-        hufcowyPresence && includes(PRESENCE_VALUES, hufcowyPresence)
-          ? hufcowyPresence
-          : undefined,
+      teamFunction: getNullableOptionalString(draft.teamFunction ?? undefined),
+      hufiecFunction: getNullableOptionalString(draft.hufiecFunction ?? undefined),
+      plannedFinishAt: getNullableOptionalString(draft.plannedFinishAt ?? undefined),
+      openTrialForRank: getNullableEnumValue(SCOUT_RANK_VALUES, openTrialForRank),
+      openTrialDeadline: getNullableOptionalString(draft.openTrialDeadline ?? undefined),
+      hufcowyPresence: getNullableEnumValue(PRESENCE_VALUES, hufcowyPresence),
     };
   }
   if (currentStep === 1) {
     return {
-      functionsHistory: getOptionalString(draft.functionsHistory ?? undefined),
-      coursesHistory: getOptionalString(draft.coursesHistory ?? undefined),
-      campsHistory: getOptionalString(draft.campsHistory ?? undefined),
-      successes: getOptionalString(draft.successes ?? undefined),
-      failures: getOptionalString(draft.failures ?? undefined),
+      functionsHistory: getNullableOptionalString(draft.functionsHistory ?? undefined),
+      coursesHistory: getNullableOptionalString(draft.coursesHistory ?? undefined),
+      campsHistory: getNullableOptionalString(draft.campsHistory ?? undefined),
+      successes: getNullableOptionalString(draft.successes ?? undefined),
+      failures: getNullableOptionalString(draft.failures ?? undefined),
     };
   }
   if (currentStep === 2) {
     const supervisorInstructorRank = getOptionalString(draft.supervisorInstructorRank ?? undefined);
 
     return {
-      supervisorFirstName: getOptionalString(draft.supervisorFirstName ?? undefined),
-      supervisorSurname: getOptionalString(draft.supervisorSurname ?? undefined),
-      supervisorInstructorRank:
-        supervisorInstructorRank && includes(INSTRUCTOR_RANK_VALUES, supervisorInstructorRank)
-          ? supervisorInstructorRank
-          : undefined,
-      supervisorInstructorFunction: getOptionalString(draft.supervisorInstructorFunction ?? undefined),
+      supervisorFirstName: getNullableOptionalString(draft.supervisorFirstName ?? undefined),
+      supervisorSurname: getNullableOptionalString(draft.supervisorSurname ?? undefined),
+      supervisorInstructorRank: getNullableEnumValue(
+        INSTRUCTOR_RANK_VALUES,
+        supervisorInstructorRank,
+      ),
+      supervisorInstructorFunction: getNullableOptionalString(
+        draft.supervisorInstructorFunction ?? undefined,
+      ),
     };
   }
   return null;
@@ -307,6 +321,27 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
       if (targetStep === currentStep || isSavingRef.current) return;
       const movingForward = targetStep > currentStep;
 
+      const moveToStepWithValidationError = (
+        invalidStep: number,
+        missingFields: string[],
+      ): void => {
+        setNavigationMissingFields(missingFields);
+        setNavigationError(null);
+
+        if (invalidStep !== stepRef.current) {
+          stepRef.current = invalidStep;
+          setStep(invalidStep);
+          if (typeof window !== "undefined") {
+            window.setTimeout(() => {
+              focusFirstMissingField(missingFields);
+            }, 0);
+          }
+          return;
+        }
+
+        focusFirstMissingField(missingFields);
+      };
+
       isSavingRef.current = true;
       setIsSaving(true);
       let shouldRefetch = false;
@@ -344,14 +379,14 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           setApp(fresh);
         }
         if (movingForward) {
-          const missingFields = collectMissingFieldsBeforeStep(
+          const firstInvalid = findFirstInvalidStepInRange(
+            currentStep,
             targetStep,
             appRef.current,
           );
-          if (missingFields.length > 0) {
-            setNavigationMissingFields(missingFields);
-            setNavigationError(null);
-            focusFirstMissingField(missingFields);
+
+          if (firstInvalid) {
+            moveToStepWithValidationError(firstInvalid.step, firstInvalid.missingFields);
             return;
           }
         }
