@@ -598,6 +598,7 @@ model CommissionMeeting {
   documents      CommissionDocument[]
 
   @@index([commissionUuid, date, status])
+  @@index([date, createdAt])
   @@index([status])
 }
 

@@ -263,7 +263,7 @@
 
 ---
 
-### US-MEET-04: Rezerwacja slotu (tylko po ACCEPTED)
+### US-MEET-04: Rezerwacja slotu (tylko po APPROVED)
 
 **Jako** harcerz  
 **Chcę** zarezerwować slot na posiedzenie  
@@ -271,7 +271,7 @@
 
 **Acceptance criteria**
 
-- Rezerwacja możliwa tylko gdy próba ma status `ACCEPTED`
+- Rezerwacja możliwa tylko gdy próba ma status `APPROVED`
 - Slot może być zarezerwowany tylko raz (409 przy próbie overbookingu)
 - Wpis audytu: `SLOT_BOOKED`
 

@@ -9,6 +9,7 @@ import { AppConfigModule } from './config/app-config.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module';
 import { ProfileModule } from './modules/user/profile/profile.module';
+import { MeetingsModule } from './modules/meetings/meetings.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ProfileModule } from './modules/user/profile/profile.module';
     StorageModule,
     ProfileModule,
     InstructorApplicationModule,
+    MeetingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

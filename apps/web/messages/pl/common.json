@@ -1,6 +1,10 @@
 {
   "nav": {
     "home": "Strona główna",
+    "docs": "Dokumentacja",
+    "dashboard": "Dashboard",
+    "applications": "Moje wnioski",
+    "meetings": "Posiedzenia",
     "login": "Zaloguj"
   },
   "sessionTimeout": {

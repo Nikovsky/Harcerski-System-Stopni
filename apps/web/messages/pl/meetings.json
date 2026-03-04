@@ -1,0 +1,50 @@
+{
+  "title": "Kalendarz posiedzeń",
+  "subtitle": "Wybierz termin i zarezerwuj miejsce po zatwierdzeniu próby.",
+  "empty": "Brak posiedzeń do wyświetlenia.",
+  "mode": {
+    "SLOTS": "Tryb godzinowy",
+    "DAY_ONLY": "Tryb dzienny"
+  },
+  "status": {
+    "DRAFT": "Szkic",
+    "OPEN_FOR_REGISTRATION": "Otwarte zapisy",
+    "CLOSED": "Zapisy zamknięte",
+    "COMPLETED": "Zakończone",
+    "CANCELLED": "Anulowane"
+  },
+  "stats": {
+    "registrations": "Liczba zapisów: {count}",
+    "availableSlots": "Dostępne sloty: {available} / {total}"
+  },
+  "slots": {
+    "none": "Brak skonfigurowanych slotów.",
+    "free": "Wolny",
+    "booked": "Zajęty",
+    "bookedByYou": "Zarezerwowany przez Ciebie",
+    "notAvailableNow": "Rezerwacja tego slotu jest teraz niedostępna."
+  },
+  "dayOnly": {
+    "description": "To posiedzenie działa w trybie dziennym (bez wyboru konkretnej godziny).",
+    "bookedByYou": "Masz już aktywny zapis na ten dzień.",
+    "notAvailableNow": "Rezerwacja na ten termin jest teraz niedostępna."
+  },
+  "actions": {
+    "book": "Zarezerwuj",
+    "booking": "Rezerwowanie...",
+    "retry": "Spróbuj ponownie"
+  },
+  "blocked": {
+    "NOT_APPROVED_APPLICATION": "Zapis jest możliwy dopiero po zaakceptowaniu Twojej próby przez komisję.",
+    "MEETING_NOT_OPEN": "To posiedzenie nie jest teraz otwarte na zapisy.",
+    "ALREADY_REGISTERED": "Masz już aktywny zapis na to posiedzenie.",
+    "NO_FREE_SLOTS": "Brak wolnych slotów na to posiedzenie."
+  },
+  "errors": {
+    "loadFailed": "Nie udało się pobrać listy posiedzeń. Spróbuj ponownie później.",
+    "slotAlreadyBooked": "Ten slot został właśnie zajęty przez inną osobę.",
+    "alreadyRegistered": "Masz już aktywny zapis na to posiedzenie.",
+    "bookingNotAllowedStatus": "Rezerwacja jest możliwa dopiero po zaakceptowaniu Twojej próby przez komisję.",
+    "generic": "Wystąpił błąd podczas rezerwacji."
+  }
+}

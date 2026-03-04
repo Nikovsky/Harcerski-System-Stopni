@@ -1,0 +1,50 @@
+{
+  "title": "Meetings calendar",
+  "subtitle": "Choose a date and book your place after your application is approved.",
+  "empty": "No meetings to display.",
+  "mode": {
+    "SLOTS": "Time slots mode",
+    "DAY_ONLY": "Day-only mode"
+  },
+  "status": {
+    "DRAFT": "Draft",
+    "OPEN_FOR_REGISTRATION": "Open for registration",
+    "CLOSED": "Registration closed",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled"
+  },
+  "stats": {
+    "registrations": "Registrations: {count}",
+    "availableSlots": "Available slots: {available} / {total}"
+  },
+  "slots": {
+    "none": "No slots configured.",
+    "free": "Free",
+    "booked": "Booked",
+    "bookedByYou": "Booked by you",
+    "notAvailableNow": "Booking for this slot is currently unavailable."
+  },
+  "dayOnly": {
+    "description": "This meeting uses day-only mode (without selecting a specific hour).",
+    "bookedByYou": "You already have an active registration for this day.",
+    "notAvailableNow": "Booking for this date is currently unavailable."
+  },
+  "actions": {
+    "book": "Book",
+    "booking": "Booking...",
+    "retry": "Try again"
+  },
+  "blocked": {
+    "NOT_APPROVED_APPLICATION": "Booking is available only after your application is accepted by the commission.",
+    "MEETING_NOT_OPEN": "This meeting is currently not open for registration.",
+    "ALREADY_REGISTERED": "You already have an active registration for this meeting.",
+    "NO_FREE_SLOTS": "No free slots are available for this meeting."
+  },
+  "errors": {
+    "loadFailed": "Failed to load meetings. Please try again later.",
+    "slotAlreadyBooked": "This slot has just been booked by someone else.",
+    "alreadyRegistered": "You already have an active registration for this meeting.",
+    "bookingNotAllowedStatus": "Booking is available only after your application is accepted by the commission.",
+    "generic": "An error occurred while booking."
+  }
+}

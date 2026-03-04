@@ -40,6 +40,7 @@ const HOP_BY_HOP = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+const BFF_MAX_MUTATING_BODY_BYTES = 1_048_576;
 
 function apiOriginFromEnv(): string {
   // Prefer the validated env, allow legacy fallback for convenience
@@ -128,17 +129,38 @@ function enforceSameOriginCsrf(req: NextRequest, requestId: string): NextRespons
   return null;
 }
 
-async function readRequestBody(req: NextRequest): Promise<ArrayBuffer | undefined> {
-  const m = req.method.toUpperCase();
-  if (m === "GET" || m === "HEAD") return undefined;
+function parsePositiveInteger(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
 
-  const len = req.headers.get("content-length");
-  if (len === "0") return undefined;
+async function readRequestBody(
+  req: NextRequest,
+  requestId: string,
+): Promise<{ body?: ArrayBuffer; error?: NextResponse }> {
+  const m = req.method.toUpperCase();
+  if (m === "GET" || m === "HEAD") return {};
+
+  const contentLength = parsePositiveInteger(req.headers.get("content-length"));
+  if (contentLength === 0) return {};
+  if (contentLength !== null && contentLength > BFF_MAX_MUTATING_BODY_BYTES) {
+    return {
+      error: errorNoStore(413, "INVALID_REQUEST", "Payload too large.", requestId),
+    };
+  }
 
   try {
-    return await req.arrayBuffer();
+    const body = await req.arrayBuffer();
+    if (body.byteLength > BFF_MAX_MUTATING_BODY_BYTES) {
+      return {
+        error: errorNoStore(413, "INVALID_REQUEST", "Payload too large.", requestId),
+      };
+    }
+    return { body };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -186,7 +208,8 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
   }
 
   const upstreamHeaders = buildUpstreamHeaders(req, accessToken, requestId);
-  const body = await readRequestBody(req);
+  const requestBody = await readRequestBody(req, requestId);
+  if (requestBody.error) return requestBody.error;
 
   try {
     dlog("upstream url:", upstreamUrl.toString());
@@ -194,7 +217,7 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
     const upstreamRes = await fetch(upstreamUrl, {
       method: req.method,
       headers: upstreamHeaders,
-      body: body ? Buffer.from(body) : undefined,
+      body: requestBody.body ? Buffer.from(requestBody.body) : undefined,
       redirect: "manual",
       cache: "no-store",
       signal: AbortSignal.timeout(30_000),
