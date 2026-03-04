@@ -1,8 +1,7 @@
 // @file: apps/web/src/components/ui/AuthNav.tsx
 import type { Session } from "next-auth";
 import { SignInButton } from "./SignInButton";
-import { SignOutButton } from "./SignOutButton";
-import { SessionRemainingBadge } from "./SessionRemainingBadge";
+import { AuthUserMenu } from "./AuthUserMenu";
 
 type AuthNavProps = {
   locale: string;
@@ -14,16 +13,15 @@ export function AuthNav({ locale, session }: AuthNavProps) {
     return <SignInButton locale={locale} />;
   }
 
-  const displayName =
-    session.user.name ??
-    session.user.email ??
-    "User";
+  const displayName = session.user.name ?? session.user.email ?? "User";
+  const email = session.user.email ?? "No email";
+  const triggerLabel = session.user.email ?? displayName;
 
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-      <span>{displayName}</span>
-      <SessionRemainingBadge />
-      <SignOutButton />
-    </div>
+    <AuthUserMenu
+      displayName={displayName}
+      email={email}
+      triggerLabel={triggerLabel}
+    />
   );
 }

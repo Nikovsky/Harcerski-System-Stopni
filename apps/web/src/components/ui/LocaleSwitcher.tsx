@@ -31,7 +31,7 @@ const LOCALES: readonly LocaleDefinition[] = [
 
 const LOCALE_SET = new Set<string>(LOCALES.map((locale) => locale.code));
 const MENU_ITEM_ESTIMATED_HEIGHT_PX = 38;
-const MENU_VERTICAL_PADDING_PX = 8;
+const MENU_VERTICAL_PADDING_PX = 10;
 
 function normalizePath(pathname: string): string {
   const value = pathname.trim() || "/";

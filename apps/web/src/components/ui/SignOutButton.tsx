@@ -5,7 +5,15 @@ import { useState } from "react";
 import { Button } from "./Button";
 import { Popup } from "./Popup";
 
-export function SignOutButton() {
+type SignOutButtonProps = {
+  label?: string;
+  className?: string;
+};
+
+export function SignOutButton({
+  label = "LOGOUT",
+  className = "",
+}: SignOutButtonProps) {
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,13 +50,18 @@ export function SignOutButton() {
     <>
       <Button
         type="button"
-        className="bg-red-500 text-white border-red-600"
+        className={[
+          "bg-red-500 text-white border-red-600",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => {
           setOpen(true);
           setErrorMessage(null);
         }}
       >
-        LOGOUT
+        {label}
       </Button>
 
       {open && (

@@ -76,7 +76,7 @@ export function SessionRemainingBadge() {
   }, [baseTimeoutSec]);
 
   return (
-    <span className="rounded-full border border-neutral-300 bg-white/90 px-2 py-1 text-xs font-semibold tabular-nums text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-200">
+    <span className="inline-flex rounded-full border border-border bg-muted px-2 py-1 text-xs font-semibold tabular-nums text-foreground">
       Sesja: {formatClock(remainingSec)}
     </span>
   );
