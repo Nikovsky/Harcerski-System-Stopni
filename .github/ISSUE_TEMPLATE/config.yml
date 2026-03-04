@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability reporting
+    url: https://github.com/Nikovsky/Harcerski-System-Stopni/blob/main/SECURITY.en.md
+    about: Use private security reporting channels from SECURITY.en.md.
+  - name: Zglaszanie podatnosci security
+    url: https://github.com/Nikovsky/Harcerski-System-Stopni/blob/main/SECURITY.md
+    about: Uzyj prywatnego procesu z SECURITY.md.
+  - name: Security email
+    url: mailto:hss@zhr.pl
+    about: For confidential security reports.
