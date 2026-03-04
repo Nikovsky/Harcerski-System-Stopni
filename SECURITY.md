@@ -1,175 +1,205 @@
 <!-- @file: SECURITY.md -->
 
-# SECURITY.md — Security Policy (HSS)
+# SECURITY.md - Polityka Bezpieczenstwa (HSS)
 
-This document defines the security posture, reporting process, and non-negotiable rules
-for HSS (Harcerski System Stopni).
+**Jezyk:** Polski | [English](./SECURITY.en.md)
 
-## 1) Supported versions
+Ten dokument definiuje podejscie do bezpieczenstwa, proces zglaszania podatnosci,
+oraz niepodlegajace negocjacjom zasady dla HSS (Harcerski System Stopni).
 
-HSS is under active development. Only the `main` branch (or the latest tagged release, if used)
-is considered supported for security fixes.
+## 1) Wspierane wersje
 
-## 2) Reporting a vulnerability
+HSS jest w aktywnym rozwoju. Wsparciem bezpieczenstwa objeta jest wylacznie galaz `main`
+(lub najnowsze oznaczone wydanie, jesli jest uzywane).
 
-### Do NOT open a public GitHub Issue
-Public issues can expose users to real risk (immediate disclosure). Please use a private channel.
+## 2) Zglaszanie podatnosci
 
-### Preferred reporting channels (choose one)
-1. **GitHub Security Advisories / Private Vulnerability Report** (recommended if enabled)
-2. **Private contact email** (recommended for external reporters)
-3. **Private/internal tracker** (only if access is restricted to trusted maintainers)
+### NIE tworz publicznego GitHub Issue
+Publiczne zgloszenie moze narazic uzytkownikow na realne ryzyko (natychmiastowe ujawnienie).
+Uzyj kanalu prywatnego.
 
-> If you accidentally created a public issue, remove sensitive details immediately
-> and contact maintainers to migrate the report to a private channel.
+### Preferowane kanaly zgloszen (wybierz jeden)
+1. **GitHub Private Vulnerability Reporting (preferowany)**
+   - URL: `https://github.com/Nikovsky/Harcerski-System-Stopni/security/advisories/new`
+2. **E-mail security**
+   - `hss@zhr.pl`
+   - Sugerowany temat: `[HSS][SECURITY] <krotki tytul>`
+3. **Prywatny/wewnetrzny tracker** (tylko gdy dostep jest ograniczony do zaufanych maintainerow)
 
-### What to include
-Please provide:
-- A clear description of the issue and affected component(s)
-- Steps to reproduce / proof of concept (safe and minimal)
-- Impact assessment (what can be compromised)
-- Any logs/screenshots with secrets removed
-- Suggested remediation if you have one
+> Jesli przypadkowo utworzysz publiczny issue, natychmiast usun dane wrazliwe
+> i skontaktuj sie z maintainerami, aby przeniesc zgloszenie do kanalu prywatnego.
 
-### Our response process (best effort)
-- We acknowledge receipt as soon as possible
-- We confirm whether it is a valid issue and estimate severity
-- We coordinate a fix and release plan
-- We may request verification of the fix from the reporter
+### Co dolaczyc do zgloszenia
+Podaj prosze:
+- jasny opis problemu i wskazanie dotknietego komponentu(ow),
+- kroki reprodukcji / proof of concept (bezpieczne i minimalne),
+- ocene wplywu (co moze zostac naruszone),
+- logi/zrzuty ekranu po usunieciu sekretow,
+- wersje/branch/hash commita, na ktorym zaobserwowano problem,
+- propozycje remediacji (jesli ja masz).
+
+### Zakres zgloszen
+In scope (przyklady):
+- obejscie uwierzytelniania/autoryzacji,
+- eskalacja uprawnien lub obejscie RBAC/owner-check,
+- IDOR/wyciek danych (proby, zalaczniki, dane uzytkownikow),
+- wyciek sekretow/tokenow,
+- CSRF dla akcji zmieniajacych stan,
+- podatnosci typu injection (SQL/NoSQL/header/template).
+
+Out of scope (chyba ze wykazano realny wplyw bezpieczenstwa):
+- zgloszenia czysto informacyjne bez sciezki eksploatacji,
+- self-XSS wymagajacy nierealistycznego samokompromitowania uzytkownika,
+- zgloszenia o brakujacych naglowkach best-practice bez scenariusza ataku,
+- socjotechnika/phishing niezwiązane z kodem lub infrastruktura tego repo.
+
+### Czas reakcji (best effort)
+- Potwierdzenie przyjecia zgloszenia: do **72 godzin**
+- Wstepny triage i klasyfikacja severity: do **7 dni**
+- Aktualizacje statusu dla potwierdzonych zgloszen: co najmniej raz na **14 dni**
+- Docelowe okna napraw (best effort):
+  - **Critical**: do 7 dni
+  - **High**: do 30 dni
+  - **Medium/Low**: zgodnie z ryzykiem i cyklem wydan
 
 ### Coordinated disclosure
-We prefer coordinated disclosure:
-- Please do not publish details before a fix is available
-- We will agree on a disclosure timeline depending on severity
+Preferujemy skoordynowane ujawnienie:
+- nie publikuj szczegolow przed dostepnoscia poprawki,
+- uzgodnimy harmonogram ujawnienia zaleznie od severity.
 
-## 3) Security goals and threat model (high level)
+## 3) Cele bezpieczenstwa i model zagrozen (high level)
 
-### Primary goals
-- Prevent unauthorized access to accounts and protected resources (RBAC enforced server-side)
-- Prevent leakage of secrets, tokens, and PII (especially in logs)
-- Maintain integrity of data stored in PostgreSQL and objects stored in MinIO (S3)
-- Reduce attack surface via strict input validation, secure defaults, and minimal privileges
+### Glowne cele
+- Zapobieganie nieautoryzowanemu dostepowi do kont i zasobow chronionych
+  (RBAC egzekwowany po stronie serwera).
+- Zapobieganie wyciekom sekretow, tokenow i PII (szczegolnie w logach).
+- Utrzymanie integralnosci danych w PostgreSQL i obiektow w MinIO (S3).
+- Ograniczanie powierzchni ataku przez scisla walidacje wejscia, bezpieczne domyslne ustawienia
+  i zasade minimalnych uprawnien.
 
-### Primary trust boundaries
-- Internet/clients → nginx → API (NestJS)
-- Web (Next.js SSR) → API
-- API → Keycloak (OIDC)
-- API → PostgreSQL
-- API → MinIO (S3)
+### Glowne granice zaufania
+- Internet/klienci -> nginx -> API (NestJS)
+- Web (Next.js SSR) -> API
+- API -> Keycloak (OIDC)
+- API -> PostgreSQL
+- API -> MinIO (S3)
 
-## 4) Mandatory security rules (non-negotiable)
+## 4) Obowiazkowe zasady bezpieczenstwa (non-negotiable)
 
-### 4.1 Secrets and credentials
-- Never commit secrets, tokens, passwords, private keys, or `.env` files.
-- Use `.env.example` + documented required variables.
-- Rotate credentials immediately if exposure is suspected.
-- Avoid long-lived tokens where possible.
+### 4.1 Sekrety i dane uwierzytelniajace
+- Nigdy nie commituj sekretow, tokenow, hasel, kluczy prywatnych ani plikow `.env`.
+- Uzywaj `.env.example` oraz udokumentowanych wymaganych zmiennych.
+- Rotuj dane dostepowe natychmiast, jesli podejrzewasz ich ujawnienie.
+- Ograniczaj dlugo zyjace tokeny, gdzie to mozliwe.
 
-### 4.2 Authentication and authorization (Keycloak / RBAC)
-- RBAC must be enforced **server-side** at the API boundary.
-- Client-side checks are UX only.
-- Never trust user-provided role claims without verification.
-- Use least privilege: default role should not grant admin capabilities.
+### 4.2 Uwierzytelnianie i autoryzacja (Keycloak / RBAC)
+- RBAC musi byc egzekwowany **po stronie serwera** na granicy API.
+- Kontrole po stronie klienta maja charakter tylko UX.
+- Nigdy nie ufaj niezweryfikowanym claims roli dostarczonym przez uzytkownika.
+- Stosuj zasade minimalnych uprawnien: rola domyslna nie moze dawac uprawnien administracyjnych.
 
-### 4.3 Sessions, cookies, CSRF
-If cookies are used for auth:
-- Cookies must be `HttpOnly`, `Secure`, and have an appropriate `SameSite` policy.
-- CSRF protections must exist where cookies authenticate state-changing requests.
-- Do not store auth tokens in `localStorage` or expose them to the client bundle.
+### 4.3 Sesje, cookie, CSRF
+Jesli cookies sa uzywane do auth:
+- Cookies musza miec `HttpOnly`, `Secure` oraz adekwatna polityke `SameSite`.
+- Musi istniec ochrona CSRF dla zapytan zmieniajacych stan autoryzowanych cookie.
+- Nie przechowuj tokenow auth w `localStorage` i nie eksponuj ich do client bundle.
 
-### 4.4 Input validation and sanitization
-- Validate all untrusted input at boundaries:
-  - HTTP DTOs / route params / query params
-  - Forms
-  - Startup config (env)
-- Use schema-driven validation (zod in `packages/schemas`, DTO validation in API).
-- Apply allowlists for sorting/filtering fields (no arbitrary SQL/Prisma field access).
-- Prevent injection risks (SQL/NoSQL injection, header injection, template injection).
+### 4.4 Walidacja i sanityzacja wejscia
+- Waliduj kazde niezaufane wejscie na granicach:
+  - HTTP DTO / parametry sciezki / query params,
+  - formularze,
+  - konfiguracje startupowa (env).
+- Uzywaj walidacji opartej o schematy (zod w `packages/schemas`, walidacja DTO w API).
+- Stosuj allowlisty dla pol sortowania/filtrowania (bez dowolnego dostepu do pol SQL/Prisma).
+- Zapobiegaj ryzykom injection (SQL/NoSQL/header/template injection).
 
-### 4.5 File upload & S3 (MinIO)
-- Enforce strict file size limits and content-type allowlists.
-- Do not trust file extensions; validate actual content where possible.
-- Store uploads as private by default.
-- Consider a malware scanning seam (even if not implemented yet).
+### 4.5 Upload plikow i S3 (MinIO)
+- Egzekwuj scisle limity rozmiaru plikow i allowlisty typow zawartosci.
+- Nie ufaj rozszerzeniom plikow; waliduj rzeczywista zawartosc, gdzie to mozliwe.
+- Przechowuj uploady jako prywatne domyslnie.
+- Uwzglednij seam pod skanowanie malware (nawet jesli jeszcze nie jest wdrozone).
 
-### 4.6 Error handling and information disclosure
-- Never leak stack traces, internal errors, or configuration details to clients.
-- Use consistent error envelopes with stable error codes.
-- Avoid returning detailed auth failure reasons that help attackers.
+### 4.6 Obsluga bledow i ujawnianie informacji
+- Nigdy nie ujawniaj stack trace, bledow wewnetrznych ani szczegolow konfiguracji klientom.
+- Uzywaj spojnych envelope bledow ze stabilnymi kodami.
+- Unikaj zwracania szczegolowych powodow porazek auth, ktore pomagaja atakujacym.
 
-### 4.7 Logging (PII / secrets redaction)
-- Never log:
-  - passwords, tokens, refresh tokens
-  - authorization headers
-  - session cookies
-  - secrets or private keys
-- Logs must be structured, level-based, and include a request/correlation id when available.
-- Treat personal data as sensitive; log the minimum.
+### 4.7 Logowanie (redakcja PII / sekretow)
+- Nigdy nie loguj:
+  - hasel, tokenow, refresh tokenow,
+  - naglowkow authorization,
+  - cookies sesyjnych,
+  - sekretow ani kluczy prywatnych.
+- Logi musza byc ustrukturyzowane, poziomowane i zawierac request/correlation id, gdy dostepne.
+- Traktuj dane osobowe jako wrazliwe; loguj minimum niezbednych danych.
 
-### 4.8 Dependency and supply-chain hygiene
-- Lockfile changes must be reviewed.
-- Avoid unmaintained libraries for security-critical functionality.
-- Run audits in CI (pnpm audit or equivalent).
-- Keep Docker images pinned and updated.
+### 4.8 Higiena zaleznosci i supply-chain
+- Zmiany lockfile musza byc recenzowane.
+- Unikaj nieutrzymywanych bibliotek dla funkcji krytycznych bezpieczenstwa.
+- Uruchamiaj audyty w CI (`pnpm audit` lub odpowiednik).
+- Utrzymuj obrazy Docker przypiete i aktualne.
 
-## 5) Infrastructure security baseline
+## 5) Bazowy poziom bezpieczenstwa infrastruktury
 
 ### nginx / TLS
-- TLS termination happens at nginx (HTTPS required).
-- Security headers must be enabled (HSTS, nosniff, frame protection, referrer policy, etc.).
-- Prefer modern TLS versions and disable weak ciphers.
+- Terminacja TLS odbywa sie na nginx (HTTPS wymagany).
+- Naglowki bezpieczenstwa musza byc wlaczone (HSTS, nosniff, frame protection, referrer policy itd.).
+- Preferuj nowoczesne wersje TLS i wylacz slabe szyfry.
 
 ### PostgreSQL
-- Use least-privilege DB users (separate migration/admin if needed).
-- Ensure backups and restore procedures exist (even if manual initially).
-- Avoid exposing PostgreSQL to the public internet.
+- Uzywaj kont DB z minimalnymi uprawnieniami (oddzielnie migracje/admin, jesli potrzebne).
+- Upewnij sie, ze istnieja procedury backupu i odtwarzania (nawet jesli na poczatku manualne).
+- Unikaj wystawiania PostgreSQL do publicznego internetu.
 
 ### Keycloak
-- Keep Keycloak protected behind TLS.
-- Harden admin access (strong credentials, minimal exposure).
-- Verify realm/import procedures are deterministic and repeatable.
+- Utrzymuj Keycloak za TLS.
+- Hardenuj dostep administracyjny (silne dane dostepowe, minimalna ekspozycja).
+- Weryfikuj, ze procedury realm/import sa deterministyczne i powtarzalne.
 
 ### MinIO
-- Do not expose buckets publicly by default.
-- Restrict console access to trusted networks where possible.
+- Nie wystawiaj bucketow publicznie domyslnie.
+- Ogranicz dostep do konsoli do zaufanych sieci, gdzie to mozliwe.
 
-## 6) Horizontal scaling note
+## 6) Uwaga o skalowaniu horyzontalnym
 
-HSS aims to be stateless-by-default. Any security control implemented in-memory
-(e.g., rate limiting) must be marked as:
+HSS jest projektowany jako stateless-by-default. Kazda kontrola bezpieczenstwa implementowana in-memory
+(np. rate limiting) musi byc oznaczona jako:
 
 `// [SINGLE-INSTANCE] reason: in-memory security control`
 
-and documented with the future horizontal-safe replacement (e.g., Redis-backed rate limit).
+i udokumentowana z docelowym, horyzontalnie bezpiecznym zamiennikiem
+(np. rate limit oparty o Redis).
 
-## 7) Security testing expectations
+## 7) Oczekiwania dot. testow bezpieczenstwa
 
-Minimum baseline:
-- Unit tests for auth helpers and boundary validators
-- Integration tests for auth-protected API routes
-- E2E tests for core auth flows and protected routes
+Minimalny baseline:
+- testy unit dla helperow auth i walidatorow granicznych,
+- testy integracyjne dla chronionych tras API,
+- testy E2E dla kluczowych flow auth i tras chronionych.
 
-Recommended (future):
-- SAST/secret scanning in CI
-- Container scanning for Docker images
-- Dependency vulnerability scanning as a gate
+Rekomendowane (przyszlosc):
+- SAST/secret scanning w CI,
+- container scanning dla obrazow Docker,
+- skanowanie podatnosci zaleznosci jako quality gate.
 
-## 8) Incident response (basic)
+## 8) Reakcja na incydent (podstawowa)
 
-If a security incident is suspected:
-1. Contain: revoke/rotate exposed credentials and tokens
-2. Assess impact: identify affected data/users
-3. Patch: apply fixes and deploy
-4. Communicate: notify relevant stakeholders (internally first)
-5. Postmortem: document root cause and prevention steps
+Jesli podejrzewany jest incydent bezpieczenstwa:
+1. Ogranicz skutki: uniewaznij/obroc ujawnione dane dostepowe i tokeny.
+2. Ocen wplyw: zidentyfikuj dotkniete dane/uzytkownikow.
+3. Napraw: wdroz poprawki.
+4. Komunikuj: poinformuj wlasciwych interesariuszy (najpierw wewnetrznie).
+5. Postmortem: udokumentuj przyczyne zrodlowa i kroki zapobiegawcze.
 
-## 9) Security contact (placeholder)
+## 9) Kontakty security
 
-Add at least one private contact route here (email or secure form).
-Example placeholders:
-- security@hss.local (replace with real address)
-- GitHub Security Advisories enabled on the repository
+- GitHub Private Vulnerability Reporting:
+  - `https://github.com/Nikovsky/Harcerski-System-Stopni/security/advisories/new`
+- E-mail security:
+  - `hss@zhr.pl`
+
+Publiczne GitHub Issues nie sa akceptowanym kanalem zglaszania podatnosci.
 
 ---
 
-Thank you for helping keep HSS secure.
+Dziekujemy za pomoc w utrzymaniu bezpieczenstwa HSS.

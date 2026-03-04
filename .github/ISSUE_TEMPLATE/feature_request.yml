@@ -1,104 +1,113 @@
-name: Feature Request
-description: Propose a new feature for HSS
-title: "[FEATURE] "
-labels: ["feature"]
+name: Propozycja funkcji (PL)
+description: Zglos propozycje nowej funkcji dla HSS
+title: "[FEATURE][PL] "
+labels: ["feature", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Feature Request Template
-        Use this template to propose new features for the HSS system.
+        ## Propozycja funkcji (PL)
+        Opisz problem i wartosc funkcji. Im bardziej konkretnie, tym szybciej da sie to zaplanowac.
 
   - type: textarea
-    id: user-story
+    id: problem
     attributes:
-      label: User Story
-      description: "Format: As a [persona], I want to [action] so that [benefit]."
-      placeholder: "As a candidate, I want to upload attachments to my application so that I can provide evidence for requirements."
+      label: Problem do rozwiazania
+      description: Co dzisiaj nie dziala lub jest nieefektywne?
+      placeholder: "Opisz aktualny problem i jego skutki."
     validations:
       required: true
 
   - type: textarea
-    id: acceptance-criteria
+    id: proposed_solution
     attributes:
-      label: Acceptance Criteria
-      description: List the criteria that must be met for this feature to be considered complete
-      placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-        - [ ] Criterion 3
+      label: Proponowane rozwiazanie
+      description: Jak to powinno dzialac z perspektywy usera/systemu?
+      placeholder: "Opisz preferowane rozwiazanie."
     validations:
       required: true
 
   - type: textarea
-    id: technical-tasks
+    id: user_story
     attributes:
-      label: Technical Tasks
-      description: Break down the implementation into technical tasks
-      placeholder: |
-        - [ ] Task 1
-        - [ ] Task 2
-        - [ ] Task 3
+      label: User story (opcjonalnie)
+      description: "Format: Jako [persona], chce [akcja], aby [korzysc]."
+      placeholder: "Jako ..., chce ..., aby ..."
     validations:
       required: false
 
   - type: textarea
-    id: api-endpoints
+    id: acceptance_criteria
     attributes:
-      label: API Endpoints (if applicable)
-      description: List any new or modified API endpoints
+      label: Kryteria akceptacji
       placeholder: |
-        - `POST /api/...` - Description
-        - `GET /api/...` - Description
+        - [ ] Kryterium 1
+        - [ ] Kryterium 2
+        - [ ] Kryterium 3
     validations:
-      required: false
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Glowny obszar
+      options:
+        - apps/web
+        - apps/api
+        - packages/schemas
+        - packages/database
+        - docker/infra
+        - docs
+        - cross-cutting
+    validations:
+      required: true
 
   - type: textarea
-    id: files
+    id: technical_notes
     attributes:
-      label: Files to Create/Modify
-      description: List the files that will need to be created or modified
+      label: Notatki techniczne
+      description: Endpointy, schematy, migracje, integracje, ograniczenia.
       placeholder: |
-        - `apps/api/src/...`
-        - `apps/web/src/...`
-    validations:
-      required: false
-
-  - type: textarea
-    id: dependencies
-    attributes:
-      label: Dependencies
-      description: List any blocking or blocked issues
-      placeholder: |
-        - Blocks: #
-        - Blocked by: #
+        - API:
+        - Schematy:
+        - DB/migracje:
+        - Inne:
     validations:
       required: false
 
   - type: dropdown
-    id: story-points
+    id: security_impact
     attributes:
-      label: Story Points
-      description: Estimate the complexity/effort
+      label: Wplyw na bezpieczenstwo
       options:
-        - "1 (xs - trivial)"
-        - "2 (xs - simple)"
-        - "3 (s - small)"
-        - "5 (s - medium)"
-        - "8 (m - large)"
-        - "13 (l - very large)"
-        - "21+ (xl - needs breakdown)"
+        - Brak
+        - Dotyczy auth/session/cookies
+        - Dotyczy RBAC/permissions
+        - Dotyczy PII / dane wrazliwe
+        - Dotyczy upload/S3/MinIO
+        - Dotyczy infra hardening
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scaling_impact
+    attributes:
+      label: Wplyw na skalowanie
+      options:
+        - Bez wplywu (stateless)
+        - Wymaga stanu zewnetrznego (DB/Redis)
+        - Ryzyko SINGLE-INSTANCE (wymaga uzasadnienia)
     validations:
       required: true
 
   - type: checkboxes
-    id: definition-of-done
+    id: checklist
     attributes:
-      label: Definition of Done
-      description: Check when complete
+      label: Checklist
       options:
-        - label: Code implemented and reviewed
-        - label: Unit tests passing
-        - label: Integration tests passing (if applicable)
-        - label: Documentation updated
-        - label: Deployed to dev and verified
+        - label: Sprawdzilem(-am), ze podobna propozycja nie istnieje.
+          required: true
+        - label: Opisalem(-am) mierzalne kryteria akceptacji.
+          required: true
+        - label: Uwzglednilem(-am) wplyw na security i skalowanie.
+          required: true

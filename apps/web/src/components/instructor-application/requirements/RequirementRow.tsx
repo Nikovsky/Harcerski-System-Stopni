@@ -8,10 +8,26 @@ import { toUserFriendlyRequirementSaveErrorFromUnknown } from "@/lib/upload-util
 import { RequirementAttachments } from "@/components/instructor-application/requirements/RequirementAttachments";
 import { AttachmentReadonlyList } from "@/components/instructor-application/attachments/AttachmentReadonlyList";
 import type { RequirementRowResponse } from "@hss/schemas";
-import type { FlushRegistry } from "@/components/instructor-application/requirements/requirement-form.types";
+import {
+  RequirementValidationError,
+  type FlushRegistry,
+  type RequirementFlushOptions,
+} from "@/components/instructor-application/requirements/requirement-form.types";
 
 const REQUIREMENT_SAVE_DEBOUNCE_MS = 500;
 const REQUIREMENT_TEXT_MAX_LENGTH = 5000;
+
+function isBlank(value: string | null | undefined): boolean {
+  return !value || value.trim().length === 0;
+}
+
+function getActionFieldName(code: string): string {
+  return `requirement_${code}_actionDescription`;
+}
+
+function getVerificationFieldName(code: string): string {
+  return `requirement_${code}_verificationText`;
+}
 
 type Props = {
   applicationId: string;
@@ -23,23 +39,33 @@ type Props = {
 export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: Props) {
   const t = useTranslations("applications");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pendingRef = useRef<{ state: string; actionDescription: string; verificationText?: string | null } | null>(null);
+  const pendingRef = useRef<{ state: string; actionDescription: string; verificationText: string } | null>(null);
   const [state, setState] = useState<string>(req.state);
   const [actionDescription, setActionDescription] = useState<string>(req.actionDescription);
   const [verificationText, setVerificationText] = useState<string>(req.verificationText ?? "");
+  const [actionDescriptionError, setActionDescriptionError] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const endpoint = `instructor-applications/${applicationId}/requirements/${req.uuid}`;
+  const actionFieldName = getActionFieldName(req.definition.code);
+  const verificationFieldName = getVerificationFieldName(req.definition.code);
 
   const persistPayload = useCallback(
-    async (payload: {
-      state: string;
-      actionDescription: string;
-      verificationText?: string | null;
-    }) => {
+    async (
+      payload: {
+        state: string;
+        actionDescription: string;
+        verificationText: string;
+      },
+      options?: { keepalive?: boolean },
+    ) => {
       try {
-        await apiFetch(endpoint, { method: "PATCH", body: JSON.stringify(payload) });
+        await apiFetch(endpoint, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+          ...(options?.keepalive ? { keepalive: true } : {}),
+        });
         setSaveError(null);
       } catch (error: unknown) {
         setSaveError(toUserFriendlyRequirementSaveErrorFromUnknown(error, t));
@@ -54,6 +80,8 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     setState(req.state);
     setActionDescription(req.actionDescription);
     setVerificationText(req.verificationText ?? "");
+    setActionDescriptionError(null);
+    setVerificationError(null);
   }, [req.actionDescription, req.state, req.verificationText]);
 
   useEffect(() => {
@@ -63,34 +91,102 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
     };
   }, [persistPayload]);
 
-  const flush = useCallback(async () => {
-    clearTimeout(debounceRef.current);
-    if (pendingRef.current) {
-      const payload = pendingRef.current;
-      pendingRef.current = null;
-      await persistPayload(payload);
+  const ensureRequirementIsValid = useCallback(() => {
+    const actionIsMissing = isBlank(actionDescription);
+    const verificationIsMissing = isBlank(verificationText);
+
+    if (actionIsMissing || verificationIsMissing) {
+      const actionMessage = actionIsMissing ? t("messages.actionDescriptionError") : null;
+      const verificationMessage = verificationIsMissing ? t("messages.verificationTextError") : null;
+
+      setActionDescriptionError(actionMessage);
+      setVerificationError(verificationMessage);
+
+      if (actionMessage) {
+        throw new RequirementValidationError(
+          actionMessage,
+          actionFieldName,
+        );
+      }
+
+      if (verificationMessage) {
+        throw new RequirementValidationError(
+          verificationMessage,
+          verificationFieldName,
+        );
+      }
     }
-  }, [persistPayload]);
+
+    setActionDescriptionError(null);
+    setVerificationError(null);
+  }, [actionDescription, actionFieldName, verificationFieldName, verificationText, t]);
+
+  const flush = useCallback(
+    async (options: RequirementFlushOptions = {}) => {
+      const mode = options.mode ?? "strict";
+      clearTimeout(debounceRef.current);
+
+      const hasLocalChanges =
+        state !== req.state ||
+        actionDescription !== req.actionDescription ||
+        verificationText !== (req.verificationText ?? "");
+
+      const payload = pendingRef.current ?? {
+        state,
+        actionDescription,
+        verificationText,
+      };
+
+      if (mode === "strict") {
+        ensureRequirementIsValid();
+      } else if (isBlank(actionDescription) || isBlank(verificationText)) {
+        pendingRef.current = null;
+        return;
+      } else {
+        setActionDescriptionError(null);
+        setVerificationError(null);
+      }
+
+      if (!pendingRef.current && !hasLocalChanges) {
+        return;
+      }
+
+      pendingRef.current = null;
+      const keepalive = mode === "lenient";
+      await persistPayload(payload, { keepalive });
+    },
+    [
+      actionDescription,
+      ensureRequirementIsValid,
+      persistPayload,
+      req.actionDescription,
+      req.state,
+      req.verificationText,
+      state,
+      verificationText,
+    ],
+  );
 
   useEffect(() => {
     const registryMap = flushRegistry.current;
     registryMap.set(req.uuid, flush);
     return () => {
       registryMap.delete(req.uuid);
-      void flush();
+      if (!readOnly) {
+        void flush({ mode: "lenient" }).catch(() => undefined);
+      }
     };
-  }, [req.uuid, flush, flushRegistry]);
+  }, [flush, flushRegistry, readOnly, req.uuid]);
 
   const save = useCallback(
-    (newState: string, actionDescription: string, verificationText?: string | null) => {
+    (newState: string, nextActionDescription: string, nextVerificationText: string) => {
       if (readOnly) return;
-      if (newState === "DONE" && (!verificationText || !verificationText.trim())) {
-        setVerificationError(t("messages.verificationTextError"));
-        return;
-      }
-      setVerificationError(null);
       setSaveError(null);
-      const payload = { state: newState, actionDescription, verificationText };
+      const payload = {
+        state: newState,
+        actionDescription: nextActionDescription,
+        verificationText: nextVerificationText,
+      };
       pendingRef.current = payload;
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -98,7 +194,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
         void persistPayload(payload).catch(() => undefined);
       }, REQUIREMENT_SAVE_DEBOUNCE_MS);
     },
-    [readOnly, persistPayload, t],
+    [readOnly, persistPayload],
   );
 
   const attachments = req.attachments ?? [];
@@ -117,7 +213,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
               onChange={(event) => {
                 const newState = event.target.value;
                 setState(newState);
-                save(newState, actionDescription, verificationText || null);
+                save(newState, actionDescription, verificationText);
               }}
               className="rounded border border-border bg-background px-2 py-1 text-sm"
             >
@@ -129,29 +225,53 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
           {saveError && <p className="text-xs text-red-600 dark:text-red-400">{saveError}</p>}
 
           <textarea
+            data-field={actionFieldName}
             value={actionDescription}
             placeholder={t("requirements.actionPlaceholder")}
-            onChange={(event) => setActionDescription(event.target.value)}
-            onBlur={() => save(state, actionDescription, verificationText || null)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setActionDescription(value);
+              if (!isBlank(value)) {
+                setActionDescriptionError(null);
+              }
+            }}
+            onBlur={() => save(state, actionDescription, verificationText)}
             rows={2}
             maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-            className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+              actionDescriptionError ? "border-red-500" : "border-border"
+            }`}
           />
+          {actionDescriptionError && (
+            <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{actionDescriptionError}</p>
+          )}
 
           {state === "PLANNED" ? (
             <div>
               <label className="mb-1 block text-xs text-foreground/60">
-                {t("requirements.futureProofLabel")}
+                {t("requirements.futureProofLabel")} *
               </label>
               <textarea
+                data-field={verificationFieldName}
                 value={verificationText}
                 placeholder={t("requirements.futureProofPlaceholder")}
-                onChange={(event) => setVerificationText(event.target.value)}
-                onBlur={() => save(state, actionDescription, verificationText || null)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setVerificationText(value);
+                  if (!isBlank(value)) {
+                    setVerificationError(null);
+                  }
+                }}
+                onBlur={() => save(state, actionDescription, verificationText)}
                 rows={1}
                 maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                  verificationError ? "border-red-500" : "border-border"
+                }`}
               />
+              {verificationError && (
+                <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{verificationError}</p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -160,10 +280,17 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
                   {t("verificationTextRequired")}
                 </label>
                 <textarea
+                  data-field={verificationFieldName}
                   value={verificationText}
                   placeholder={t("requirements.verificationPlaceholder")}
-                  onChange={(event) => setVerificationText(event.target.value)}
-                  onBlur={() => save(state, actionDescription, verificationText || null)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setVerificationText(value);
+                    if (!isBlank(value)) {
+                      setVerificationError(null);
+                    }
+                  }}
+                  onBlur={() => save(state, actionDescription, verificationText)}
                   rows={1}
                   required
                   maxLength={REQUIREMENT_TEXT_MAX_LENGTH}

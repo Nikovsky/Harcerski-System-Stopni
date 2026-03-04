@@ -10,13 +10,12 @@ export const ALLOWED_MIME_TYPES = [
   "image/webp",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.oasis.opendocument.text",
   "video/mp4",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ] as const;
 
-export const ALLOWED_EXTENSIONS_REGEX = /\.(pdf|jpg|jpeg|png|webp|doc|docx|odt|mp4|ppt|pptx)$/i;
+export const ALLOWED_EXTENSIONS_REGEX = /\.(pdf|jpg|jpeg|png|webp|doc|docx|mp4|ppt|pptx)$/i;
 
 export const MAX_FILE_SIZE = 50_000_000; // 50 MB
 
@@ -50,8 +49,8 @@ export type UpdateInstructorApplication = z.infer<typeof updateInstructorApplica
 // ── Update Requirement ─────────────────────────────────────────────────────
 export const updateInstructorRequirementSchema = z.object({
   state: requirementStateSchema,
-  actionDescription: z.string().max(5000),
-  verificationText: z.string().max(5000).nullable().optional(),
+  actionDescription: z.string().trim().min(1).max(5000),
+  verificationText: z.string().trim().min(1).max(5000),
 });
 export type UpdateInstructorRequirement = z.infer<typeof updateInstructorRequirementSchema>;
 
@@ -190,7 +189,7 @@ export type PresignUploadRequest = z.infer<typeof presignUploadRequestSchema>;
 // ── Confirm upload ─────────────────────────────────────────────────────────
 export const confirmUploadRequestSchema = z.object({
   objectKey: z.string().min(1)
-    .regex(/^instructor-applications\/[a-f0-9-]+\/[a-f0-9-]+\.(pdf|jpe?g|png|webp|docx?|odt|mp4|pptx?)$/, "Nieprawidłowy klucz obiektu"),
+    .regex(/^instructor-applications\/[a-f0-9-]+\/[a-f0-9-]+\.(pdf|jpe?g|png|webp|docx?|mp4|pptx?)$/, "Nieprawidłowy klucz obiektu"),
   originalFilename: z.string().min(1).max(255),
   contentType: z.string().min(1).max(255)
     .refine((v) => (ALLOWED_MIME_TYPES as readonly string[]).includes(v), "Niedozwolony typ pliku"),

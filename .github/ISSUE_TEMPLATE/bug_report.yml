@@ -1,92 +1,113 @@
-name: Bug Report
-description: Report a bug in HSS
-title: "[BUG] "
-labels: ["bug"]
+name: Zgloszenie bledu (PL)
+description: Zglos blad w HSS
+title: "[BUG][PL] "
+labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Bug Report Template
-        Use this template to report bugs in the HSS system.
+        ## Zgloszenie bledu (PL)
+        Dzieki za zgloszenie.
+
+        > [!IMPORTANT]
+        > Jesli zgloszenie dotyczy podatnosci bezpieczenstwa, **nie** tworz publicznego issue.
+        > Uzyj procesu opisanego w `SECURITY.md`:
+        > https://github.com/Nikovsky/Harcerski-System-Stopni/blob/main/SECURITY.md
 
   - type: textarea
-    id: description
+    id: summary
     attributes:
-      label: Description
-      description: Clear description of the bug
-      placeholder: What's wrong?
+      label: Krotki opis bledu
+      description: Jednoznacznie opisz, co nie dziala.
+      placeholder: "Np. Formularz zapisuje dane, ale zwraca 500 przy submit."
     validations:
       required: true
 
   - type: textarea
-    id: steps-to-reproduce
+    id: steps_to_reproduce
     attributes:
-      label: Steps to Reproduce
-      description: Detailed steps to reproduce the issue
+      label: Kroki reprodukcji
+      description: Podaj precyzyjne kroki.
       placeholder: |
-        1. Step 1
-        2. Step 2
-        3. Step 3
+        1. Otworz ...
+        2. Kliknij ...
+        3. Wpisz ...
+        4. Zatwierdz ...
     validations:
       required: true
 
   - type: textarea
-    id: expected-behavior
+    id: expected_behavior
     attributes:
-      label: Expected Behavior
-      description: What should happen?
-      placeholder: Describe the expected behavior
+      label: Oczekiwane zachowanie
+      placeholder: "Np. System powinien zapisac rekord i pokazac komunikat sukcesu."
     validations:
       required: true
 
   - type: textarea
-    id: actual-behavior
+    id: actual_behavior
     attributes:
-      label: Actual Behavior
-      description: What actually happens?
-      placeholder: Describe what actually happens
+      label: Aktualne zachowanie
+      placeholder: "Np. Zwrot 500 i brak zapisu."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Obszar
+      description: Gdzie wystepuje problem?
+      options:
+        - apps/web
+        - apps/api
+        - packages/schemas
+        - packages/database
+        - docker/infra
+        - docs
+        - nie wiem
     validations:
       required: true
 
   - type: input
     id: environment
     attributes:
-      label: Environment
-      description: "Format: Browser/OS, User role, Application version"
-      placeholder: "Chrome 120/Windows 11, Commission Member, v1.0.0"
-    validations:
-      required: false
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots/Logs
-      description: Attach screenshots or paste error logs
-      placeholder: Drag and drop images or paste logs here
+      label: Srodowisko
+      description: "Format: Browser/OS, rola usera, wersja/branch/commit"
+      placeholder: "Chrome 122 / Windows 11, COMMISSION_MEMBER, main@abc1234"
     validations:
       required: false
 
   - type: dropdown
-    id: severity
+    id: impact
     attributes:
-      label: Severity
-      description: How severe is this bug?
+      label: Wplyw
       options:
-        - "Critical (blocks usage)"
-        - "High (major feature broken)"
-        - "Medium (workaround exists)"
-        - "Low (cosmetic)"
+        - Critical (blokuje krytyczny flow)
+        - High (duza funkcja nie dziala)
+        - Medium (jest obejscie)
+        - Low (problem kosmetyczny)
     validations:
       required: true
 
-  - type: dropdown
-    id: priority
+  - type: textarea
+    id: logs_and_screenshots
     attributes:
-      label: Priority
-      description: How urgent is the fix?
+      label: Logi / screenshoty / requestId
+      description: Wklej logi i requestId. Usun sekrety, tokeny, hasla i PII.
+      placeholder: "Tutaj wklej logi lub dolacz obrazy."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Potwierdzenia
       options:
-        - "Must fix for MVP"
-        - "Should fix soon"
-        - "Can wait"
+        - label: Potwierdzam, ze to nie jest publiczne zgloszenie podatnosci security.
+          required: true
+        - label: Potwierdzam, ze usunalem(-am) sekrety i dane wrazliwe z tresci zgloszenia.
+          required: true
+        - label: Sprawdzilem(-am), ze nie ma duplikatu tego bledu.
+          required: true
     validations:
       required: true

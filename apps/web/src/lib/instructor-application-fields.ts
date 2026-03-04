@@ -22,20 +22,30 @@ export const PROFILE_FIELDS = [
 
 type FieldLabelKey = NonNullable<ReturnType<typeof fieldKey>>;
 type FieldLabelTranslator = (
-  key: FieldLabelKey | "messages.missingRequirementVerification",
+  key:
+    | FieldLabelKey
+    | "messages.missingRequirementActionDescription"
+    | "messages.missingRequirementVerification",
   values?: Record<string, string | number>,
 ) => string;
 
-const REQUIREMENT_VERIFICATION_FIELD_REGEX = /^requirement_(.+)_verificationText$/;
+const REQUIREMENT_FIELD_REGEX = /^requirement_(.+)_(actionDescription|verificationText)$/;
 
 export function getFieldLabel(
   field: string,
   t: FieldLabelTranslator,
-  requirements?: RequirementRowResponse[],
+  _requirements?: RequirementRowResponse[],
 ): string {
-  const requirementMatch = REQUIREMENT_VERIFICATION_FIELD_REGEX.exec(field);
+  void _requirements;
+  const requirementMatch = REQUIREMENT_FIELD_REGEX.exec(field);
   if (requirementMatch) {
     const requirementCode = requirementMatch[1];
+    const requirementField = requirementMatch[2];
+
+    if (requirementField === "actionDescription") {
+      return t("messages.missingRequirementActionDescription", { code: requirementCode });
+    }
+
     return t("messages.missingRequirementVerification", { code: requirementCode });
   }
 

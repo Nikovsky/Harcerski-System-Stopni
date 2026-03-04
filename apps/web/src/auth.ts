@@ -85,8 +85,15 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function waitForPeerRefresh(sid: string): Promise<SessionJwt | null> {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    await sleep(120);
+  const pollIntervalMs = 120;
+  const maxWaitMs = Math.max(
+    pollIntervalMs,
+    envServer.HSS_SESSION_REFRESH_LOCK_TTL_MS + pollIntervalMs,
+  );
+  const deadline = Date.now() + maxWaitMs;
+
+  while (Date.now() < deadline) {
+    await sleep(pollIntervalMs);
     const persisted = await readSessionBySid(sid);
     if (!persisted) return null;
 

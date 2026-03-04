@@ -7,8 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
+import { Prisma } from '@hss/database';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from '@/modules/storage/storage.service';
+import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
 import { isInstructorApplicationEditable, MAX_FILE_SIZE } from '@hss/schemas';
 import type {
   AuthPrincipal,
@@ -37,12 +39,16 @@ export class InstructorAttachmentService {
     'video/mp4',
     'application/zip',
     'application/x-cfb',
+    'application/msword',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ]);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly auditService: InstructorApplicationAuditService,
   ) {}
 
   static sanitizeFilename(raw: string): string {
@@ -64,6 +70,7 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: PresignUploadRequest,
+    requestId?: string | null,
   ) {
     await this.ensureOwnDraft(principal, applicationId);
     await this.cleanupOrphanedUploads(applicationId);
@@ -87,6 +94,20 @@ export class InstructorAttachmentService {
 
     const url = await this.storage.presignUpload(objectKey, dto.contentType);
 
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_PRESIGNED',
+      targetType: 'INSTRUCTOR_APPLICATION',
+      targetUuid: applicationId,
+      requestId,
+      metadata: {
+        objectKey,
+        contentType: dto.contentType,
+        sizeBytes: dto.sizeBytes,
+        requirementUuid: dto.requirementUuid ?? null,
+      },
+    });
+
     return { url, objectKey };
   }
 
@@ -94,6 +115,7 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     dto: ConfirmUploadRequest,
+    requestId?: string | null,
   ) {
     await this.ensureOwnDraft(principal, applicationId);
 
@@ -102,18 +124,6 @@ export class InstructorAttachmentService {
       throw new BadRequestException(
         'Object key does not match this application',
       );
-    }
-
-    if (dto.requirementUuid) {
-      const requirement =
-        await this.prisma.instructorApplicationRequirement.findUnique({
-          where: { uuid: dto.requirementUuid },
-        });
-      if (!requirement || requirement.applicationUuid !== applicationId) {
-        throw new BadRequestException(
-          'Requirement does not belong to this application',
-        );
-      }
     }
 
     const headResult = await this.storage.headObject(dto.objectKey);
@@ -167,24 +177,98 @@ export class InstructorAttachmentService {
       dto.originalFilename,
     );
 
-    const attachment = await this.prisma.attachment.create({
-      data: {
-        instructorApplicationUuid: applicationId,
-        instructorRequirementUuid: dto.requirementUuid ?? null,
-        objectKey: dto.objectKey,
-        originalFilename: sanitizedFilename,
-        contentType: headResult.contentType,
-        sizeBytes: BigInt(headResult.contentLength),
-        checksum: dto.checksum ?? null,
+    let attachment: {
+      uuid: string;
+      originalFilename: string;
+      contentType: string;
+      sizeBytes: bigint;
+      uploadedAt: Date;
+    };
+    try {
+      attachment = await this.prisma.$transaction(async (tx) => {
+        await this.lockApplicationRow(tx, applicationId);
+        await this.ensureOwnDraft(principal, applicationId, tx);
+
+        if (dto.requirementUuid) {
+          const requirement =
+            await tx.instructorApplicationRequirement.findUnique({
+              where: { uuid: dto.requirementUuid },
+              select: {
+                applicationUuid: true,
+              },
+            });
+          if (!requirement || requirement.applicationUuid !== applicationId) {
+            throw new BadRequestException(
+              'Requirement does not belong to this application',
+            );
+          }
+        }
+
+        const attachmentCount = await tx.attachment.count({
+          where: { instructorApplicationUuid: applicationId, status: 'ACTIVE' },
+        });
+        if (
+          attachmentCount >=
+          InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION
+        ) {
+          throw new BadRequestException(
+            `Osiągnięto limit ${InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION} załączników na wniosek`,
+          );
+        }
+
+        const attachment = await tx.attachment.create({
+          data: {
+            instructorApplicationUuid: applicationId,
+            instructorRequirementUuid: dto.requirementUuid ?? null,
+            objectKey: dto.objectKey,
+            originalFilename: sanitizedFilename,
+            contentType: headResult.contentType,
+            sizeBytes: BigInt(headResult.contentLength),
+            checksum: dto.checksum ?? null,
+          },
+          select: {
+            uuid: true,
+            originalFilename: true,
+            contentType: true,
+            sizeBytes: true,
+            uploadedAt: true,
+          },
+        });
+
+        if (dto.isHufcowyPresence) {
+          await tx.instructorApplication.update({
+            where: { uuid: applicationId },
+            data: { hufcowyPresenceAttachmentUuid: attachment.uuid },
+          });
+        }
+
+        return attachment;
+      });
+    } catch (error) {
+      try {
+        await this.storage.deleteObject(dto.objectKey);
+      } catch (cleanupError) {
+        this.logger.warn(
+          `Failed to remove object after confirm error for ${dto.objectKey}: ${cleanupError}`,
+        );
+      }
+      throw error;
+    }
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_CONFIRMED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachment.uuid,
+      requestId,
+      metadata: {
+        applicationId,
+        requirementUuid: dto.requirementUuid ?? null,
+        isHufcowyPresence: dto.isHufcowyPresence ?? false,
+        contentType: attachment.contentType,
+        sizeBytes: Number(attachment.sizeBytes),
       },
     });
-
-    if (dto.isHufcowyPresence) {
-      await this.prisma.instructorApplication.update({
-        where: { uuid: applicationId },
-        data: { hufcowyPresenceAttachmentUuid: attachment.uuid },
-      });
-    }
 
     return {
       uuid: attachment.uuid,
@@ -199,32 +283,56 @@ export class InstructorAttachmentService {
     principal: AuthPrincipal,
     applicationId: string,
     attachmentId: string,
+    requestId?: string | null,
   ) {
-    const app = await this.ensureOwnDraft(principal, applicationId);
+    const attachmentObjectKey = await this.prisma.$transaction(async (tx) => {
+      await this.lockApplicationRow(tx, applicationId);
+      const app = await this.ensureOwnDraft(principal, applicationId, tx);
 
-    const attachment = await this.prisma.attachment.findUnique({
-      where: { uuid: attachmentId },
+      const attachment = await tx.attachment.findUnique({
+        where: { uuid: attachmentId },
+        select: {
+          uuid: true,
+          objectKey: true,
+          instructorApplicationUuid: true,
+        },
+      });
+      if (
+        !attachment ||
+        attachment.instructorApplicationUuid !== applicationId
+      ) {
+        throw new NotFoundException('Attachment not found');
+      }
+
+      if (app.hufcowyPresenceAttachmentUuid === attachmentId) {
+        await tx.instructorApplication.update({
+          where: { uuid: applicationId },
+          data: { hufcowyPresenceAttachmentUuid: null },
+        });
+      }
+
+      await tx.attachment.delete({ where: { uuid: attachmentId } });
+      return attachment.objectKey;
     });
-    if (!attachment || attachment.instructorApplicationUuid !== applicationId) {
-      throw new NotFoundException('Attachment not found');
-    }
 
     try {
-      await this.storage.deleteObject(attachment.objectKey);
+      await this.storage.deleteObject(attachmentObjectKey);
     } catch (e) {
       this.logger.warn(
-        `Failed to delete S3 object ${attachment.objectKey}: ${e}`,
+        `Failed to delete storage object ${attachmentObjectKey}: ${e}`,
       );
     }
 
-    if (app.hufcowyPresenceAttachmentUuid === attachmentId) {
-      await this.prisma.instructorApplication.update({
-        where: { uuid: applicationId },
-        data: { hufcowyPresenceAttachmentUuid: null },
-      });
-    }
-
-    await this.prisma.attachment.delete({ where: { uuid: attachmentId } });
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_DELETED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachmentId,
+      requestId,
+      metadata: {
+        applicationId,
+      },
+    });
 
     return { uuid: attachmentId };
   }
@@ -234,6 +342,7 @@ export class InstructorAttachmentService {
     applicationId: string,
     attachmentId: string,
     inline = false,
+    requestId?: string | null,
   ) {
     const app = await this.prisma.instructorApplication.findUnique({
       where: { uuid: applicationId },
@@ -259,14 +368,28 @@ export class InstructorAttachmentService {
       attachment.originalFilename,
       { inline },
     );
+
+    await this.auditService.log({
+      principal,
+      action: 'INSTRUCTOR_ATTACHMENT_DOWNLOAD_URL_ISSUED',
+      targetType: 'INSTRUCTOR_ATTACHMENT',
+      targetUuid: attachment.uuid,
+      requestId,
+      metadata: {
+        applicationId,
+        inline,
+      },
+    });
+
     return { url, filename: attachment.originalFilename };
   }
 
   private async ensureOwnDraft(
     principal: AuthPrincipal,
     applicationId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
   ) {
-    const app = await this.prisma.instructorApplication.findUnique({
+    const app = await client.instructorApplication.findUnique({
       where: { uuid: applicationId },
       include: {
         candidate: {
@@ -278,9 +401,26 @@ export class InstructorAttachmentService {
     if (app.candidate.keycloakUuid !== principal.sub)
       throw new ForbiddenException();
     if (!isInstructorApplicationEditable(app.status)) {
-      throw new BadRequestException('Application is not editable');
+      throw new BadRequestException({
+        code: 'APPLICATION_NOT_EDITABLE',
+        message: 'Application is not editable',
+      });
     }
     return app;
+  }
+
+  private async lockApplicationRow(
+    tx: Prisma.TransactionClient,
+    applicationId: string,
+  ): Promise<void> {
+    await tx.$executeRaw(
+      Prisma.sql`
+        SELECT 1
+          FROM "InstructorApplication"
+         WHERE "uuid" = ${applicationId}::uuid
+         FOR UPDATE
+      `,
+    );
   }
 
   private async hasOfficeXmlStructure(

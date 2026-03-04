@@ -14,6 +14,7 @@
   "scripts": {
     "build": "tsc --build --force",
     "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

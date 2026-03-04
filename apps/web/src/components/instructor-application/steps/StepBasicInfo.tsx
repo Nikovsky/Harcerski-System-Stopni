@@ -5,19 +5,13 @@ import { useTranslations } from "next-intl";
 import { degreeKey, scoutRankKey } from "@/lib/applications-i18n";
 import { getFieldLabel, PROFILE_FIELDS } from "@/lib/instructor-application-fields";
 import { AttachmentUpload } from "@/components/instructor-application/attachments/AttachmentUpload";
+import {
+  PRESENCE_VALUES as HUFCOWY_PRESENCE_VALUES,
+  SCOUT_RANK_VALUES as OPEN_TRIAL_FOR_RANK_VALUES,
+} from "@/components/instructor-application/instructor-application.constants";
 import { Field } from "@/components/instructor-application/steps/shared";
 import { IA_BUTTON_PRIMARY_MD } from "@/components/instructor-application/ui/button-classnames";
 import type { InstructorApplicationDetail, UpdateInstructorApplication } from "@hss/schemas";
-
-const OPEN_TRIAL_FOR_RANK_VALUES = [
-  "MLODZIK",
-  "WYWIADOWCA",
-  "CWIK",
-  "HARCERZ_ORLI",
-  "HARCERZ_RZECZYPOSPOLITEJ",
-] as const;
-
-const HUFCOWY_PRESENCE_VALUES = ["IN_PERSON", "REMOTE", "ATTACHMENT_OPINION"] as const;
 
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -146,7 +140,11 @@ export function StepBasicInfo({ app, updateDraft, onNext }: Props) {
         </select>
       </Field>
       {hufcowyPresence === "ATTACHMENT_OPINION" && (
-        <div className="rounded-lg border border-border p-4">
+        <div
+          data-field="hufcowyPresenceAttachment"
+          tabIndex={-1}
+          className="rounded-lg border border-border p-4 outline-none"
+        >
           <p className="mb-3 text-sm font-medium text-foreground/80">
             {t("fields.hufcowyPresenceAttachment")}
           </p>

@@ -131,18 +131,24 @@
     "deleted": "Draft deleted",
     "uploadSuccess": "File uploaded",
     "uploadError": "File upload error",
-    "uploadInvalidType": "Invalid file type. Allowed formats: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadInvalidType": "Invalid file type. Allowed formats: PDF, JPG, PNG, WebP, DOC, DOCX, MP4, PPT, PPTX.",
     "uploadTooLarge": "File is too large. Maximum size is 50 MB.",
     "error": "An error occurred",
+    "createError": "Failed to create an application. Please try again.",
+    "downloadError": "Failed to download attachment. Please try again.",
     "requirementSaveError": "Failed to save requirement. Please try again.",
+    "deleteOnlyDraft": "Only draft applications can be deleted.",
+    "incompleteCurrentStep": "Please complete required fields in this step to continue:",
     "incompleteFields": "Please fill in all required fields before submitting:",
     "reviewBeforeSubmit": "Review all tabs before submitting. Editing will not be possible after submission.",
     "noAttachments": "No attachments",
     "hufcowyOpinionInAttachments": "District leader written opinion is available in attachments.",
     "hufcowyOpinionMissing": "District leader written opinion attachment is missing.",
-    "missingRequirementVerification": "Requirement {code}: provide attachment description (proof of completion)",
+    "missingRequirementActionDescription": "Requirement {code}: provide task implementation description",
+    "missingRequirementVerification": "Requirement {code}: provide proof/attachment description",
     "pdfGenerationError": "Failed to generate PDF. Please try again.",
-    "verificationTextError": "Attachment description is required for completed requirements",
+    "actionDescriptionError": "Task implementation description is required",
+    "verificationTextError": "Proof/attachment description is required",
     "saving": "Saving..."
   },
   "verificationTextRequired": "Attachment description (required) *",
@@ -157,5 +163,8 @@
   },
   "createdAt": "Created",
   "updatedAt": "Updated",
-  "lastSubmittedAt": "Last submitted"
+  "lastSubmittedAt": "Last submitted",
+  "a11y": {
+    "detailTabsLabel": "Application details tabs"
+  }
 }

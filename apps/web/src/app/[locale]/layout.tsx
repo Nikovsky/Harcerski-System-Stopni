@@ -42,7 +42,7 @@ export default async function LocaleLayout({ children, params }: Props) {
     <html lang={locale} data-theme={theme}>
       <body className="flex min-h-screen flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Navbar locale={locale} />
+          <Navbar locale={locale} initialTheme={theme} />
           {isAuthenticated && <IdleTimeoutGuard />}
           <main className="grow">{children}</main>
           <Footer />

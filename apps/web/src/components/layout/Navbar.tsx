@@ -9,9 +9,10 @@ import {
   type NavbarLinkItem,
 } from "@/components/layout/NavbarLinks";
 
-type NavbarProps = { locale: string };
+type AppTheme = "dark" | "light";
+type NavbarProps = { locale: string; initialTheme: AppTheme };
 
-export async function Navbar({ locale }: NavbarProps) {
+export async function Navbar({ locale, initialTheme }: NavbarProps) {
   const t = await getTranslations("common");
 
   const nav: NavbarLinkItem[] = [
@@ -34,7 +35,7 @@ export async function Navbar({ locale }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <ThemeControls />
+          <ThemeControls initialTheme={initialTheme} />
           <AuthNav locale={locale} />
         </div>
       </div>

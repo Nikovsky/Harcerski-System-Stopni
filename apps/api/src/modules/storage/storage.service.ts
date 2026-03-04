@@ -1,66 +1,54 @@
 // @file: apps/api/src/modules/storage/storage.service.ts
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  CreateBucketCommand,
-  HeadBucketCommand,
-  ListObjectsV2Command,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import * as Minio from 'minio';
 import { AppConfigService } from '@/config/app-config.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
+
+type MinioListedObject = {
+  name?: string;
+  lastModified?: Date | string;
+};
+
+type EndpointConfig = {
+  endPoint: string;
+  port?: number;
+  useSSL: boolean;
+};
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private static readonly MAX_BUFFER_READ_BYTES = 8192;
-  private readonly s3: S3Client;
-  private readonly presignS3: S3Client;
+  private readonly minio: Minio.Client;
+  private readonly presignMinio: Minio.Client;
   private readonly bucket: string;
 
   constructor(private readonly config: AppConfigService) {
     this.bucket = config.minioBucket;
+    this.minio = this.createClient(config.minioEndpoint, config.minioUseSsl);
 
-    // Internal client — talks to MinIO directly (HTTP, localhost)
-    this.s3 = new S3Client({
-      endpoint: `http://${config.minioEndpoint}`,
-      region: config.minioRegion,
-      credentials: {
-        accessKeyId: config.minioAccessKey,
-        secretAccessKey: config.minioSecretKey,
-      },
-      forcePathStyle: true,
-    });
-
-    // Presign client — generates URLs for browser (HTTPS via NGINX)
-    // requestChecksumCalculation: "WHEN_REQUIRED" prevents SDK from adding
-    // x-amz-checksum-* query params that MinIO rejects when browser PUTs
-    const publicEndpoint = config.minioPublicEndpoint;
-    this.presignS3 = publicEndpoint
-      ? new S3Client({
-          endpoint: `https://${publicEndpoint}`,
-          region: config.minioRegion,
-          credentials: {
-            accessKeyId: config.minioAccessKey,
-            secretAccessKey: config.minioSecretKey,
-          },
-          forcePathStyle: true,
-          requestChecksumCalculation: 'WHEN_REQUIRED',
-        })
-      : this.s3;
+    // Browser-facing presigned URLs should use reverse-proxy/public endpoint.
+    const publicEndpoint = config.minioPublicEndpoint?.trim();
+    this.presignMinio =
+      publicEndpoint && publicEndpoint.length > 0
+        ? this.createClient(publicEndpoint, true)
+        : this.minio;
   }
 
   async onModuleInit(): Promise<void> {
     try {
-      await this.s3.send(new HeadBucketCommand({ Bucket: this.bucket }));
-      this.logger.log(`Bucket "${this.bucket}" already exists`);
-    } catch {
-      await this.s3.send(new CreateBucketCommand({ Bucket: this.bucket }));
+      const exists = await this.minio.bucketExists(this.bucket);
+      if (exists) {
+        this.logger.log(`Bucket "${this.bucket}" already exists`);
+        return;
+      }
+
+      await this.minio.makeBucket(this.bucket, this.config.minioRegion);
       this.logger.log(`Bucket "${this.bucket}" created`);
+    } catch (error) {
+      const message = this.formatStorageInitError(error);
+      this.logger.error(message);
+      throw error;
     }
   }
 
@@ -74,12 +62,12 @@ export class StorageService implements OnModuleInit {
     contentType: string,
     expiresIn = 600,
   ): Promise<string> {
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: objectKey,
-      ContentType: contentType,
-    });
-    return getSignedUrl(this.presignS3, command, { expiresIn });
+    void contentType;
+    return this.presignMinio.presignedPutObject(
+      this.bucket,
+      objectKey,
+      expiresIn,
+    );
   }
 
   async presignDownload(
@@ -89,24 +77,30 @@ export class StorageService implements OnModuleInit {
   ): Promise<string> {
     const { expiresIn = 300, inline = false } = options;
     const disposition = this.buildContentDisposition(filename, inline);
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: objectKey,
-      ResponseContentDisposition: disposition,
+    return this.presignMinio.presignedGetObject(this.bucket, objectKey, expiresIn, {
+      'response-content-disposition': disposition,
     });
-    return getSignedUrl(this.presignS3, command, { expiresIn });
   }
 
   async headObject(
     objectKey: string,
   ): Promise<{ contentLength: number; contentType: string } | null> {
     try {
-      const response = await this.s3.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }),
-      );
+      const stat = await this.minio.statObject(this.bucket, objectKey);
+      const metadata = stat.metaData as
+        | Record<string, string | string[] | undefined>
+        | undefined;
+      const contentType =
+        metadata?.['content-type'] ??
+        metadata?.['Content-Type'] ??
+        'application/octet-stream';
+      const resolvedContentType = Array.isArray(contentType)
+        ? contentType[0]
+        : contentType;
+
       return {
-        contentLength: response.ContentLength ?? 0,
-        contentType: response.ContentType ?? 'application/octet-stream',
+        contentLength: stat.size ?? 0,
+        contentType: resolvedContentType || 'application/octet-stream',
       };
     } catch {
       return null;
@@ -123,18 +117,15 @@ export class StorageService implements OnModuleInit {
     }
 
     try {
-      const response = await this.s3.send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: objectKey,
-          Range: `bytes=${start}-${endExclusive - 1}`,
-        }),
+      const stream = await this.minio.getPartialObject(
+        this.bucket,
+        objectKey,
+        start,
+        endExclusive - start,
       );
-      const stream = response.Body;
-      if (!stream) return null;
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of stream as AsyncIterable<Uint8Array>) {
-        chunks.push(chunk);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream as AsyncIterable<Buffer | Uint8Array>) {
+        chunks.push(Buffer.from(chunk));
       }
       return Buffer.concat(chunks);
     } catch {
@@ -156,40 +147,99 @@ export class StorageService implements OnModuleInit {
   async listObjects(
     prefix: string,
   ): Promise<{ key: string; lastModified: Date }[]> {
-    const results: { key: string; lastModified: Date }[] = [];
-    let continuationToken: string | undefined;
+    return new Promise((resolve, reject) => {
+      const results: { key: string; lastModified: Date }[] = [];
+      const stream = this.minio.listObjectsV2(this.bucket, prefix, true);
 
-    do {
-      const response = await this.s3.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-        }),
-      );
-
-      for (const obj of response.Contents ?? []) {
-        if (obj.Key && obj.LastModified) {
-          results.push({ key: obj.Key, lastModified: obj.LastModified });
+      stream.on('data', (obj: MinioListedObject) => {
+        if (!obj.name || !obj.lastModified) {
+          return;
         }
-      }
 
-      continuationToken = response.IsTruncated
-        ? response.NextContinuationToken
-        : undefined;
-    } while (continuationToken);
+        const asDate =
+          obj.lastModified instanceof Date
+            ? obj.lastModified
+            : new Date(obj.lastModified);
 
-    return results;
+        if (Number.isNaN(asDate.getTime())) {
+          return;
+        }
+
+        results.push({ key: obj.name, lastModified: asDate });
+      });
+
+      stream.on('error', (error: unknown) => reject(error));
+      stream.on('end', () => resolve(results));
+    });
   }
 
   async deleteObject(objectKey: string): Promise<void> {
-    await this.s3.send(
-      new DeleteObjectCommand({
-        Bucket: this.bucket,
-        Key: objectKey,
-      }),
-    );
+    await this.minio.removeObject(this.bucket, objectKey);
     this.logger.log(`Deleted object: ${objectKey}`);
+  }
+
+  private createClient(endpointRaw: string, defaultUseSSL: boolean): Minio.Client {
+    const endpoint = this.parseEndpoint(endpointRaw, defaultUseSSL);
+    return new Minio.Client({
+      endPoint: endpoint.endPoint,
+      port: endpoint.port,
+      useSSL: endpoint.useSSL,
+      region: this.config.minioRegion,
+      accessKey: this.config.minioAccessKey,
+      secretKey: this.config.minioSecretKey,
+    });
+  }
+
+  private parseEndpoint(raw: string, defaultUseSSL: boolean): EndpointConfig {
+    const input = raw.trim();
+    if (!input) {
+      throw new Error('MINIO endpoint is empty');
+    }
+
+    if (input.includes('://')) {
+      const url = new URL(input);
+      const parsedPort = url.port ? Number(url.port) : undefined;
+      return {
+        endPoint: url.hostname,
+        port: Number.isFinite(parsedPort) ? parsedPort : undefined,
+        useSSL: url.protocol === 'https:',
+      };
+    }
+
+    const hostPortMatch = /^(?<host>[^:]+)(?::(?<port>\d+))?$/.exec(input);
+    if (!hostPortMatch || !hostPortMatch.groups?.host) {
+      throw new Error(`Invalid MINIO endpoint format: "${raw}"`);
+    }
+
+    const parsedPort = hostPortMatch.groups.port
+      ? Number(hostPortMatch.groups.port)
+      : undefined;
+
+    return {
+      endPoint: hostPortMatch.groups.host,
+      port: Number.isFinite(parsedPort) ? parsedPort : undefined,
+      useSSL: defaultUseSSL,
+    };
+  }
+
+  private formatStorageInitError(error: unknown): string {
+    const code =
+      typeof error === 'object' &&
+      error &&
+      'code' in error &&
+      typeof (error as { code?: unknown }).code === 'string'
+        ? (error as { code: string }).code
+        : undefined;
+
+    const base =
+      `Storage init failed for endpoint="${this.config.minioEndpoint}" ` +
+      `(MINIO_USE_SSL=${this.config.minioUseSsl}, bucket="${this.bucket}")`;
+
+    if (code === 'EPROTO') {
+      return `${base}. TLS mismatch detected. If MINIO_ENDPOINT points to plain HTTP MinIO (e.g. localhost:9000), set MINIO_USE_SSL=false.`;
+    }
+
+    return base;
   }
 
   private buildContentDisposition(filename?: string, inline = false): string {

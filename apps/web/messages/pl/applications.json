@@ -131,18 +131,24 @@
     "deleted": "Szkic został usunięty",
     "uploadSuccess": "Plik został przesłany",
     "uploadError": "Błąd przesyłania pliku",
-    "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, ODT, MP4, PPT, PPTX.",
+    "uploadInvalidType": "Niedozwolony typ pliku. Dozwolone formaty: PDF, JPG, PNG, WebP, DOC, DOCX, MP4, PPT, PPTX.",
     "uploadTooLarge": "Plik jest za duży. Maksymalny rozmiar to 50 MB.",
     "error": "Wystąpił błąd",
+    "createError": "Nie udało się utworzyć wniosku. Spróbuj ponownie.",
+    "downloadError": "Nie udało się pobrać załącznika. Spróbuj ponownie.",
     "requirementSaveError": "Nie udało się zapisać wymagania. Spróbuj ponownie.",
+    "deleteOnlyDraft": "Usunąć można tylko szkic wniosku.",
+    "incompleteCurrentStep": "Uzupełnij wymagane pola w tym kroku, aby przejść dalej:",
     "incompleteFields": "Uzupełnij wymagane pola przed złożeniem wniosku:",
     "reviewBeforeSubmit": "Przejrzyj wszystkie zakładki przed złożeniem wniosku. Po złożeniu edycja nie będzie możliwa.",
     "noAttachments": "Brak załączników",
     "hufcowyOpinionInAttachments": "Opinia pisemna hufcowego znajduje się w załącznikach.",
     "hufcowyOpinionMissing": "Brakuje załączonej opinii pisemnej hufcowego.",
-    "missingRequirementVerification": "Wymaganie {code}: uzupełnij opis załącznika (dowód realizacji)",
+    "missingRequirementActionDescription": "Wymaganie {code}: uzupełnij opis realizacji zadania",
+    "missingRequirementVerification": "Wymaganie {code}: uzupełnij opis dowodu/załącznika",
     "pdfGenerationError": "Nie udało się wygenerować PDF. Spróbuj ponownie.",
-    "verificationTextError": "Opis załącznika jest wymagany dla wykonanych wymagań",
+    "actionDescriptionError": "Opis realizacji zadania jest wymagany",
+    "verificationTextError": "Opis dowodu/załącznika jest wymagany",
     "saving": "Zapisywanie..."
   },
   "verificationTextRequired": "Opis załącznika (wymagane) *",
@@ -157,5 +163,8 @@
   },
   "createdAt": "Utworzono",
   "updatedAt": "Zaktualizowano",
-  "lastSubmittedAt": "Ostatnio złożono"
+  "lastSubmittedAt": "Ostatnio złożono",
+  "a11y": {
+    "detailTabsLabel": "Zakładki szczegółów wniosku"
+  }
 }

@@ -122,6 +122,21 @@ enum Status {
 
 // =[MODELS]========================================================================================
 
+/// @brief: Immutable audit trail entries for instructor application operations.
+model AuditEvent {
+  uuid             String   @id @db.Uuid
+  actorKeycloakUuid String   @db.Uuid
+  action           String   @db.VarChar(64)
+  targetType       String   @db.VarChar(64)
+  targetUuid       String?  @db.Uuid
+  metadata         Json     @default("{}") @db.JsonB
+  createdAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([actorKeycloakUuid, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([targetType, targetUuid, createdAt(sort: Desc)])
+}
+
 /// @brief: Unified user profile for candidates, commission members, and authenticated principals.
 model User {
   uuid                    String                  @id @default(uuid()) @db.Uuid
