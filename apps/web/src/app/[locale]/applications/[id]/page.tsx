@@ -1,6 +1,9 @@
 // @file: apps/web/src/app/[locale]/applications/[id]/page.tsx
 import { notFound } from "next/navigation";
-import { apiServerFetch, ApiServerError } from "@/lib/api-server";
+import {
+  bffServerFetch,
+  BffServerFetchError,
+} from "@/app/[locale]/applications/_server/bff-fetch";
 import { ApplicationDetailClient } from "@/components/instructor-application/clients/ApplicationDetailClient";
 import type { InstructorApplicationDetail } from "@hss/schemas";
 
@@ -11,9 +14,9 @@ export default async function ApplicationDetailPage({ params }: Props) {
 
   let app: InstructorApplicationDetail;
   try {
-    app = await apiServerFetch<InstructorApplicationDetail>(`instructor-applications/${id}`);
+    app = await bffServerFetch<InstructorApplicationDetail>(`instructor-applications/${id}`);
   } catch (err) {
-    if (err instanceof ApiServerError && err.status === 404) notFound();
+    if (err instanceof BffServerFetchError && err.status === 404) notFound();
     throw err;
   }
 

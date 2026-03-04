@@ -1,7 +1,7 @@
 // @file: apps/web/src/app/[locale]/applications/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { apiServerFetch } from "@/lib/api-server";
+import { bffServerFetch } from "@/app/[locale]/applications/_server/bff-fetch";
 import { ApplicationCard } from "@/components/instructor-application/ui/ApplicationCard";
 import { IA_BUTTON_PRIMARY_MD } from "@/components/instructor-application/ui/button-classnames";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
@@ -16,8 +16,8 @@ export default async function ApplicationsPage() {
   const t = await getTranslations("applications");
 
   const [applications, profile] = await Promise.all([
-    apiServerFetch<InstructorApplicationListItem[]>("instructor-applications"),
-    apiServerFetch<ProfileCheck>("instructor-applications/profile-check"),
+    bffServerFetch<InstructorApplicationListItem[]>("instructor-applications"),
+    bffServerFetch<ProfileCheck>("instructor-applications/profile-check"),
   ]);
 
   const profileComplete = profile.complete;
