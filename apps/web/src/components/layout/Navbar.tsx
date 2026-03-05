@@ -6,15 +6,22 @@ import { AuthNav } from "@/components/ui/AuthNav";
 import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 import { NavbarLinks } from "@/components/layout/NavbarLinks";
 import type { NavItem, NavbarProps } from "@/components/props/layout";
+import { canAccess } from "@/server/rbac";
+import { ROLE_RANK } from "@hss/schemas";
 
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
+  const canSeeDashboard = canAccess(session, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
     { label: t("about"), href: "/about" },
   ];
   const navItems: NavItem[] = session?.user
-    ? [...NAV_BASE, { label: t("dashboard"), href: "/dashboard" }]
+    ? [
+      ...NAV_BASE,
+      ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
+      { label: t("profile"), href: "/profile" },
+    ]
     : NAV_BASE;
 
   return (

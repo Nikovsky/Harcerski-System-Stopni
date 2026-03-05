@@ -2,7 +2,8 @@
   "nav": {
     "home": "Home",
     "about": "About",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "profile": "Profile"
   },
   "auth": {
     "login": "Login",
@@ -57,5 +58,18 @@
     "label": "Language",
     "pl": "Polish",
     "en": "English"
+  },
+  "accessDenied": {
+    "codeLabel": "Error {code}",
+    "title": "Access denied",
+    "roleMessage": "You are logged in, but your role is not allowed to access this page."
+  },
+  "dashboardPage": {
+    "title": "Dashboard",
+    "description": "This is the dashboard page."
+  },
+  "profilePage": {
+    "title": "Profile",
+    "edit": "Edit"
   }
 }

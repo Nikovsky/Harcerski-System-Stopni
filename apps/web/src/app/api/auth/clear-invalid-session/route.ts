@@ -20,7 +20,7 @@ const AUTH_COOKIE_PREFIXES = [
 
 function expireCookie(name: string, secure: boolean): string {
   const parts = [
-    `${name}=`,
+    name + "=",
     "Path=/",
     "Max-Age=0",
     "HttpOnly",
@@ -50,13 +50,39 @@ function sanitizeReturnTo(value: string | null): string {
   return value;
 }
 
+function isTrustedFetchContext(req: NextRequest): boolean {
+  const fetchSite = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (!fetchSite) return true;
+
+  return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
+}
+
+function forbiddenNoStore(requestId: string): NextResponse {
+  const res = NextResponse.json(
+    {
+      code: "FORBIDDEN",
+      message: "Forbidden.",
+      requestId,
+    },
+    { status: 403 },
+  );
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("x-request-id", requestId);
+  return res;
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const PUBLIC_ORIGIN = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = getOrCreateRequestId(req);
   const untrustedHost = requireTrustedHost(req, requestId);
   if (untrustedHost) return untrustedHost;
+
+  if (!isTrustedFetchContext(req)) {
+    return forbiddenNoStore(requestId);
+  }
 
   const isSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://");
   const sidCookie = req.cookies.get(authSessionCookieName)?.value;
@@ -74,6 +100,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const returnTo = sanitizeReturnTo(req.nextUrl.searchParams.get("returnTo"));
-  const redirectUrl = new URL(returnTo, req.nextUrl.origin);
+  const redirectUrl = new URL(returnTo, PUBLIC_ORIGIN);
   return NextResponse.redirect(redirectUrl, { status: 302, headers });
 }

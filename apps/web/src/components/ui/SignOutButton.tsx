@@ -66,8 +66,11 @@ export function SignOutButton({
         <Popup
           onClose={closePopup}
           ariaLabel={t("ariaLabel")}
-          closeButtonAriaLabel={t("closeButtonAria")}
           title={t("title")}
+          disableClose={isLoggingOut}
+          showCloseButton={!isLoggingOut}
+          closeOnBackdropClick={!isLoggingOut}
+          closeOnEscape={!isLoggingOut}
           content={
             <div className="space-y-3">
               <p className="text-foreground">

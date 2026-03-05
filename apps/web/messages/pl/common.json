@@ -2,7 +2,8 @@
   "nav": {
     "home": "Strona główna",
     "about": "O projekcie",
-    "dashboard": "Panel"
+    "dashboard": "Panel",
+    "profile": "Profil"
   },
   "auth": {
     "login": "Zaloguj",
@@ -57,5 +58,18 @@
     "label": "Język",
     "pl": "Polski",
     "en": "Angielski"
+  },
+  "accessDenied": {
+    "codeLabel": "Błąd {code}",
+    "title": "Brak dostępu",
+    "roleMessage": "Jesteś zalogowany(-a), ale Twoja rola nie ma dostępu do tej strony."
+  },
+  "dashboardPage": {
+    "title": "Panel",
+    "description": "To jest strona panelu."
+  },
+  "profilePage": {
+    "title": "Profil",
+    "edit": "Edytuj"
   }
 }

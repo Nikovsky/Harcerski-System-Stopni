@@ -37,6 +37,23 @@ function jsonNoStore(body: unknown, requestId: string, status = 200): NextRespon
   return res;
 }
 
+function unauthenticatedPayload(requestId: string): BffSessionStatusResponse {
+  return {
+    authenticated: false,
+    idleExpiresAt: null,
+    absoluteExpiresAt: null,
+    requestId,
+  };
+}
+
+function hasUsableSessionToken(
+  session: NonNullable<Awaited<ReturnType<typeof readSessionBySid>>>,
+): boolean {
+  if (session.token.error === "RefreshTokenExpired") return false;
+
+  return typeof session.token.accessToken === "string" && session.token.accessToken.length > 0;
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = getOrCreateRequestId(req);
   const untrustedHost = requireTrustedHost(req, requestId);
@@ -60,24 +77,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const sid = normalizeSessionSidFromCookie(sidCookie);
 
   if (!sid) {
-    const payload: BffSessionStatusResponse = {
-      authenticated: false,
-      idleExpiresAt: null,
-      absoluteExpiresAt: null,
-      requestId,
-    };
-    return jsonNoStore(payload, requestId);
+    return jsonNoStore(unauthenticatedPayload(requestId), requestId);
   }
 
   const session = await readSessionBySid(sid);
-  if (!session) {
-    const payload: BffSessionStatusResponse = {
-      authenticated: false,
-      idleExpiresAt: null,
-      absoluteExpiresAt: null,
-      requestId,
-    };
-    return jsonNoStore(payload, requestId);
+  if (!session || !hasUsableSessionToken(session)) {
+    return jsonNoStore(unauthenticatedPayload(requestId), requestId);
   }
 
   const payload: BffSessionStatusResponse = {

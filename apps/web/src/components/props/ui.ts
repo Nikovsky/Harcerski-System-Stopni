@@ -53,3 +53,10 @@ export type AuthUserMenuProps = {
 export type TooltipProps = {
   text: string;
 };
+
+export type ThrobberProps = {
+  inline?: boolean;
+  factor?: number;
+  className?: string;
+  ariaLabel?: string;
+};
