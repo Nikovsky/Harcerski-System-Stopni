@@ -1,4 +1,4 @@
-// @file: apps/web/src/lib/server/bff-session.store.ts
+// @file: apps/web/src/server/bff-session.store.ts
 import "server-only";
 
 import { randomBytes } from "node:crypto";
@@ -6,8 +6,8 @@ import type { JWT, JWTDecodeParams, JWTEncodeParams } from "next-auth/jwt";
 import { z } from "zod";
 
 import { envServer } from "@/config/env.server";
-import { getRedisClient } from "@/lib/server/redis.client";
-import { decryptSessionPayload, encryptSessionPayload } from "@/lib/server/session.crypto";
+import { runRedisCommand } from "@/server/redis.client";
+import { decryptSessionPayload, encryptSessionPayload } from "@/server/session.crypto";
 
 const SESSION_RECORD_VERSION = 1;
 const SESSION_SID_PATTERN = /^[A-Za-z0-9_-]{24,128}$/;
@@ -121,19 +121,18 @@ function parseRecord(raw: string): z.infer<typeof sessionRecordSchema> | null {
 }
 
 async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSchema> | null> {
-  const redis = await getRedisClient();
-  const raw = await redis.get(sessionKey(sid));
+  const raw = await runRedisCommand((redis) => redis.get(sessionKey(sid)));
   if (!raw) return null;
 
   try {
     const parsed = parseRecord(raw);
     if (!parsed) {
-      await redis.del(sessionKey(sid));
+      await runRedisCommand((redis) => redis.del(sessionKey(sid)));
       return null;
     }
     return parsed;
   } catch {
-    await redis.del(sessionKey(sid));
+    await runRedisCommand((redis) => redis.del(sessionKey(sid)));
     return null;
   }
 }
@@ -141,14 +140,15 @@ async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSche
 async function writeRecord(record: z.infer<typeof sessionRecordSchema>): Promise<void> {
   const now = Date.now();
   const ttlMs = ttlFromExpirations(now, record.idleExpiresAtMs, record.absoluteExpiresAtMs);
-  const redis = await getRedisClient();
 
   if (ttlMs <= 0) {
-    await redis.del(sessionKey(record.sid));
+    await runRedisCommand((redis) => redis.del(sessionKey(record.sid)));
     return;
   }
 
-  await redis.set(sessionKey(record.sid), JSON.stringify(record), "PX", ttlMs);
+  await runRedisCommand((redis) =>
+    redis.set(sessionKey(record.sid), JSON.stringify(record), "PX", ttlMs),
+  );
 }
 
 function resolveAbsoluteExpiresAtMs(token: SessionJwt, existing: z.infer<typeof sessionRecordSchema> | null, nowMs: number): number {
@@ -339,22 +339,22 @@ export async function touchSessionBySid(rawSid: string, extendSeconds?: number):
 export async function destroySessionBySid(rawSid: string): Promise<void> {
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return;
-  const redis = await getRedisClient();
-  await redis.del(sessionKey(sid));
+  await runRedisCommand((redis) => redis.del(sessionKey(sid)));
 }
 
 export async function acquireSessionRefreshLock(rawSid: string): Promise<string | null> {
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return null;
 
-  const redis = await getRedisClient();
   const lockValue = randomBytes(24).toString("base64url");
-  const result = await redis.set(
-    refreshLockKey(sid),
-    lockValue,
-    "PX",
-    envServer.HSS_SESSION_REFRESH_LOCK_TTL_MS,
-    "NX",
+  const result = await runRedisCommand((redis) =>
+    redis.set(
+      refreshLockKey(sid),
+      lockValue,
+      "PX",
+      envServer.HSS_SESSION_REFRESH_LOCK_TTL_MS,
+      "NX",
+    ),
   );
 
   return result === "OK" ? lockValue : null;
@@ -364,8 +364,9 @@ export async function releaseSessionRefreshLock(rawSid: string, lockValue: strin
   const sid = normalizeSessionSid(rawSid);
   if (!sid) return;
 
-  const redis = await getRedisClient();
-  await redis.eval(releaseLockLua, 1, refreshLockKey(sid), lockValue);
+  await runRedisCommand((redis) =>
+    redis.eval(releaseLockLua, 1, refreshLockKey(sid), lockValue),
+  );
 }
 
 export function extractSessionSid(token: SessionJwt | null | undefined): string | null {

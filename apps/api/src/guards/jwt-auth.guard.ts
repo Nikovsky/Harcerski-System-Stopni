@@ -1,34 +1,34 @@
 // @file: apps/api/src/guards/jwt-auth.guard.ts
 import {
+  ExecutionContext,
   Injectable,
   Logger,
   UnauthorizedException,
-  type ExecutionContext,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import type { AuthPrincipal } from '@hss/schemas';
 
-type AuthErrorLike = {
-  name?: string;
+type PassportInfo = {
   message?: string;
+  name?: string;
 };
 
-type RequestWithLocals = Request & {
-  res?: {
+type RequestWithRequestId = Request & {
+  user?: AuthPrincipal;
+  headers: Request['headers'] & {
+    'x-request-id'?: string | string[];
+  };
+  res?: Response & {
     locals?: {
       requestId?: string;
     };
   };
 };
 
-function toErrorLike(value: unknown): AuthErrorLike | null {
-  if (value && typeof value === 'object') {
-    const rec = value as Record<string, unknown>;
-    return {
-      name: typeof rec.name === 'string' ? rec.name : undefined,
-      message: typeof rec.message === 'string' ? rec.message : undefined,
-    };
-  }
+function toErrorMessage(value: unknown): string | null {
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'string' && value.trim().length > 0) return value;
   return null;
 }
 
@@ -36,43 +36,36 @@ function toErrorLike(value: unknown): AuthErrorLike | null {
 export class JwtAuthGuard extends AuthGuard('keycloak-jwt') {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
-  handleRequest<TUser = unknown>(
+  override handleRequest<TUser = AuthPrincipal>(
     err: unknown,
-    user: TUser,
-    info: unknown,
+    user: TUser | false | null,
+    info: PassportInfo | undefined,
     context: ExecutionContext,
-    _status?: unknown,
+    status?: unknown,
   ): TUser {
-    const infoErr = toErrorLike(info);
-    const authErr = toErrorLike(err);
-
+    void status;
     if (err || !user) {
       // info is typically: JsonWebTokenError / TokenExpiredError / error from jwks-rsa
-      const isExpired = infoErr?.name === 'TokenExpiredError';
-      const req =
-        context && typeof context === 'object' && 'switchToHttp' in context
-          ? (
-              context as {
-                switchToHttp?: () => {
-                  getRequest?: () => RequestWithLocals;
-                };
-              }
-            )
-              .switchToHttp?.()
-              .getRequest?.()
-          : undefined;
-
-      const headerRequestId = req?.headers?.['x-request-id'];
+      const isExpired = info?.name === 'TokenExpiredError';
+      const req = context.switchToHttp().getRequest<RequestWithRequestId>();
+      const headerRequestId = req.headers['x-request-id'];
       const requestId = Array.isArray(headerRequestId)
-        ? headerRequestId[0]
-        : (headerRequestId ?? req?.res?.locals?.requestId ?? null);
+        ? (headerRequestId[0] ?? null)
+        : (headerRequestId ?? req.res?.locals?.requestId ?? null);
 
-      this.logger.warn('auth failed', {
-        err: authErr?.message ?? null,
-        info: infoErr?.message ?? null,
-        name: infoErr?.name ?? authErr?.name ?? null,
-        requestId,
-      });
+      const errorName =
+        (typeof info?.name === 'string' ? info.name : null) ??
+        (err instanceof Error ? err.name : null);
+      const errMessage = toErrorMessage(err);
+      const infoMessage =
+        typeof info?.message === 'string' ? info.message : toErrorMessage(info);
+
+      this.logger.warn(
+        `auth failed requestId=${requestId ?? 'n/a'} ` +
+          `name=${errorName ?? 'n/a'} ` +
+          `err=${errMessage ?? 'n/a'} ` +
+          `info=${infoMessage ?? 'n/a'}`,
+      );
       throw new UnauthorizedException({
         code: isExpired ? 'ACCESS_TOKEN_EXPIRED' : 'AUTHENTICATION_REQUIRED',
         message: isExpired

@@ -10,6 +10,17 @@ export const userRoleSchema = z.enum([
   "USER",
 ]);
 
+export type UserRole = z.infer<typeof userRoleSchema>;
+
+export const ROLE_RANK: Record<UserRole, number> = {
+  ROOT: 100,
+  SYSTEM: 90,
+  ADMIN: 80,
+  COMMISSION_MEMBER: 70,
+  SCOUT: 60,
+  USER: 50,
+};
+
 export const scoutRankSchema = z.enum([
   "MLODZIK",
   "WYWIADOWCA",

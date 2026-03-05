@@ -1,0 +1,26 @@
+{
+  "hero": {
+    "eyebrow": "O HSS",
+    "title": "Platforma budowana pod bezpieczeństwo i skalowanie",
+    "description": "HSS (Harcerski System Stopni) jest projektowany jako monorepo klasy produkcyjnej. Celem są czytelne kontrakty, ścisła walidacja i architektura, którą da się utrzymać wraz z rozwojem produktu."
+  },
+  "panel": {
+    "first": "Panel 01",
+    "second": "Panel 02",
+    "third": "Panel 03"
+  },
+  "project": {
+    "title": "Czym jest ten projekt",
+    "body": "Projekt dostarcza bezpieczny fundament do obsługi procesów stopni i działań operacyjnych. Kładzie nacisk na spójność frontend-backend, współdzielone schematy oraz jasne granice inżynierskie wspierające rozwój długoterminowy."
+  },
+  "architecture": {
+    "title": "Jak wygląda architektura",
+    "body": "HSS wykorzystuje Turborepo z Next.js po stronie web, NestJS po stronie API, Prisma dla warstwy danych oraz współdzielone kontrakty Zod w osobnym pakiecie. Usługi infrastrukturalne (Keycloak, PostgreSQL, MinIO, nginx/TLS) są konteneryzowane, aby środowisko lokalne było zbliżone do produkcyjnego."
+  },
+  "team": {
+    "title": "Zespół",
+    "role": "Współzałożyciel",
+    "imageAltKacper": "Zastępczy portret Kacpra Bosa",
+    "imageAltNikolas": "Zastępczy portret Nikolasa Feduniewicza"
+  }
+}

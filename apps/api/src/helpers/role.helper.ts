@@ -1,15 +1,14 @@
 // @file: apps/api/src/helpers/role.helper.ts
 import { UserRole } from '@hss/database';
+import { ROLE_RANK, type UserRole as SchemaUserRole } from '@hss/schemas';
 
-const ROLE_RANK: Record<UserRole, number> = {
-  [UserRole.ROOT]: 100,
-  [UserRole.SYSTEM]: 90,
-  [UserRole.ADMIN]: 80,
-  [UserRole.COMMISSION_MEMBER]: 70,
-  [UserRole.SCOUT]: 60,
-  [UserRole.USER]: 50,
-};
+function toSchemaUserRole(role: UserRole): SchemaUserRole {
+  return role as unknown as SchemaUserRole;
+}
 
 export function isHigherThanUser(role: UserRole): boolean {
-  return ROLE_RANK[role] > ROLE_RANK[UserRole.USER];
+  return (
+    ROLE_RANK[toSchemaUserRole(role)] >
+    ROLE_RANK[toSchemaUserRole(UserRole.USER)]
+  );
 }

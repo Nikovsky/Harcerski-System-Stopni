@@ -1,4 +1,4 @@
-// @file: apps/web/src/lib/server/session.crypto.ts
+// @file: apps/web/src/server/session.crypto.ts
 import "server-only";
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";

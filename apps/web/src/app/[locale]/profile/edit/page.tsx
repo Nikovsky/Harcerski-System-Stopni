@@ -1,6 +1,5 @@
+// @file: apps/web/src/app/[locale]/profile/edit/page.tsx
 "use client";
-
-// @file: apps/web/src/app/[locale]/dashboard/edit/page.tsx
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -18,8 +17,9 @@ type LoadState =
   | { kind: "error"; message: string; status?: number }
   | { kind: "ready"; data: UserDashboardResponse };
 
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error";
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "Unknown error";
 }
 
 function toDateOnly(iso: string | null): string | null {
@@ -48,7 +48,7 @@ function Field({
   );
 }
 
-export default function DashboardEditPage() {
+export default function ProfileEditPage() {
   const router = useRouter();
   const params = useParams();
   const locale = String(params?.locale ?? "en");
@@ -151,7 +151,7 @@ export default function DashboardEditPage() {
         if (cancelled) return;
         setState({
           kind: "error",
-          message: toErrorMessage(e),
+          message: getErrorMessage(e),
         });
       }
     }
@@ -172,10 +172,10 @@ export default function DashboardEditPage() {
 
     const payload: Partial<UserDashboardUpdatePrivilegedBody> = {};
     const assignDirtyField = <K extends keyof UserDashboardUpdatePrivilegedBody>(
-      key: K,
+      k: K,
     ) => {
-      if (dirty[key]) {
-        payload[key] = values[key];
+      if (dirty[k]) {
+        payload[k] = values[k];
       }
     };
 
@@ -237,16 +237,16 @@ export default function DashboardEditPage() {
 
       setSaveMsg("Saved.");
       // optional: go back
-      // router.push(`/${locale}/dashboard`);
+      // router.push(`/${locale}/profile`);
     } catch (e: unknown) {
-      setSaveMsg(toErrorMessage(e));
+      setSaveMsg(getErrorMessage(e));
     }
   });
 
   if (state.kind === "loading") {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">Edit dashboard</h1>
+        <h1 className="text-2xl font-semibold">Edit profile</h1>
         <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">
           Loading…
         </p>
@@ -257,14 +257,14 @@ export default function DashboardEditPage() {
   if (state.kind === "error") {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">Edit dashboard</h1>
+        <h1 className="text-2xl font-semibold">Edit profile</h1>
         <div className="mt-6 rounded-lg border border-neutral-200/60 dark:border-neutral-800 p-5">
           <p className="text-sm text-neutral-700 dark:text-neutral-200">
             {state.message}
           </p>
           <div className="mt-4 flex gap-3">
-            <Link className="text-sm underline" href={`/${locale}/dashboard`}>
-              Back to dashboard
+            <Link className="text-sm underline" href={`/${locale}/profile`}>
+              Back to profile
             </Link>
           </div>
         </div>
@@ -276,13 +276,13 @@ export default function DashboardEditPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Edit dashboard</h1>
+          <h1 className="text-2xl font-semibold">Edit profile</h1>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
             Update your profile fields.
           </p>
         </div>
 
-        <Link className="text-sm underline" href={`/${locale}/dashboard`}>
+        <Link className="text-sm underline" href={`/${locale}/profile`}>
           Back
         </Link>
       </div>
@@ -401,7 +401,7 @@ export default function DashboardEditPage() {
           <button
             type="button"
             className="rounded-md border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-sm"
-            onClick={() => router.push(`/${locale}/dashboard`)}
+            onClick={() => router.push(`/${locale}/profile`)}
           >
             Cancel
           </button>

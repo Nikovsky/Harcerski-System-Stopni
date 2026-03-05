@@ -3,10 +3,12 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
-import type { Express } from 'express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
+import { HttpExceptionFilter } from './filters/http-exception.filter';
+import { StorageService } from './modules/storage/storage.service';
 
 function normalizeRequestId(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -16,8 +18,10 @@ function normalizeRequestId(value: string | undefined): string | undefined {
   return trimmed;
 }
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useGlobalFilters(new HttpExceptionFilter());
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     const requestId =
       normalizeRequestId(req.get('x-request-id')) ?? randomUUID();
@@ -47,10 +51,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const cfg = app.get(AppConfigService);
+  const storage = app.get(StorageService);
 
   if (cfg.trustProxy) {
-    const expressApp = app.getHttpAdapter().getInstance() as Express;
-    expressApp.set('trust proxy', 1);
+    app.set('trust proxy', 1);
   }
 
   app.enableCors({
@@ -62,8 +66,18 @@ async function bootstrap() {
     'CORS',
   );
 
+  await storage.ensureBucketReady();
   await app.listen(cfg.appPort, cfg.appHost);
   Logger.debug(`${cfg.appUrl}`, 'API URL');
-  Logger.debug(cfg.corsOrigins.join(', '), 'WEB URL');
+  Logger.debug(
+    cfg.corsOrigins.length ? cfg.corsOrigins.join(', ') : 'DISABLED',
+    'WEB URL',
+  );
 }
-void bootstrap();
+
+void bootstrap().catch((error: unknown) => {
+  const details =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  Logger.error(details, undefined, 'Bootstrap');
+  process.exit(1);
+});

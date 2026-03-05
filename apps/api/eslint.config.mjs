@@ -1,3 +1,4 @@
+// @file: apps/api/eslint.config.mjs
 // @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
@@ -17,7 +18,7 @@ export default tseslint.config(
         ...globals.node,
         ...globals.jest,
       },
-      sourceType: 'commonjs',
+      sourceType: 'module',
       parserOptions: {
         project: ['./tsconfig.eslint.json'],
         tsconfigRootDir: import.meta.dirname,

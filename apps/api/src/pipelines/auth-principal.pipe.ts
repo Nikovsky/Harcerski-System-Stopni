@@ -11,6 +11,7 @@ export class AuthPrincipalPipe implements PipeTransform {
     throw new BadRequestException({
       code: 'AUTH_PRINCIPAL_INVALID',
       message: 'Invalid authenticated principal payload.',
+      details: parsed.error.flatten(),
     });
   }
 }

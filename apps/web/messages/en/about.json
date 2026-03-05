@@ -1,0 +1,26 @@
+{
+  "hero": {
+    "eyebrow": "About HSS",
+    "title": "Platform built for secure, scalable project growth",
+    "description": "HSS (Harcerski System Stopni) is designed as a production-grade monorepo. The goal is clear contracts, strict validation and an architecture that stays maintainable as the product evolves."
+  },
+  "panel": {
+    "first": "Panel 01",
+    "second": "Panel 02",
+    "third": "Panel 03"
+  },
+  "project": {
+    "title": "What this project is",
+    "body": "This project provides a secure foundation for managing scouting progression and operational workflows. It emphasizes consistency between frontend and backend, reusable shared schemas and clear engineering boundaries that support long-term development."
+  },
+  "architecture": {
+    "title": "How architecture looks",
+    "body": "HSS uses Turborepo with Next.js for web, NestJS for API, Prisma for database access and shared Zod contracts in a dedicated package. Infrastructure services (Keycloak, PostgreSQL, MinIO, nginx/TLS) are containerized to keep local development close to production."
+  },
+  "team": {
+    "title": "Team",
+    "role": "Co-founder",
+    "imageAltKacper": "Placeholder portrait for Kacper Bos",
+    "imageAltNikolas": "Placeholder portrait for Nikolas Feduniewicz"
+  }
+}

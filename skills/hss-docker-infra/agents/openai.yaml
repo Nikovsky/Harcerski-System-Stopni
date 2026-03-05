@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Docker Infra"
+  short_description: "Local stack lifecycle and infrastructure diagnostics"
+  default_prompt: "Use $hss-docker-infra to verify this local stack issue across Docker services and dependency readiness."

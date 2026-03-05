@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Nest API"
+  short_description: "Nest API delivery with DTO, RBAC, and error controls"
+  default_prompt: "Use $hss-nest-api to implement this endpoint with DTO validation, server-side RBAC, and consistent error handling."

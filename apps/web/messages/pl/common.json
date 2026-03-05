@@ -1,13 +1,77 @@
 {
   "nav": {
     "home": "Strona główna",
-    "login": "Zaloguj"
+    "about": "O projekcie",
+    "dashboard": "Panel",
+    "profile": "Profil"
   },
-  "sessionTimeout": {
-    "title": "Sesja wygasa",
-    "message": "Twoja sesja wygaśnie za {seconds} sekund.",
-    "stayLoggedIn": "Zostań zalogowany",
-    "extendMinutes": "+{minutes} min",
-    "loggingOut": "Wylogowywanie..."
+  "auth": {
+    "login": "Zaloguj",
+    "userFallback": "Użytkownik",
+    "noEmail": "Brak e-maila"
+  },
+  "authUserMenu": {
+    "ariaLabel": "Menu konta",
+    "signedInAs": "Zalogowano jako",
+    "session": "Sesja",
+    "logout": "Wyloguj"
+  },
+  "footer": {
+    "license": "© {year} HSS • Licencja AGPL-3.0"
+  },
+  "theme": {
+    "toggle": "Przełącz motyw",
+    "dark": "Ciemny",
+    "light": "Jasny"
+  },
+  "popup": {
+    "closeButtonAria": "Zamknij popup"
+  },
+  "signOutPopup": {
+    "ariaLabel": "Wylogowanie",
+    "closeButtonAria": "Zamknij okno wylogowania",
+    "title": "Wylogowanie",
+    "message": "Czy na pewno chcesz się wylogować?",
+    "loggingOut": "Wylogowywanie...",
+    "cancel": "Anuluj",
+    "logoutNow": "Wyloguj teraz",
+    "logoutTrigger": "WYLOGUJ",
+    "error": "Nie udało się wylogować. Spróbuj ponownie."
+  },
+  "sessionBadge": {
+    "label": "Sesja: {time}"
+  },
+  "idleTimeout": {
+    "ariaLabel": "Sesja",
+    "closeButtonAria": "Zamknij okno sesji",
+    "title": "Sesja",
+    "sessionButton": "SESJA",
+    "willExpireIn": "Twoja sesja wygaśnie za",
+    "loggingOut": "Wylogowywanie...",
+    "helpText": "Możesz przedłużyć sesję albo wylogować się teraz.",
+    "extendLabel": "Przedłuż",
+    "minutesOption": "{minutes} min",
+    "logoutNow": "Wyloguj teraz",
+    "extendSession": "Przedłuż sesję"
+  },
+  "localeSwitcher": {
+    "label": "Język",
+    "pl": "Polski",
+    "en": "Angielski"
+  },
+  "accessDenied": {
+    "codeLabel": "Błąd {code}",
+    "title": "Brak dostępu",
+    "roleMessage": "Jesteś zalogowany(-a), ale Twoja rola nie ma dostępu do tej strony.",
+    "serviceUnavailableTitle": "Usługa uwierzytelniania niedostępna",
+    "serviceUnavailableMessage": "Nie można teraz zweryfikować uwierzytelnienia. Spróbuj ponownie za chwilę."
+  },
+  "dashboardPage": {
+    "title": "Panel",
+    "description": "To jest strona panelu."
+  },
+  "profilePage": {
+    "title": "Profil",
+    "edit": "Edytuj"
   }
 }

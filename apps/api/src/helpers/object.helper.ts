@@ -1,5 +1,5 @@
 // @file: apps/api/src/helpers/object.helper.ts
-export function hasAnyDefined<T extends Record<string, any>>(
+export function hasAnyDefined<T extends Record<string, unknown>>(
   obj: T,
   keys: readonly (keyof T)[],
 ): boolean {

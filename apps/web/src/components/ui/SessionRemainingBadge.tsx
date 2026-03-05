@@ -1,6 +1,7 @@
 // @file: apps/web/src/components/ui/SessionRemainingBadge.tsx
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { envPublic } from "@/config/env.client";
 
@@ -27,6 +28,7 @@ function readStoredExpiresAt(): number | null {
 }
 
 export function SessionRemainingBadge() {
+  const t = useTranslations("common.sessionBadge");
   const baseTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
   const fallbackExpiresAtRef = useRef<number>(0);
   const [remainingSec, setRemainingSec] = useState(baseTimeoutSec);
@@ -76,8 +78,8 @@ export function SessionRemainingBadge() {
   }, [baseTimeoutSec]);
 
   return (
-    <span className="rounded-full border border-neutral-300 bg-white/90 px-2 py-1 text-xs font-semibold tabular-nums text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-200">
-      Sesja: {formatClock(remainingSec)}
+    <span className="inline-flex rounded-full border border-border bg-muted px-2 py-1 text-xs font-semibold tabular-nums text-foreground">
+      {t("label", { time: formatClock(remainingSec) })}
     </span>
   );
 }

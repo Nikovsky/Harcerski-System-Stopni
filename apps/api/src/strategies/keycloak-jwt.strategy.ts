@@ -73,8 +73,12 @@ export class KeycloakJwtStrategy extends PassportStrategy(
     // Runtime validation (single source of truth)
     const parsed = AuthPrincipalSchema.safeParse(principalCandidate);
     if (!parsed.success) {
+      // keep logs safe; don't dump full token
       this.logger.warn('AuthPrincipal validation failed', {
-        issueCount: parsed.error.issues.length,
+        issues: parsed.error.issues?.map((i) => ({
+          path: i.path.join('.'),
+          message: i.message,
+        })),
       });
       throw new UnauthorizedException('Invalid access token claims');
     }
