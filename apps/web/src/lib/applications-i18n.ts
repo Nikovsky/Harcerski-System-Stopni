@@ -35,6 +35,18 @@ const PRESENCE_CODES = ["IN_PERSON", "REMOTE", "ATTACHMENT_OPINION"] as const;
 
 const STEP_CODES = ["basicInfo", "serviceHistory", "supervisor", "requirements", "attachments", "summary"] as const;
 
+const SUPERVISOR_FUNCTION_KEYS = {
+  DRUZYNOWY: "supervisorFunction.druzynowy",
+  OPIEKUN_DRUZYNY: "supervisorFunction.opiekunDruzyny",
+} as const;
+
+const SUPERVISOR_FUNCTION_ALIASES = {
+  "drużynowy": SUPERVISOR_FUNCTION_KEYS.DRUZYNOWY,
+  druzynowy: SUPERVISOR_FUNCTION_KEYS.DRUZYNOWY,
+  "opiekun drużyny": SUPERVISOR_FUNCTION_KEYS.OPIEKUN_DRUZYNY,
+  "opiekun druzyny": SUPERVISOR_FUNCTION_KEYS.OPIEKUN_DRUZYNY,
+} as const;
+
 const FIELD_CODES = [
   "profile",
   "firstName",
@@ -73,6 +85,7 @@ type ScoutRankCode = (typeof SCOUT_RANK_CODES)[number];
 type PresenceCode = (typeof PRESENCE_CODES)[number];
 type StepCode = (typeof STEP_CODES)[number];
 type FieldCode = (typeof FIELD_CODES)[number];
+type SupervisorFunctionKey = (typeof SUPERVISOR_FUNCTION_KEYS)[keyof typeof SUPERVISOR_FUNCTION_KEYS];
 
 function includes<const T extends string>(arr: readonly T[], value: string): value is T {
   return (arr as readonly string[]).includes(value);
@@ -92,6 +105,18 @@ export function scoutRankKey(code: string): `scoutRank.${ScoutRankCode}` | null 
 
 export function presenceKey(code: string): `presence.${PresenceCode}` | null {
   return includes(PRESENCE_CODES, code) ? `presence.${code}` : null;
+}
+
+export function supervisorFunctionKey(value: string): SupervisorFunctionKey | null {
+  const directKey = SUPERVISOR_FUNCTION_KEYS[value as keyof typeof SUPERVISOR_FUNCTION_KEYS];
+
+  if (directKey) {
+    return directKey;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+
+  return SUPERVISOR_FUNCTION_ALIASES[normalizedValue as keyof typeof SUPERVISOR_FUNCTION_ALIASES] ?? null;
 }
 
 export function stepKey(code: string): `steps.${StepCode}` | null {
