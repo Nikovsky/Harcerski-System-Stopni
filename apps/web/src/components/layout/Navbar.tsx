@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { NavbarLinks, type NavbarLinkItem } from "@/components/layout/NavbarLinks";
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
 
-type NavItem = { label: string; href: string };
 type AppTheme = "dark" | "light";
 type NavbarProps = { locale: string; initialTheme: AppTheme };
 
