@@ -77,75 +77,6 @@ function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-type JwtPayloadWithRoles = {
-  realm_access?: { roles?: unknown };
-  resource_access?: Record<string, { roles?: unknown }>;
-};
-
-function normalizeRoles(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const role of value) {
-    if (typeof role !== "string") continue;
-    const normalized = role.trim().toUpperCase();
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    out.push(normalized);
-  }
-
-  return out;
-}
-
-function decodeJwtPayload(token: string): JwtPayloadWithRoles | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-
-  const payloadPart = parts[1];
-  if (!payloadPart) return null;
-
-  try {
-    const payload = JSON.parse(Buffer.from(payloadPart, "base64url").toString("utf8")) as unknown;
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
-    return payload as JwtPayloadWithRoles;
-  } catch {
-    return null;
-  }
-}
-
-function extractRolesFromAccessToken(
-  accessToken: string | undefined,
-  clientId: string,
-): { realmRoles: string[]; clientRoles: string[] } {
-  if (!accessToken) {
-    return { realmRoles: [], clientRoles: [] };
-  }
-
-  const payload = decodeJwtPayload(accessToken);
-  if (!payload) {
-    return { realmRoles: [], clientRoles: [] };
-  }
-
-  return {
-    realmRoles: normalizeRoles(payload.realm_access?.roles),
-    clientRoles: normalizeRoles(payload.resource_access?.[clientId]?.roles),
-  };
-}
-
-function withDerivedRoles(token: SessionJwt, clientId: string): SessionJwt {
-  if (Array.isArray(token.realmRoles) && Array.isArray(token.clientRoles)) {
-    return token;
-  }
-
-  const roles = extractRolesFromAccessToken(token.accessToken, clientId);
-  return {
-    ...token,
-    realmRoles: roles.realmRoles,
-    clientRoles: roles.clientRoles,
-  };
-}
-
 function expireSessionToken(token: SessionJwt): SessionJwt {
   return {
     ...token,
@@ -253,16 +184,12 @@ async function refreshAccessToken(
       return expireSessionToken(token);
     }
 
-    const roles = extractRolesFromAccessToken(accessToken, clientId);
-
     return {
       ...token,
       accessToken,
       idToken: idToken ?? token.idToken,
       refreshToken: refreshToken ?? token.refreshToken,
       accessTokenExpiresAt: Date.now() + expiresIn * 1000,
-      realmRoles: roles.realmRoles,
-      clientRoles: roles.clientRoles,
       error: undefined,
     };
   } catch (e) {
@@ -313,12 +240,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, account }) {
       const sessionToken = token as SessionJwt;
-      const keycloakClientId = envServer.AUTH_KEYCLOAK_ID;
 
       // First login — persist all tokens from Keycloak
       if (account) {
         const accessToken = account.access_token as string | undefined;
-        const roles = extractRolesFromAccessToken(accessToken, keycloakClientId);
 
         return {
           ...sessionToken,
@@ -327,8 +252,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           refreshToken: account.refresh_token as string | undefined,
           accessTokenExpiresAt:
             typeof account.expires_at === "number" ? account.expires_at * 1000 : undefined,
-          realmRoles: roles.realmRoles,
-          clientRoles: roles.clientRoles,
           error: undefined,
         };
       }
@@ -340,7 +263,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Token still valid (with 60s safety margin)
       if (isTokenFresh(sessionToken)) {
-        return withDerivedRoles(sessionToken, keycloakClientId);
+        return sessionToken;
       }
 
       // Distribute refresh lock through Redis to keep token rotation safe
@@ -361,7 +284,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const refreshedByPeer = await waitForPeerRefresh(sid);
       if (refreshedByPeer) {
-        return withDerivedRoles(refreshedByPeer, keycloakClientId);
+        return refreshedByPeer;
       }
 
       return refreshAccessToken(sessionToken);

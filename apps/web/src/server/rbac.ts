@@ -1,7 +1,17 @@
 // @file: apps/web/src/server/rbac.ts
 import "server-only";
+import { cache } from "react";
 import type { Session } from "next-auth";
-import { ROLE_RANK, userRoleSchema, type UserRole } from "@hss/schemas";
+import {
+  AuthPrincipalSchema,
+  ROLE_RANK,
+  userRoleSchema,
+  type AuthPrincipal,
+  type UserRole,
+} from "@hss/schemas";
+import { envServer } from "@/config/env.server";
+
+const API_BASE_URL = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
 
 function normalizeRole(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -24,14 +34,44 @@ function normalizeRoleList(value: unknown): string[] {
   return roles;
 }
 
-export function getSessionRoles(session: Session | null): Set<string> {
-  const realmRoles = normalizeRoleList(session?.realmRoles);
-  const clientRoles = normalizeRoleList(session?.clientRoles);
-  return new Set([...realmRoles, ...clientRoles]);
+function getSessionAccessToken(session: Session | null): string | null {
+  if (!session?.accessToken) return null;
+  if (typeof session.accessToken !== "string") return null;
+  if (!session.accessToken.trim()) return null;
+  return session.accessToken;
 }
 
-function hasLoggedSession(session: Session | null): boolean {
-  return Boolean(session?.user && session.accessToken);
+const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): Promise<AuthPrincipal | null> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/profile/principal`, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) return null;
+    const payload = await res.json().catch(() => null);
+    const parsed = AuthPrincipalSchema.safeParse(payload);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+});
+
+export async function getVerifiedPrincipal(session: Session | null): Promise<AuthPrincipal | null> {
+  const accessToken = getSessionAccessToken(session);
+  if (!accessToken) return null;
+  return fetchVerifiedPrincipalByAccessToken(accessToken);
+}
+
+export function getPrincipalRoles(principal: AuthPrincipal | null): Set<string> {
+  const realmRoles = normalizeRoleList(principal?.realmRoles);
+  const clientRoles = normalizeRoleList(principal?.clientRoles);
+  return new Set([...realmRoles, ...clientRoles]);
 }
 
 function toUserRole(value: string): UserRole | null {
@@ -39,8 +79,8 @@ function toUserRole(value: string): UserRole | null {
   return parsed.success ? parsed.data : null;
 }
 
-function getHighestRoleRank(session: Session | null): number | null {
-  const roleSet = getSessionRoles(session);
+function getHighestRoleRank(principal: AuthPrincipal | null): number | null {
+  const roleSet = getPrincipalRoles(principal);
   let highest: number | null = null;
 
   for (const role of roleSet) {
@@ -56,11 +96,11 @@ function getHighestRoleRank(session: Session | null): number | null {
   return highest;
 }
 
-export function canAccess(session: Session | null, minRank?: number): boolean {
-  if (!hasLoggedSession(session)) return false;
+export function canAccess(principal: AuthPrincipal | null, minRank?: number): boolean {
+  if (!principal) return false;
   if (typeof minRank !== "number") return true;
 
-  const highestRank = getHighestRoleRank(session);
+  const highestRank = getHighestRoleRank(principal);
   if (highestRank === null) return false;
 
   return highestRank >= minRank;

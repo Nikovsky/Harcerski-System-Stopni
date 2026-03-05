@@ -3,7 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AccessDenied } from "@/components/ui/AccessDenied";
-import { buildKeycloakSignInHref, canAccess } from "@/server/rbac";
+import {
+  buildKeycloakSignInHref,
+  canAccess,
+  getVerifiedPrincipal,
+} from "@/server/rbac";
 import { ROLE_RANK } from "@hss/schemas";
 
 type Props = {
@@ -16,12 +20,13 @@ export default async function DashboardLayout({ children, params }: Props) {
   const t = await getTranslations("common");
   const signInHref = buildKeycloakSignInHref(locale, `/${locale}/dashboard`);
   const session = await auth();
+  const principal = await getVerifiedPrincipal(session);
 
-  if (!canAccess(session)) {
+  if (!canAccess(principal)) {
     redirect(signInHref);
   }
 
-  if (!canAccess(session, ROLE_RANK.SCOUT)) {
+  if (!canAccess(principal, ROLE_RANK.SCOUT)) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
         <h1 className="text-2xl font-semibold">{t("dashboardPage.title")}</h1>

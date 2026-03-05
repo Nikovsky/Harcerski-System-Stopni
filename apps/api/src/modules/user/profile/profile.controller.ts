@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  AuthPrincipalSchema,
   userDashboardResponseSchema,
   userDashboardUpdatePrivilegedBodySchema,
   type AuthPrincipal,
@@ -23,6 +24,19 @@ import { ProfileService } from './profile.service';
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
+
+  @Get('principal')
+  getPrincipal(@CurrentUser(AuthPrincipalPipe) user: AuthPrincipal) {
+    const parsed = AuthPrincipalSchema.safeParse(user);
+    if (!parsed.success) {
+      throw new InternalServerErrorException({
+        code: 'RESPONSE_CONTRACT_MISMATCH',
+        message: 'Response contract mismatch.',
+      });
+    }
+
+    return parsed.data;
+  }
 
   @Get()
   async getMyProfile(@CurrentUser(AuthPrincipalPipe) user: AuthPrincipal) {
