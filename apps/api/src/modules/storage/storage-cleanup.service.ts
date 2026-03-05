@@ -2,7 +2,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ApplicationStatus, Prisma } from '@hss/database';
-import { ApplicationStatus, Prisma } from '@hss/database';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from './storage.service';
 
