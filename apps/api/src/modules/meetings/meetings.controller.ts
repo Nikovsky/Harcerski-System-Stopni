@@ -82,6 +82,20 @@ export class MeetingsController {
     );
   }
 
+  @Patch(':meetingUuid/my-registration/cancel')
+  @Roles(UserRole.USER)
+  async cancelMyRegistration(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Param('meetingUuid', ParseUUIDPipe) meetingUuid: string,
+    @Req() req: Request,
+  ) {
+    return this.service.cancelMyRegistration(
+      principal,
+      meetingUuid,
+      extractRequestId(req),
+    );
+  }
+
   @Post()
   @Roles(UserRole.COMMISSION_MEMBER)
   async createMeeting(

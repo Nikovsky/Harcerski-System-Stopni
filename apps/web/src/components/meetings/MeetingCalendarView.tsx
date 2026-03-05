@@ -7,6 +7,7 @@ import type {
   MeetingListItem,
 } from "@hss/schemas";
 import { MeetingBookingButton } from "@/components/meetings/MeetingBookingButton";
+import { MeetingCancellationButton } from "@/components/meetings/MeetingCancellationButton";
 import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 
 type Props = {
@@ -135,9 +136,18 @@ export function MeetingCalendarView({ meetings }: Props) {
                       </div>
 
                       {slot.bookedByMe ? (
-                        <p className="text-xs font-medium text-emerald-700">
-                          {t("slots.bookedByYou")}
-                        </p>
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-xs font-medium text-emerald-700">
+                            {t("slots.bookedByYou")}
+                          </p>
+                          {meeting.canCancelMyRegistration &&
+                          meeting.myRegistrationUuid ? (
+                            <MeetingCancellationButton
+                              meetingUuid={meeting.uuid}
+                              registrationUuid={meeting.myRegistrationUuid}
+                            />
+                          ) : null}
+                        </div>
                       ) : slot.isBooked ? (
                         <p className="text-xs font-medium text-foreground/70">
                           {t("slots.booked")}
@@ -161,9 +171,18 @@ export function MeetingCalendarView({ meetings }: Props) {
               <div className="rounded-md border border-border px-3 py-3">
                 <p className="mb-2 text-sm text-foreground/80">{t("dayOnly.description")}</p>
                 {meeting.myRegistrationUuid ? (
-                  <p className="text-sm font-medium text-emerald-700">
-                    {t("dayOnly.bookedByYou")}
-                  </p>
+                  <div className="flex flex-col items-start gap-2">
+                    <p className="text-sm font-medium text-emerald-700">
+                      {t("dayOnly.bookedByYou")}
+                    </p>
+                    {meeting.canCancelMyRegistration ? (
+                      <MeetingCancellationButton
+                        meetingUuid={meeting.uuid}
+                        registrationUuid={meeting.myRegistrationUuid}
+                        className="rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    ) : null}
+                  </div>
                 ) : meeting.canBook ? (
                   <MeetingBookingButton meetingUuid={meeting.uuid} disabled={false} />
                 ) : (

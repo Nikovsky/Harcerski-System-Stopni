@@ -147,6 +147,7 @@ export const meetingListItemSchema = z
     canBook: z.boolean(),
     bookingBlockedReasonCode: meetingBookingBlockedReasonCodeSchema.nullable(),
     myRegistrationUuid: uuidSchema.nullable(),
+    canCancelMyRegistration: z.boolean(),
     slots: z.array(meetingSlotViewSchema),
   })
   .strict();

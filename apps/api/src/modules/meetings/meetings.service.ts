@@ -46,6 +46,7 @@ const LIST_DEFAULT_FROM_DAYS = -30;
 const LIST_DEFAULT_TO_DAYS = 180;
 const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 const SERIALIZABLE_RETRY_DELAY_MS = 30;
+const SELF_CANCELLATION_BLOCK_START_DAYS_BEFORE_MEETING = 1;
 
 const COMMISSION_MANAGER_ROLES: CommissionRole[] = [
   CommissionRole.SECRETARY,
@@ -385,6 +386,95 @@ export class MeetingsService {
 
       throw error;
     }
+  }
+
+  async cancelMyRegistration(
+    principal: AuthPrincipal,
+    meetingUuid: string,
+    requestId?: string | null,
+  ): Promise<MeetingRegistrationCancelResponse> {
+    const user = await this.resolveUser(principal);
+
+    return this.withSerializableRetries(() =>
+      this.prisma.$transaction(
+        async (tx) => {
+          const registration = await tx.meetingRegistration.findFirst({
+            where: {
+              meetingUuid,
+              candidateUuid: user.uuid,
+              status: RegistrationStatus.REGISTERED,
+            },
+            select: {
+              uuid: true,
+              meetingUuid: true,
+              status: true,
+              slotUuid: true,
+              registeredAt: true,
+              updatedAt: true,
+              meeting: {
+                select: {
+                  status: true,
+                  date: true,
+                },
+              },
+            },
+          });
+
+          if (!registration) {
+            throw new NotFoundException({
+              code: 'REGISTRATION_NOT_FOUND',
+              message: 'Active meeting registration not found.',
+            });
+          }
+
+          if (registration.meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+            throw new ConflictException({
+              code: 'MEETING_NOT_OPEN',
+              message: 'Meeting is not open for registration.',
+            });
+          }
+
+          if (
+            !this.isSelfCancellationAllowedByMeetingDate(
+              registration.meeting.date,
+              new Date(),
+            )
+          ) {
+            throw new ConflictException({
+              code: 'CANCELLATION_DEADLINE_PASSED',
+              message:
+                'Registration cannot be canceled from the day before the meeting date.',
+            });
+          }
+
+          const updated = await tx.meetingRegistration.update({
+            where: { uuid: registration.uuid },
+            data: {
+              status: RegistrationStatus.CANCELLED,
+            },
+            select: CREATED_REGISTRATION_SELECT,
+          });
+
+          await this.auditService.log(
+            {
+              principal,
+              action: 'SLOT_CANCELED',
+              targetType: 'MEETING_REGISTRATION',
+              targetUuid: updated.uuid,
+              requestId,
+              metadata: {
+                meetingUuid: updated.meetingUuid,
+                slotUuid: updated.slotUuid,
+              },
+            },
+            tx,
+          );
+
+          return this.toMeetingRegistrationSummary(updated);
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
+    );
   }
 
   async createMeeting(
@@ -924,9 +1014,14 @@ export class MeetingsService {
     candidateUuid: string,
     hasApprovedApplication: boolean,
   ): MeetingListItem {
+    const now = new Date();
     const myRegistration = meeting.registrations.find(
       (registration) => registration.candidateUuid === candidateUuid,
     );
+    const canCancelMyRegistration =
+      Boolean(myRegistration) &&
+      meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
+      this.isSelfCancellationAllowedByMeetingDate(meeting.date, now);
     const totalSlots =
       meeting.slotMode === SlotMode.SLOTS ? meeting.slots.length : 0;
     const availableSlots =
@@ -965,6 +1060,7 @@ export class MeetingsService {
       canBook,
       bookingBlockedReasonCode,
       myRegistrationUuid: myRegistration?.uuid ?? null,
+      canCancelMyRegistration,
       slots: meeting.slots.map((slot) => ({
         uuid: slot.uuid,
         startTime: slot.startTime.toISOString(),
@@ -1016,6 +1112,17 @@ export class MeetingsService {
           }
         : null,
     };
+  }
+
+  private isSelfCancellationAllowedByMeetingDate(
+    meetingDate: Date,
+    now: Date,
+  ): boolean {
+    const cancellationBlockedFrom = addUtcDays(
+      meetingDate,
+      -SELF_CANCELLATION_BLOCK_START_DAYS_BEFORE_MEETING,
+    );
+    return now < cancellationBlockedFrom;
   }
 
   private toMeetingRegistrationCreateResponse(

@@ -32,6 +32,8 @@
   "actions": {
     "book": "Book",
     "booking": "Booking...",
+    "cancel": "Cancel registration",
+    "cancelling": "Cancelling...",
     "retry": "Try again"
   },
   "blocked": {
@@ -45,6 +47,10 @@
     "slotAlreadyBooked": "This slot has just been booked by someone else.",
     "alreadyRegistered": "You already have an active registration for this meeting.",
     "bookingNotAllowedStatus": "Booking is available only after your application is accepted by the commission.",
-    "generic": "An error occurred while booking."
+    "generic": "An error occurred while booking.",
+    "cancellationNotAllowedStatus": "This meeting is no longer open, so cancellation is not available.",
+    "cancellationDeadlinePassed": "Cancellation is available only until the day before the meeting date.",
+    "cancellationNotFound": "No active registration was found to cancel.",
+    "cancellationGeneric": "An error occurred while cancelling registration."
   }
 }

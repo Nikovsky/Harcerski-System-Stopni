@@ -32,6 +32,8 @@
   "actions": {
     "book": "Zarezerwuj",
     "booking": "Rezerwowanie...",
+    "cancel": "Anuluj zapis",
+    "cancelling": "Anulowanie...",
     "retry": "Spróbuj ponownie"
   },
   "blocked": {
@@ -45,6 +47,10 @@
     "slotAlreadyBooked": "Ten slot został właśnie zajęty przez inną osobę.",
     "alreadyRegistered": "Masz już aktywny zapis na to posiedzenie.",
     "bookingNotAllowedStatus": "Rezerwacja jest możliwa dopiero po zaakceptowaniu Twojej próby przez komisję.",
-    "generic": "Wystąpił błąd podczas rezerwacji."
+    "generic": "Wystąpił błąd podczas rezerwacji.",
+    "cancellationNotAllowedStatus": "To posiedzenie nie jest już otwarte, więc anulowanie zapisu nie jest możliwe.",
+    "cancellationDeadlinePassed": "Anulowanie zapisu jest możliwe tylko do dnia poprzedzającego posiedzenie.",
+    "cancellationNotFound": "Nie znaleziono aktywnego zapisu do anulowania.",
+    "cancellationGeneric": "Wystąpił błąd podczas anulowania zapisu."
   }
 }
