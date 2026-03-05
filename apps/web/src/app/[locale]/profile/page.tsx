@@ -1,32 +1,42 @@
 // @file: apps/web/src/app/[locale]/profile/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
 import {
   userDashboardResponseSchema,
   type UserDashboardResponse,
 } from "@hss/schemas";
-import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 
-async function fetchProfile(accessToken: string): Promise<
+async function fetchProfileViaBff(): Promise<
   | { ok: true; data: UserDashboardResponse }
   | { ok: false; status: number; message: string }
 > {
-  const apiBaseUrl = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
+  const webOrigin = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
+  const requestHeaders = await headers();
+  const cookieHeader = requestHeaders.get("cookie") ?? "";
+  const requestId = requestHeaders.get("x-request-id");
+  const bffHeaders: Record<string, string> = {
+    accept: "application/json",
+  };
+  if (cookieHeader) {
+    bffHeaders.cookie = cookieHeader;
+  }
+  if (requestId) {
+    bffHeaders["x-request-id"] = requestId;
+  }
+
   let res: Response;
 
   try {
-    res = await fetch(`${apiBaseUrl}/profile`, {
+    res = await fetch(`${webOrigin}/api/backend/profile`, {
       method: "GET",
       cache: "no-store",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${accessToken}`,
-      },
+      headers: bffHeaders,
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    return { ok: false, status: 502, message: "Backend unavailable." };
+    return { ok: false, status: 502, message: "BFF unavailable." };
   }
 
   if (!res.ok) {
@@ -60,8 +70,7 @@ export default async function ProfilePage({
   // ✅ unwrap params ONCE
   const { locale } = await params;
   const t = await getTranslations("common");
-  const session = await auth();
-  const result = await fetchProfile(session?.accessToken ?? "");
+  const result = await fetchProfileViaBff();
 
   if (!result.ok) {
     return (

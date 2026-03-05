@@ -20,6 +20,30 @@ function firstHeaderValue(value: string | null): string | null {
   return first;
 }
 
+function normalizeIpCandidate(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (normalized.toLowerCase() === "unknown") return null;
+  if (normalized.length > 128) return null;
+  if (!/^[A-Za-z0-9:.%-]+$/.test(normalized)) return null;
+
+  return normalized;
+}
+
+function lastForwardedForValue(value: string | null): string | null {
+  if (!value) return null;
+
+  const parts = value
+    .split(",")
+    .map((part) => normalizeIpCandidate(part))
+    .filter((part): part is string => Boolean(part));
+
+  if (parts.length === 0) return null;
+  return parts[parts.length - 1];
+}
+
 function normalizeHost(value: string | null | undefined): string | null {
   if (!value) return null;
 
@@ -66,11 +90,13 @@ export function isTrustedRequestHost(
 }
 
 export function getClientIp(req: Pick<NextRequest, "headers">): string {
-  const forwardedFor = firstHeaderValue(req.headers.get("x-forwarded-for"));
-  if (forwardedFor) return forwardedFor;
-
-  const realIp = firstHeaderValue(req.headers.get("x-real-ip"));
+  // Prefer proxy-controlled header to avoid trusting user-supplied X-Forwarded-For.
+  const realIp = normalizeIpCandidate(firstHeaderValue(req.headers.get("x-real-ip")));
   if (realIp) return realIp;
+
+  // Fallback to the right-most forwarded hop when X-Real-IP is unavailable.
+  const forwardedFor = lastForwardedForValue(req.headers.get("x-forwarded-for"));
+  if (forwardedFor) return forwardedFor;
 
   return "unknown";
 }

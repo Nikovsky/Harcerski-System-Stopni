@@ -12,6 +12,7 @@ import {
 import { envPublic } from "@/config/env.client";
 import { Button } from "@/components/ui/Button";
 import { Popup } from "@/components/ui/Popup";
+import { Throbber } from "@/components/ui/Throbber";
 
 const CHANNEL_NAME = "hss-idle-timeout";
 const SESSION_EXPIRES_AT_STORAGE_KEY = "hss.session.expiresAtMs";
@@ -209,7 +210,9 @@ export function IdleTimeoutGuard() {
     if (logoutStartedRef.current) return;
     logoutStartedRef.current = true;
     setIsLoggingOut(true);
-    setIsDialogOpen(false);
+    if (reason !== "manual") {
+      setIsDialogOpen(false);
+    }
 
     try {
       broadcast({ type: "logout" });
@@ -381,29 +384,32 @@ export function IdleTimeoutGuard() {
   return (
     <>
       {showSessionButton && (
-        <Button
-          type="button"
-          tone="main"
-          onClick={() => setIsDialogOpen(true)}
-          className={[
-            "fixed right-5 top-100px z-9900 h-auto items-center gap-3 rounded-full px-3 py-2 shadow-lg",
-            "backdrop-blur",
-            "transition-colors",
-            isUrgent ? "ring-2 ring-red-500/50" : "",
-          ].join(" ")}
-        >
-          <span className="text-sm font-semibold">{t("sessionButton")}</span>
-          <span
+        <div className="pointer-events-none fixed inset-0 z-9900">
+          <Button
+            type="button"
+            tone="main"
+            onClick={() => setIsDialogOpen(true)}
             className={[
-              "inline-flex min-w-16 justify-center rounded-full px-2 py-1 text-xs font-semibold tabular-nums",
-              isUrgent
-                ? "bg-red-600 text-white"
-                : "bg-blue-600 text-white",
+              "pointer-events-auto fixed right-0 top-[100px] z-50 h-8 min-h-8 w-fit max-w-max rounded-l-2xl rounded-r-none border-r-0 px-5 py-2",
+              "flex items-center justify-center overflow-visible",
+              "backdrop-blur",
+              "transition-colors",
+              isUrgent ? "ring-2 ring-red-500/50" : "",
             ].join(" ")}
           >
-            {timerText}
-          </span>
-        </Button>
+            <span className="pt-1 text-sm font-semibold">{t("sessionButton")}</span>
+            <span
+              className={[
+                "pointer-events-none absolute left-0 top-0 inline-flex min-w-14 -translate-x-1/2 -translate-y-1/2 justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                isUrgent
+                  ? "bg-red-600 text-white"
+                  : "bg-blue-600 text-white",
+              ].join(" ")}
+            >
+              {timerText}
+            </span>
+          </Button>
+        </div>
       )}
 
       {(isDialogOpen || isLoggingOut) && (
@@ -444,6 +450,7 @@ export function IdleTimeoutGuard() {
                     className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={selectedExtendMinutes}
                     onChange={(e) => setSelectedExtendMinutes(Number.parseInt(e.target.value, 10))}
+                    disabled={isLoggingOut}
                   >
                     {extendOptionsMinutes.map((min) => (
                       <option key={min} value={min}>
@@ -458,14 +465,25 @@ export function IdleTimeoutGuard() {
                     type="button"
                     colorClass="bg-red-600 text-white border-red-700"
                     onClick={() => void doLogout("manual")}
+                    disabled={isLoggingOut}
                   >
-                    {t("logoutNow")}
+                    {isLoggingOut ? (
+                      <Throbber
+                        inline={true}
+                        factor={1}
+                        className="h-4 w-4"
+                        ariaLabel={t("loggingOut")}
+                      />
+                    ) : (
+                      t("logoutNow")
+                    )}
                   </Button>
 
                   <Button
                     type="button"
                     colorClass="bg-blue-600 text-white border-blue-700"
                     onClick={extendSession}
+                    disabled={isLoggingOut}
                   >
                     {t("extendSession")}
                   </Button>

@@ -1,6 +1,5 @@
 // @file: apps/web/src/server/rbac.ts
 import "server-only";
-import { cache } from "react";
 import type { Session } from "next-auth";
 import {
   AuthPrincipalSchema,
@@ -46,7 +45,7 @@ function getSessionAccessToken(session: Session | null): string | null {
   return session.accessToken;
 }
 
-const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): Promise<VerifiedPrincipalState> => {
+async function fetchVerifiedPrincipalByAccessToken(accessToken: string): Promise<VerifiedPrincipalState> {
   try {
     const res = await fetch(`${API_BASE_URL}/profile/principal`, {
       method: "GET",
@@ -75,7 +74,7 @@ const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): P
   } catch {
     return { status: "unavailable", principal: null };
   }
-});
+}
 
 export async function resolveVerifiedPrincipal(session: Session | null): Promise<VerifiedPrincipalState> {
   const accessToken = getSessionAccessToken(session);

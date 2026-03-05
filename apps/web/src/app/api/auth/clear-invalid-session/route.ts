@@ -50,11 +50,35 @@ function sanitizeReturnTo(value: string | null): string {
   return value;
 }
 
+function parseOriginFromReferer(referer: string | null): string | null {
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getRequestOrigin(req: NextRequest): string | null {
+  const origin = req.headers.get("origin")?.trim();
+  if (origin) return origin;
+  return parseOriginFromReferer(req.headers.get("referer"));
+}
+
 function isTrustedFetchContext(req: NextRequest): boolean {
   const fetchSite = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
-  if (!fetchSite) return true;
+  if (fetchSite !== "same-origin") return false;
 
-  return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
+  const fetchMode = req.headers.get("sec-fetch-mode")?.trim().toLowerCase();
+  if (fetchMode && fetchMode !== "navigate") return false;
+
+  const fetchDest = req.headers.get("sec-fetch-dest")?.trim().toLowerCase();
+  if (fetchDest && fetchDest !== "document" && fetchDest !== "empty") return false;
+
+  const requestOrigin = getRequestOrigin(req);
+  if (requestOrigin && requestOrigin !== PUBLIC_ORIGIN) return false;
+
+  return true;
 }
 
 function forbiddenNoStore(requestId: string): NextResponse {
