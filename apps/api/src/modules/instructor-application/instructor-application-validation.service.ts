@@ -1,5 +1,6 @@
 // @file: apps/api/src/modules/instructor-application/instructor-application-validation.service.ts
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { isOptionalInstructorRequirement } from '@hss/schemas';
 
 type ProfileForValidation = {
   firstName: string | null;
@@ -110,12 +111,23 @@ export class InstructorApplicationValidationService {
     }
 
     for (const req of app.requirements) {
-      if (!req.actionDescription || !req.actionDescription.trim()) {
+      const isOptionalRequirement = isOptionalInstructorRequirement(
+        app.template.degreeCode,
+        req.requirementDefinition.code,
+      );
+
+      if (
+        !isOptionalRequirement &&
+        (!req.actionDescription || !req.actionDescription.trim())
+      ) {
         missing.push(
           `requirement_${req.requirementDefinition.code}_actionDescription`,
         );
       }
-      if (!req.verificationText || !req.verificationText.trim()) {
+      if (
+        !isOptionalRequirement &&
+        (!req.verificationText || !req.verificationText.trim())
+      ) {
         missing.push(
           `requirement_${req.requirementDefinition.code}_verificationText`,
         );

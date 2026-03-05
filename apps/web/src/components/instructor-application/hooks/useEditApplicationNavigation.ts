@@ -13,10 +13,11 @@ import {
   PRESENCE_VALUES,
   SCOUT_RANK_VALUES,
 } from "@/components/instructor-application/instructor-application.constants";
-import type {
-  InstructorApplicationDetail,
-  RequirementRowResponse,
-  UpdateInstructorApplication,
+import {
+  isOptionalInstructorRequirement,
+  type InstructorApplicationDetail,
+  type RequirementRowResponse,
+  type UpdateInstructorApplication,
 } from "@hss/schemas";
 
 type Params = {
@@ -53,15 +54,21 @@ function getNullableEnumValue<const T extends string>(
 }
 
 function collectRequirementMissingFields(
+  degreeCode: string,
   requirements: RequirementRowResponse[],
 ): string[] {
   const missing: string[] = [];
 
   for (const req of requirements) {
-    if (isBlank(req.actionDescription)) {
+    const isOptionalRequirement = isOptionalInstructorRequirement(
+      degreeCode,
+      req.definition.code,
+    );
+
+    if (!isOptionalRequirement && isBlank(req.actionDescription)) {
       missing.push(`requirement_${req.definition.code}_actionDescription`);
     }
-    if (isBlank(req.verificationText)) {
+    if (!isOptionalRequirement && isBlank(req.verificationText)) {
       missing.push(`requirement_${req.definition.code}_verificationText`);
     }
   }
@@ -144,7 +151,10 @@ function getMissingFieldsForStep(
   }
 
   if (currentStep === 3) {
-    return collectRequirementMissingFields(draft.requirements);
+    return collectRequirementMissingFields(
+      draft.template.degreeCode,
+      draft.requirements,
+    );
   }
 
   return [];

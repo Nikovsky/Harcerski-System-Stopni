@@ -8,6 +8,7 @@ import type { FlushRegistry, RequirementFormProps } from "@/components/instructo
 
 export function RequirementForm({
   applicationId,
+  degreeCode,
   requirements,
   groupDefinitions = [],
   readOnly,
@@ -54,6 +55,7 @@ export function RequirementForm({
                   <RequirementRow
                     key={req.uuid}
                     applicationId={applicationId}
+                    degreeCode={degreeCode}
                     req={req}
                     readOnly={readOnly}
                     flushRegistry={registry}
@@ -68,6 +70,7 @@ export function RequirementForm({
           <RequirementRow
             key={entry.req.uuid}
             applicationId={applicationId}
+            degreeCode={degreeCode}
             req={entry.req}
             readOnly={readOnly}
             flushRegistry={registry}

@@ -93,7 +93,13 @@ export function ApplicationDetailClient({ app, id }: Props) {
         {tab === "serviceHistory" && <TabServiceHistory app={app} />}
         {tab === "supervisor" && <TabSupervisor app={app} />}
         {tab === "requirements" && (
-          <RequirementForm applicationId={id} requirements={app.requirements} groupDefinitions={app.template.groupDefinitions} readOnly />
+          <RequirementForm
+            applicationId={id}
+            degreeCode={app.template.degreeCode}
+            requirements={app.requirements}
+            groupDefinitions={app.template.groupDefinitions}
+            readOnly
+          />
         )}
         {tab === "attachments" && <TabAttachments app={app} applicationId={id} />}
       </div>

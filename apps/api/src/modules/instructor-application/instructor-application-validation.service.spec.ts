@@ -58,4 +58,36 @@ describe('InstructorApplicationValidationService', () => {
 
     expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
   });
+
+  it('passes when optional requirement PWD/10 is blank', () => {
+    const payload = createValidSubmitPayload();
+    payload.template.degreeCode = 'PWD';
+    payload.requirements[0].requirementDefinition.code = '10';
+    payload.requirements[0].actionDescription = ' ';
+    payload.requirements[0].verificationText = '';
+
+    expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
+  });
+
+  it('passes when optional requirement PHM/11 is blank', () => {
+    const payload = createValidSubmitPayload();
+    payload.template.degreeCode = 'PHM';
+    payload.requirements[0].requirementDefinition.code = '11';
+    payload.requirements[0].actionDescription = '';
+    payload.requirements[0].verificationText = ' ';
+
+    expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
+  });
+
+  it('throws when non-optional requirement PWD/9 is blank', () => {
+    const payload = createValidSubmitPayload();
+    payload.template.degreeCode = 'PWD';
+    payload.requirements[0].requirementDefinition.code = '9';
+    payload.requirements[0].actionDescription = '';
+    payload.requirements[0].verificationText = '';
+
+    expect(() => service.validateRequiredFieldsForSubmit(payload)).toThrow(
+      BadRequestException,
+    );
+  });
 });

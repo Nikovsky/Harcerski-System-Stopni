@@ -49,8 +49,8 @@ export type UpdateInstructorApplication = z.infer<typeof updateInstructorApplica
 // ── Update Requirement ─────────────────────────────────────────────────────
 export const updateInstructorRequirementSchema = z.object({
   state: requirementStateSchema,
-  actionDescription: z.string().trim().min(1).max(5000),
-  verificationText: z.string().trim().min(1).max(5000),
+  actionDescription: z.string().trim().max(5000),
+  verificationText: z.string().trim().max(5000),
 });
 export type UpdateInstructorRequirement = z.infer<typeof updateInstructorRequirementSchema>;
 

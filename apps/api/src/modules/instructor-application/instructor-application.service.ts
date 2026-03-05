@@ -14,7 +14,10 @@ import { InstructorApplicationValidationService } from '@/modules/instructor-app
 import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import type { AuthPrincipal } from '@hss/schemas';
-import { isInstructorApplicationEditable } from '@hss/schemas';
+import {
+  isInstructorApplicationEditable,
+  isOptionalInstructorRequirement,
+} from '@hss/schemas';
 import type {
   CreateInstructorApplication,
   UpdateInstructorApplication,
@@ -785,21 +788,6 @@ export class InstructorApplicationService {
     dto: UpdateInstructorRequirement,
     requestId?: string | null,
   ) {
-    if (!dto.actionDescription?.trim()) {
-      throw new BadRequestException(
-        'Opis realizacji zadania jest wymagany.',
-      );
-    }
-
-    if (!dto.verificationText?.trim()) {
-      throw new BadRequestException(
-        'Opis załącznika jest wymagany.',
-      );
-    }
-
-    const actionDescription = dto.actionDescription.trim();
-    const verificationText = dto.verificationText.trim();
-
     const { req, updatedRequirement } = await this.prisma.$transaction(
       async (tx) => {
         await this.lockApplicationRow(tx, applicationId);
@@ -808,6 +796,11 @@ export class InstructorApplicationService {
           where: { uuid: applicationId },
           select: {
             status: true,
+            template: {
+              select: {
+                degreeCode: true,
+              },
+            },
             candidate: {
               select: {
                 keycloakUuid: true,
@@ -845,6 +838,25 @@ export class InstructorApplicationService {
         });
         if (!req || req.applicationUuid !== applicationId) {
           throw new NotFoundException('Requirement not found');
+        }
+
+        const actionDescription = dto.actionDescription.trim();
+        const verificationText = dto.verificationText.trim();
+        const isOptionalRequirement = isOptionalInstructorRequirement(
+          ownedApp.template.degreeCode,
+          req.requirementDefinition.code,
+        );
+
+        if (!isOptionalRequirement && actionDescription.length === 0) {
+          throw new BadRequestException(
+            'Opis realizacji zadania jest wymagany.',
+          );
+        }
+
+        if (!isOptionalRequirement && verificationText.length === 0) {
+          throw new BadRequestException(
+            'Opis załącznika jest wymagany.',
+          );
         }
 
         const updatedRequirement =
