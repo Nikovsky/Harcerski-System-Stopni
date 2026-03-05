@@ -2,6 +2,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ApplicationStatus, Prisma } from '@hss/database';
+import { ApplicationStatus, Prisma } from '@hss/database';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from './storage.service';
 
@@ -51,17 +52,22 @@ export class StorageCleanupService {
 
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async cleanupStaleInstructorDrafts(): Promise<void> {
-    const lockAcquired = await this.tryAcquireAdvisoryLock(
-      StorageCleanupService.STALE_DRAFT_ADVISORY_LOCK_KEY,
-    );
-    if (!lockAcquired) {
-      this.logger.log(
-        'Skipping stale instructor drafts cleanup - lock not acquired (another instance is running).',
+    const txResult = await this.prisma.$transaction(async (tx) => {
+      const lockRows = await tx.$queryRaw<Array<{ acquired: boolean }>>(
+        Prisma.sql`SELECT pg_try_advisory_xact_lock(${StorageCleanupService.STALE_DRAFT_ADVISORY_LOCK_KEY}) AS acquired`,
       );
-      return;
-    }
+      const lockAcquired = lockRows[0]?.acquired ?? false;
+      if (!lockAcquired) {
+        return {
+          lockAcquired: false,
+          archivedCount: 0,
+          deleteCandidates: 0,
+          deletedApplications: 0,
+          deletedAttachmentRecords: 0,
+          objectKeysToDelete: [] as string[],
+        };
+      }
 
-    try {
       const now = Date.now();
       const archiveCutoff = new Date(
         now - StorageCleanupService.STALE_DRAFT_ARCHIVE_DAYS * 24 * 60 * 60 * 1000,
@@ -75,7 +81,7 @@ export class StorageCleanupService {
             1000,
       );
 
-      const archived = await this.prisma.instructorApplication.updateMany({
+      const archived = await tx.instructorApplication.updateMany({
         where: {
           status: ApplicationStatus.DRAFT,
           updatedAt: { lt: archiveCutoff },
@@ -86,7 +92,7 @@ export class StorageCleanupService {
         },
       });
 
-      const staleArchivedDrafts = await this.prisma.instructorApplication.findMany({
+      const staleArchivedDrafts = await tx.instructorApplication.findMany({
         where: {
           status: ApplicationStatus.ARCHIVED,
           archivedAt: { lt: deleteCutoff },
@@ -107,86 +113,74 @@ export class StorageCleanupService {
 
       let deletedApplications = 0;
       let deletedAttachmentRecords = 0;
-      let deletedStorageObjects = 0;
+      const objectKeysToDelete: string[] = [];
 
       for (const staleDraft of staleArchivedDrafts) {
-        try {
-          await this.prisma.$transaction(async (tx) => {
-            await tx.$executeRaw(
-              Prisma.sql`
-                SELECT 1
-                  FROM "InstructorApplication"
-                 WHERE "uuid" = ${staleDraft.uuid}::uuid
-                 FOR UPDATE
-              `,
-            );
+        await tx.$executeRaw(
+          Prisma.sql`
+            SELECT 1
+              FROM "InstructorApplication"
+             WHERE "uuid" = ${staleDraft.uuid}::uuid
+             FOR UPDATE
+          `,
+        );
 
-            await tx.meetingRegistration.deleteMany({
-              where: {
-                instructorApplicationUuid: staleDraft.uuid,
-              },
-            });
+        await tx.meetingRegistration.deleteMany({
+          where: {
+            instructorApplicationUuid: staleDraft.uuid,
+          },
+        });
 
-            const deleteAttachmentsResult = await tx.attachment.deleteMany({
-              where: {
-                instructorApplicationUuid: staleDraft.uuid,
-              },
-            });
-            deletedAttachmentRecords += deleteAttachmentsResult.count;
+        const deleteAttachmentsResult = await tx.attachment.deleteMany({
+          where: {
+            instructorApplicationUuid: staleDraft.uuid,
+          },
+        });
+        deletedAttachmentRecords += deleteAttachmentsResult.count;
 
-            await tx.instructorApplication.delete({
-              where: {
-                uuid: staleDraft.uuid,
-              },
-            });
-          });
-
-          deletedApplications += 1;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to delete stale instructor draft ${staleDraft.uuid}: ${String(error)}`,
-          );
-          continue;
-        }
+        await tx.instructorApplication.delete({
+          where: {
+            uuid: staleDraft.uuid,
+          },
+        });
+        deletedApplications += 1;
 
         for (const attachment of staleDraft.attachments) {
-          try {
-            await this.storage.deleteObject(attachment.objectKey);
-            deletedStorageObjects += 1;
-          } catch (error) {
-            this.logger.warn(
-              `Failed to delete stale draft storage object ${attachment.objectKey}: ${String(error)}`,
-            );
-          }
+          objectKeysToDelete.push(attachment.objectKey);
         }
       }
 
+      return {
+        lockAcquired: true,
+        archivedCount: archived.count,
+        deleteCandidates: staleArchivedDrafts.length,
+        deletedApplications,
+        deletedAttachmentRecords,
+        objectKeysToDelete,
+      };
+    });
+
+    if (!txResult.lockAcquired) {
       this.logger.log(
-        `Stale instructor drafts cleanup complete: archived=${archived.count}, delete_candidates=${staleArchivedDrafts.length}, deleted_apps=${deletedApplications}, deleted_attachment_records=${deletedAttachmentRecords}, deleted_storage_objects=${deletedStorageObjects}`,
+        'Skipping stale instructor drafts cleanup - lock not acquired (another instance is running).',
       );
-    } finally {
-      await this.releaseAdvisoryLock(
-        StorageCleanupService.STALE_DRAFT_ADVISORY_LOCK_KEY,
-      );
+      return;
     }
-  }
 
-  private async tryAcquireAdvisoryLock(lockKey: number): Promise<boolean> {
-    const rows = await this.prisma.$queryRaw<Array<{ acquired: boolean }>>(
-      Prisma.sql`SELECT pg_try_advisory_lock(${lockKey}) AS acquired`,
+    let deletedStorageObjects = 0;
+    for (const objectKey of txResult.objectKeysToDelete) {
+      try {
+        await this.storage.deleteObject(objectKey);
+        deletedStorageObjects += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to delete stale draft storage object ${objectKey}: ${String(error)}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Stale instructor drafts cleanup complete: archived=${txResult.archivedCount}, delete_candidates=${txResult.deleteCandidates}, deleted_apps=${txResult.deletedApplications}, deleted_attachment_records=${txResult.deletedAttachmentRecords}, deleted_storage_objects=${deletedStorageObjects}`,
     );
-    return rows[0]?.acquired ?? false;
-  }
-
-  private async releaseAdvisoryLock(lockKey: number): Promise<void> {
-    try {
-      await this.prisma.$executeRaw(
-        Prisma.sql`SELECT pg_advisory_unlock(${lockKey})`,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Failed to release advisory lock ${lockKey}: ${String(error)}`,
-      );
-    }
   }
 }

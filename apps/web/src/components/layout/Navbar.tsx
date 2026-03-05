@@ -4,11 +4,8 @@ import { getTranslations } from "next-intl/server";
 
 import { ThemeControls } from "@/components/ui/ThemeControls";
 import { AuthNav } from "@/components/ui/AuthNav";
-import {
-  NavbarLinks,
-  type NavbarLinkItem,
-} from "@/components/layout/NavbarLinks";
 
+type NavItem = { label: string; href: string };
 type AppTheme = "dark" | "light";
 type NavbarProps = { locale: string; initialTheme: AppTheme };
 
