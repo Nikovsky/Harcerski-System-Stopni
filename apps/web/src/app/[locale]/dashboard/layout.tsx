@@ -6,7 +6,7 @@ import { AccessDenied } from "@/components/ui/AccessDenied";
 import {
   buildKeycloakSignInHref,
   canAccess,
-  getVerifiedPrincipal,
+  resolveVerifiedPrincipal,
 } from "@/server/rbac";
 import { ROLE_RANK } from "@hss/schemas";
 
@@ -20,11 +20,31 @@ export default async function DashboardLayout({ children, params }: Props) {
   const t = await getTranslations("common");
   const signInHref = buildKeycloakSignInHref(locale, `/${locale}/dashboard`);
   const session = await auth();
-  const principal = await getVerifiedPrincipal(session);
+  const resolvedPrincipal = await resolveVerifiedPrincipal(session);
 
-  if (!canAccess(principal)) {
+  if (resolvedPrincipal.status === "unauthenticated") {
     redirect(signInHref);
   }
+
+  if (resolvedPrincipal.status === "unavailable") {
+    return (
+      <main className="mx-auto max-w-3xl px-6 py-10">
+        <h1 className="text-2xl font-semibold">{t("dashboardPage.title")}</h1>
+        <AccessDenied
+          code="503"
+          codeLabel={t("accessDenied.codeLabel", { code: "503" })}
+          title={t("accessDenied.serviceUnavailableTitle")}
+          message={t("accessDenied.serviceUnavailableMessage")}
+          actions={[
+            { label: t("nav.home"), href: `/${locale}/` },
+            { label: t("nav.profile"), href: `/${locale}/profile` },
+          ]}
+        />
+      </main>
+    );
+  }
+
+  const principal = resolvedPrincipal.principal;
 
   if (!canAccess(principal, ROLE_RANK.SCOUT)) {
     return (

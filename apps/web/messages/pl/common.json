@@ -62,7 +62,9 @@
   "accessDenied": {
     "codeLabel": "Błąd {code}",
     "title": "Brak dostępu",
-    "roleMessage": "Jesteś zalogowany(-a), ale Twoja rola nie ma dostępu do tej strony."
+    "roleMessage": "Jesteś zalogowany(-a), ale Twoja rola nie ma dostępu do tej strony.",
+    "serviceUnavailableTitle": "Usługa uwierzytelniania niedostępna",
+    "serviceUnavailableMessage": "Nie można teraz zweryfikować uwierzytelnienia. Spróbuj ponownie za chwilę."
   },
   "dashboardPage": {
     "title": "Panel",

@@ -62,7 +62,9 @@
   "accessDenied": {
     "codeLabel": "Error {code}",
     "title": "Access denied",
-    "roleMessage": "You are logged in, but your role is not allowed to access this page."
+    "roleMessage": "You are logged in, but your role is not allowed to access this page.",
+    "serviceUnavailableTitle": "Authentication service unavailable",
+    "serviceUnavailableMessage": "Authentication could not be verified right now. Try again in a moment."
   },
   "dashboardPage": {
     "title": "Dashboard",

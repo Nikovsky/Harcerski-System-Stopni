@@ -6,12 +6,15 @@ import { AuthNav } from "@/components/ui/AuthNav";
 import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 import { NavbarLinks } from "@/components/layout/NavbarLinks";
 import type { NavItem, NavbarProps } from "@/components/props/layout";
-import { canAccess, getVerifiedPrincipal } from "@/server/rbac";
+import { canAccess, resolveVerifiedPrincipal } from "@/server/rbac";
 import { ROLE_RANK } from "@hss/schemas";
 
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
-  const principal = await getVerifiedPrincipal(session);
+  const resolvedPrincipal = await resolveVerifiedPrincipal(session);
+  const principal = resolvedPrincipal.status === "authenticated"
+    ? resolvedPrincipal.principal
+    : null;
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },

@@ -13,6 +13,11 @@ import { envServer } from "@/config/env.server";
 
 const API_BASE_URL = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
 
+export type VerifiedPrincipalState =
+  | { status: "authenticated"; principal: AuthPrincipal }
+  | { status: "unauthenticated"; principal: null }
+  | { status: "unavailable"; principal: null };
+
 function normalizeRole(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
@@ -41,7 +46,7 @@ function getSessionAccessToken(session: Session | null): string | null {
   return session.accessToken;
 }
 
-const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): Promise<AuthPrincipal | null> => {
+const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): Promise<VerifiedPrincipalState> => {
   try {
     const res = await fetch(`${API_BASE_URL}/profile/principal`, {
       method: "GET",
@@ -53,19 +58,34 @@ const fetchVerifiedPrincipalByAccessToken = cache(async (accessToken: string): P
       signal: AbortSignal.timeout(10_000),
     });
 
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) {
+      return { status: "unauthenticated", principal: null };
+    }
+    if (!res.ok) {
+      return { status: "unavailable", principal: null };
+    }
+
     const payload = await res.json().catch(() => null);
     const parsed = AuthPrincipalSchema.safeParse(payload);
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) {
+      return { status: "unavailable", principal: null };
+    }
+
+    return { status: "authenticated", principal: parsed.data };
   } catch {
-    return null;
+    return { status: "unavailable", principal: null };
   }
 });
 
-export async function getVerifiedPrincipal(session: Session | null): Promise<AuthPrincipal | null> {
+export async function resolveVerifiedPrincipal(session: Session | null): Promise<VerifiedPrincipalState> {
   const accessToken = getSessionAccessToken(session);
-  if (!accessToken) return null;
+  if (!accessToken) return { status: "unauthenticated", principal: null };
   return fetchVerifiedPrincipalByAccessToken(accessToken);
+}
+
+export async function getVerifiedPrincipal(session: Session | null): Promise<AuthPrincipal | null> {
+  const resolved = await resolveVerifiedPrincipal(session);
+  return resolved.status === "authenticated" ? resolved.principal : null;
 }
 
 export function getPrincipalRoles(principal: AuthPrincipal | null): Set<string> {
