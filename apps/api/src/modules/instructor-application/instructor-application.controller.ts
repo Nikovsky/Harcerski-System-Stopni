@@ -15,6 +15,7 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { RolesGuard } from '@/guards/roles.guard';
+import { extractRequestId } from '@/helpers/request-id.helper';
 import { Roles } from '@/decorators/roles.decorator';
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { AuthPrincipalPipe } from '@/pipelines/auth-principal.pipe';
@@ -34,12 +35,6 @@ import {
   type ConfirmUploadRequest,
 } from '@hss/schemas';
 import { InstructorApplicationService } from './instructor-application.service';
-
-function extractRequestId(req: Request): string | null {
-  const headerValue = req.headers['x-request-id'];
-  const requestId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  return typeof requestId === 'string' ? requestId : null;
-}
 
 @Controller('instructor-applications')
 @UseGuards(JwtAuthGuard, RolesGuard)

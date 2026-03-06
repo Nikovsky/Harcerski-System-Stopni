@@ -14,8 +14,19 @@ interface JwtUser {
   sub: string;
   email?: string;
   preferredUsername?: string;
-  realmRoles: string[];
-  clientRoles: string[];
+  realmRoles?: unknown;
+  clientRoles?: unknown;
+}
+
+function normalizeRoleValues(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 @Injectable()
@@ -38,7 +49,10 @@ export class RolesGuard implements CanActivate {
       });
     }
 
-    const roles = new Set([...user.realmRoles, ...user.clientRoles]);
+    const roles = new Set([
+      ...normalizeRoleValues(user.realmRoles),
+      ...normalizeRoleValues(user.clientRoles),
+    ]);
     if (!required.every((r) => roles.has(r))) {
       throw new ForbiddenException({
         code: 'INSUFFICIENT_ROLE',

@@ -4,6 +4,7 @@ import { Prisma } from '@hss/database';
 import { randomUUID } from 'node:crypto';
 import type { AuthPrincipal } from '@hss/schemas';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { sanitizeRequestId } from '@/helpers/request-id.helper';
 
 type InstructorAuditTargetType =
   | 'INSTRUCTOR_APPLICATION'
@@ -34,20 +35,6 @@ type LogInstructorAuditParams = {
   metadata?: InstructorAuditMetadata;
   requestId?: string | null;
 };
-
-function sanitizeRequestId(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(trimmed)) {
-    return null;
-  }
-  return trimmed;
-}
 
 @Injectable()
 export class InstructorApplicationAuditService {
