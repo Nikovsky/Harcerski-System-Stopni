@@ -34,60 +34,81 @@ const toCsv = (v: unknown): string[] => {
 };
 
 const url = z.string().url();
+const bucketName = z
+  .string()
+  .min(3)
+  .max(63)
+  .regex(
+    /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/,
+    'MINIO_BUCKET/MINIO_BUCKET_NAME must use [a-z0-9.-] and start/end with alphanumeric',
+  );
+const regionName = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(
+    /^[a-z0-9-]+$/,
+    'MINIO_REGION must use lowercase letters, numbers, and hyphens only',
+  );
 
-export const envSchema = z.object({
-  // ===[APP]===
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
-  APP_NAME: z.string().min(1).default('hss-api'),
-  APP_HOST: z.string().min(1).default('0.0.0.0'),
-  APP_PORT: z.coerce.number().int().min(1).max(65535).default(5000),
-  APP_URL: url,
+export const envSchema = z
+  .object({
+    // ===[APP]===
+    NODE_ENV: z
+      .enum(['development', 'test', 'production'])
+      .default('development'),
+    APP_NAME: z.string().min(1).default('hss-api'),
+    APP_HOST: z.string().min(1).default('0.0.0.0'),
+    APP_PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+    APP_URL: url,
 
-  // CORS
-  // CORS_ORIGIN: z.string().optional(), // legacy / single
-  CORS_ORIGINS: z.preprocess(toCsv, z.array(url).default([])),
+    // CORS
+    // CORS_ORIGIN: z.string().optional(), // legacy / single
+    CORS_ORIGINS: z.preprocess(toCsv, z.array(url).default([])),
 
-  // DB
-  DATABASE_URL: z
-    .string()
-    .min(1)
-    .refine(
-      (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
-      'DATABASE_URL must be a PostgreSQL connection string',
-    ),
+    // DB
+    DATABASE_URL: z
+      .string()
+      .min(1)
+      .refine(
+        (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
+        'DATABASE_URL must be a PostgreSQL connection string',
+      ),
 
-  // ===[KEYCLOAK | REALM / ISSUER]===
-  KEYCLOAK_REALM: z.string().min(1),
-  KEYCLOAK_ISSUER: url,
-  KEYCLOAK_JWKS_URL: url,
-  KEYCLOAK_AUDIENCE: z.string().min(1),
+    // ===[KEYCLOAK | REALM / ISSUER]===
+    KEYCLOAK_REALM: z.string().min(1),
+    KEYCLOAK_ISSUER: url,
+    KEYCLOAK_JWKS_URL: url,
+    KEYCLOAK_AUDIENCE: z.string().min(1),
 
-  // Optional (can be derived from issuer)
-  KEYCLOAK_TOKEN_URL: url.optional(),
+    // Optional (can be derived from issuer)
+    KEYCLOAK_TOKEN_URL: url.optional(),
 
-  // ===[KEYCLOAK | CLIENT (M2M OPTIONAL)]===
-  KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
-  KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
+    // ===[KEYCLOAK | CLIENT (M2M OPTIONAL)]===
+    KEYCLOAK_API_CLIENT_ID: z.string().min(1).optional(),
+    KEYCLOAK_API_CLIENT_SECRET: z.string().min(1).optional(),
 
-  // ===[MINIO / S3]===
-  MINIO_ENDPOINT: z.string().min(1),
-  MINIO_ACCESS_KEY: z.string().min(1),
-  MINIO_SECRET_KEY: z.string().min(1),
-  MINIO_BUCKET: z.string().min(1).default('hss'),
-  MINIO_REGION: z.string().min(1).default('us-east-1'),
-  MINIO_USE_SSL: z.preprocess(
-    (v) => toBool(v, false),
-    z.boolean().default(false),
-  ),
-  MINIO_PUBLIC_ENDPOINT: z.string().optional().default(''),
+    // ===[STORAGE | MINIO / S3]===
+    MINIO_ENDPOINT: z.string().min(1),
+    MINIO_ACCESS_KEY: z.string().min(1),
+    MINIO_SECRET_KEY: z.string().min(1),
+    MINIO_REGION: regionName.default('eu-central-1'),
+    MINIO_BUCKET: bucketName.optional().default('hss'),
+    MINIO_BUCKET_NAME: bucketName.optional(),
+    MINIO_USE_SSL: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+    MINIO_PUBLIC_ENDPOINT: z.string().optional().default(''),
 
-  // ===[SECURITY / RUNTIME]===
-  TRUST_PROXY: z.preprocess(
-    (v) => toBool(v, false),
-    z.boolean().default(false),
-  ),
-});
+    // ===[SECURITY / RUNTIME]===
+    TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.MINIO_ENDPOINT.startsWith('http://')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['MINIO_ENDPOINT'],
+        message: 'MINIO_ENDPOINT must not use http:// in production.',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;

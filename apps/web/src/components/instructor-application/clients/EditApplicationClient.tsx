@@ -119,6 +119,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
         <div>
           <RequirementForm
             applicationId={id}
+            degreeCode={app.template.degreeCode}
             requirements={app.requirements}
             groupDefinitions={app.template.groupDefinitions}
             flushRef={requirementFlushRef}

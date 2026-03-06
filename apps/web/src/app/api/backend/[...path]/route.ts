@@ -1,13 +1,19 @@
 // @file: apps/web/src/app/api/backend/[...path]/route.ts
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { BffErrorCode, BffErrorResponse } from "@hss/schemas";
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
+import { buildRateLimitKey, consumeRateLimit } from "@/server/rate-limit";
+import {
+  getClientIp,
+  getOrCreateRequestId,
+  rateLimitExceededResponse,
+  requireTrustedHost,
+} from "@/server/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,11 +48,16 @@ const HOP_BY_HOP = new Set([
 ]);
 const BFF_MAX_MUTATING_BODY_BYTES = 1_048_576;
 
+const PUBLIC_BACKEND_PATHS = new Set(["health"]);
+
+function isPublicBackendRequest(method: string, pathParts: string[]): boolean {
+  const m = method.toUpperCase();
+  if (m !== "GET" && m !== "HEAD") return false;
+  return pathParts.length === 1 && PUBLIC_BACKEND_PATHS.has(pathParts[0] ?? "");
+}
+
 function apiOriginFromEnv(): string {
-  // Prefer the validated env, allow legacy fallback for convenience
-  const raw = envServer.HSS_API_BASE_URL ?? process.env.API_URL ?? "";
-  if (!raw) throw new Error("Missing HSS_API_BASE_URL (or API_URL) env");
-  return raw.replace(/\/$/, "");
+  return envServer.HSS_API_BASE_URL.replace(/\/$/, "");
 }
 
 function buildUpstreamUrl(req: NextRequest, pathParts: string[]): URL {
@@ -57,7 +68,7 @@ function buildUpstreamUrl(req: NextRequest, pathParts: string[]): URL {
   return url;
 }
 
-function buildUpstreamHeaders(req: NextRequest, accessToken: string, requestId: string): Headers {
+function buildUpstreamHeaders(req: NextRequest, accessToken: string | undefined, requestId: string): Headers {
   const headers = new Headers(req.headers);
 
   // Never forward browser cookies to the API
@@ -65,7 +76,9 @@ function buildUpstreamHeaders(req: NextRequest, accessToken: string, requestId: 
 
   // Force our Authorization
   headers.delete("authorization");
-  headers.set("authorization", `Bearer ${accessToken}`);
+  if (accessToken) {
+    headers.set("authorization", `Bearer ${accessToken}`);
+  }
 
   // Avoid mismatches (fetch will compute content-length)
   headers.delete("content-length");
@@ -168,30 +181,67 @@ async function readRequestBody(
 type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const incomingRequestId = req.headers.get("x-request-id")?.trim();
-  const requestId = incomingRequestId || randomUUID();
+  const requestId = getOrCreateRequestId(req);
+  const untrustedHost = requireTrustedHost(req, requestId);
+  if (untrustedHost) return untrustedHost;
+
   const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
 
   // ✅ params can be a Promise -> always await (await on non-promise is fine)
   const { path = [] } = await ctx.params;
+  const isPublicRequest = isPublicBackendRequest(req.method, path);
 
-  // auth() triggers the full JWT callback chain — including silent token refresh.
-  const session = await auth();
-  const accessToken = session?.accessToken;
+  const rateLimitKey = buildRateLimitKey(
+    `bff:${req.method.toUpperCase()}:${path.join("/") || "_root"}`,
+    getClientIp(req),
+  );
 
-  dlog("auth context:", {
-    hasSession: !!session,
-    userId: session?.user?.id,
-    hasAccessToken: !!accessToken,
-    error: session?.error,
-    requestId,
-  });
+  try {
+    const limit = await consumeRateLimit(
+      rateLimitKey,
+      envServer.HSS_RATE_LIMIT_BFF_MAX,
+      envServer.HSS_RATE_LIMIT_BFF_WINDOW_MS,
+    );
+    if (!limit.allowed) {
+      return rateLimitExceededResponse(requestId);
+    }
+  } catch (error) {
+    dlog("rate limit unavailable:", String(error));
+    if (!isPublicRequest) {
+      return jsonNoStore(
+        {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Service temporarily unavailable.",
+          requestId,
+        },
+        503,
+        requestId,
+      );
+    }
+  }
 
-  if (!accessToken) {
-    return session?.error === "RefreshTokenExpired"
-      ? errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId)
-      : errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+  let accessToken: string | undefined;
+  if (!isPublicRequest) {
+    // auth() triggers the full JWT callback chain — including silent token refresh.
+    const session = await auth();
+    accessToken = session?.accessToken;
+
+    dlog("auth context:", {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      hasAccessToken: !!accessToken,
+      error: session?.error,
+      requestId,
+    });
+
+    if (!accessToken) {
+      return session?.error === "RefreshTokenExpired"
+        ? errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId)
+        : errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+    }
+  } else {
+    dlog("public route passthrough:", { method: req.method, path: path.join("/"), requestId });
   }
 
   let upstreamUrl: URL;

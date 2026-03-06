@@ -192,6 +192,70 @@ services:
     networks:
       - infra
 
+  minio-init:
+    image: ${MINIO_MC_IMAGE:-minio/mc:latest}
+    container_name: ${MINIO_INIT_CONTAINER_NAME:-hss_minio_init}
+    restart: "no"
+    init: true
+
+    depends_on:
+      minio:
+        condition: service_healthy
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in docker/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in docker/.env}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?set in docker/.env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set in docker/.env}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-hssbucket}
+
+    entrypoint:
+      - /bin/sh
+      - -ec
+
+    command:
+      - |
+        until mc alias set local http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do
+          sleep 1
+        done
+
+        mc mb --ignore-existing "local/${MINIO_BUCKET_NAME}"
+
+        cat > /tmp/hss-api-bucket-policy.json <<EOF
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+              ],
+              "Resource": ["arn:aws:s3:::${MINIO_BUCKET_NAME}"]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+              ],
+              "Resource": ["arn:aws:s3:::${MINIO_BUCKET_NAME}/*"]
+            }
+          ]
+        }
+        EOF
+
+        mc admin policy create local hss-api-bucket-policy /tmp/hss-api-bucket-policy.json || true
+        mc admin user add local "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}" || true
+        mc admin policy attach local hss-api-bucket-policy --user "${MINIO_ACCESS_KEY}"
+        mc anonymous set none "local/${MINIO_BUCKET_NAME}"
+
+    networks:
+      - infra
+
   redis:
     image: ${REDIS_IMAGE:-redis:8.2.5}
     container_name: ${REDIS_CONTAINER_NAME:-hss_redis}
@@ -207,7 +271,7 @@ services:
       - >
         printf '%s\n' "user default off"
         "user ${REDIS_USER:-root} on >${REDIS_PASSWORD:?set in docker/.env} ~* +@all"
-        "user ${REDIS_BFF_USER:-nextbff} on >${REDIS_BFF_PASSWORD:?set in docker/.env} ~hss:sess:* +get +set +del +eval +ping" > /tmp/users.acl
+        "user ${REDIS_BFF_USER:-nextbff} on >${REDIS_BFF_PASSWORD:?set in docker/.env} ~hss:sess:* ~hss:rl:* +get +set +del +eval +ping +incr +pexpire +pttl" > /tmp/users.acl
         && exec redis-server
         --bind 0.0.0.0
         --port 6379

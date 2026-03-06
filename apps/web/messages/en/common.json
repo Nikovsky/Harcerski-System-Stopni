@@ -1,17 +1,79 @@
 {
   "nav": {
-    "home": "Home page",
-    "docs": "Documentation",
+    "home": "Home",
+    "about": "About",
     "dashboard": "Dashboard",
     "applications": "My applications",
     "meetings": "Meetings",
-    "login": "Login"
+    "profile": "Profile"
   },
-  "sessionTimeout": {
-    "title": "Session expiring",
-    "message": "Your session will expire in {seconds} seconds.",
-    "stayLoggedIn": "Stay logged in",
-    "extendMinutes": "+{minutes} min",
-    "loggingOut": "Logging out..."
+  "auth": {
+    "login": "Login",
+    "userFallback": "User",
+    "noEmail": "No email"
+  },
+  "authUserMenu": {
+    "ariaLabel": "Account menu",
+    "signedInAs": "Signed in as",
+    "session": "Session",
+    "logout": "Log out"
+  },
+  "footer": {
+    "license": "© {year} HSS • AGPL-3.0 License"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "popup": {
+    "closeButtonAria": "Close popup"
+  },
+  "signOutPopup": {
+    "ariaLabel": "Sign out",
+    "closeButtonAria": "Close sign-out dialog",
+    "title": "Sign out",
+    "message": "Are you sure you want to sign out?",
+    "loggingOut": "Signing out...",
+    "cancel": "Cancel",
+    "logoutNow": "Sign out now",
+    "logoutTrigger": "LOGOUT",
+    "error": "Sign out failed. Please try again."
+  },
+  "sessionBadge": {
+    "label": "Session: {time}"
+  },
+  "idleTimeout": {
+    "ariaLabel": "Session",
+    "closeButtonAria": "Close session dialog",
+    "title": "Session",
+    "sessionButton": "SESSION",
+    "willExpireIn": "Your session expires in",
+    "loggingOut": "Signing out...",
+    "helpText": "You can extend your session or sign out now.",
+    "extendLabel": "Extend",
+    "minutesOption": "{minutes} min",
+    "logoutNow": "Sign out now",
+    "extendSession": "Extend session"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "pl": "Polish",
+    "en": "English"
+  },
+  "accessDenied": {
+    "codeLabel": "Error {code}",
+    "title": "Access denied",
+    "roleMessage": "You are logged in, but your role is not allowed to access this page.",
+    "serviceUnavailableTitle": "Authentication service unavailable",
+    "serviceUnavailableMessage": "Authentication could not be verified right now. Try again in a moment."
+  },
+  "dashboardPage": {
+    "title": "Dashboard",
+    "description": "This is the dashboard page."
+  },
+  "profilePage": {
+    "title": "Profile",
+    "edit": "Edit"
   }
 }

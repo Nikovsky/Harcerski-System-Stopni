@@ -7,7 +7,10 @@ import { apiFetch } from "@/lib/api";
 import { toUserFriendlyRequirementSaveErrorFromUnknown } from "@/lib/upload-utils";
 import { RequirementAttachments } from "@/components/instructor-application/requirements/RequirementAttachments";
 import { AttachmentReadonlyList } from "@/components/instructor-application/attachments/AttachmentReadonlyList";
-import type { RequirementRowResponse } from "@hss/schemas";
+import {
+  isOptionalInstructorRequirement,
+  type RequirementRowResponse,
+} from "@hss/schemas";
 import {
   RequirementValidationError,
   type FlushRegistry,
@@ -31,12 +34,19 @@ function getVerificationFieldName(code: string): string {
 
 type Props = {
   applicationId: string;
+  degreeCode: string;
   req: RequirementRowResponse;
   readOnly?: boolean;
   flushRegistry: FlushRegistry;
 };
 
-export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: Props) {
+export function RequirementRow({
+  applicationId,
+  degreeCode,
+  req,
+  readOnly,
+  flushRegistry,
+}: Props) {
   const t = useTranslations("applications");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pendingRef = useRef<{ state: string; actionDescription: string; verificationText: string } | null>(null);
@@ -50,6 +60,10 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   const endpoint = `instructor-applications/${applicationId}/requirements/${req.uuid}`;
   const actionFieldName = getActionFieldName(req.definition.code);
   const verificationFieldName = getVerificationFieldName(req.definition.code);
+  const isOptionalRequirement = isOptionalInstructorRequirement(
+    degreeCode,
+    req.definition.code,
+  );
 
   const persistPayload = useCallback(
     async (
@@ -92,6 +106,12 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
   }, [persistPayload]);
 
   const ensureRequirementIsValid = useCallback(() => {
+    if (isOptionalRequirement) {
+      setActionDescriptionError(null);
+      setVerificationError(null);
+      return;
+    }
+
     const actionIsMissing = isBlank(actionDescription);
     const verificationIsMissing = isBlank(verificationText);
 
@@ -119,7 +139,14 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
 
     setActionDescriptionError(null);
     setVerificationError(null);
-  }, [actionDescription, actionFieldName, verificationFieldName, verificationText, t]);
+  }, [
+    actionDescription,
+    actionFieldName,
+    isOptionalRequirement,
+    verificationFieldName,
+    verificationText,
+    t,
+  ]);
 
   const flush = useCallback(
     async (options: RequirementFlushOptions = {}) => {
@@ -139,7 +166,10 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
 
       if (mode === "strict") {
         ensureRequirementIsValid();
-      } else if (isBlank(actionDescription) || isBlank(verificationText)) {
+      } else if (
+        !isOptionalRequirement &&
+        (isBlank(actionDescription) || isBlank(verificationText))
+      ) {
         pendingRef.current = null;
         return;
       } else {
@@ -163,6 +193,7 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
       req.state,
       req.verificationText,
       state,
+      isOptionalRequirement,
       verificationText,
     ],
   );
@@ -249,7 +280,8 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
           {state === "PLANNED" ? (
             <div>
               <label className="mb-1 block text-xs text-foreground/60">
-                {t("requirements.futureProofLabel")} *
+                {t("requirements.futureProofLabel")}
+                {!isOptionalRequirement ? " *" : ""}
               </label>
               <textarea
                 data-field={verificationFieldName}
@@ -276,9 +308,11 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
           ) : (
             <div className="space-y-2">
               <div>
-                <label className="mb-1 block text-xs text-foreground/60">
-                  {t("verificationTextRequired")}
-                </label>
+                {!isOptionalRequirement && (
+                  <label className="mb-1 block text-xs text-foreground/60">
+                    {t("verificationTextRequired")}
+                  </label>
+                )}
                 <textarea
                   data-field={verificationFieldName}
                   value={verificationText}
@@ -292,7 +326,6 @@ export function RequirementRow({ applicationId, req, readOnly, flushRegistry }: 
                   }}
                   onBlur={() => save(state, actionDescription, verificationText)}
                   rows={1}
-                  required
                   maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
                   className={`w-full rounded border bg-background px-2 py-1 text-sm ${
                     verificationError ? "border-red-500" : "border-border"

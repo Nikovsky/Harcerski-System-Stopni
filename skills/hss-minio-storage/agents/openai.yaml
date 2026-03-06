@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS MinIO Storage"
+  short_description: "MinIO bucket bootstrap and private storage controls"
+  default_prompt: "Use $hss-minio-storage to implement secure bucket bootstrap and presigned upload/download boundaries."

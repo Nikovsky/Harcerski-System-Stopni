@@ -1,4 +1,4 @@
-// @file: apps/web/src/lib/server/bff-fetch.ts
+// @file: apps/web/src/server/bff-fetch.ts
 import "server-only";
 
 import { headers } from "next/headers";

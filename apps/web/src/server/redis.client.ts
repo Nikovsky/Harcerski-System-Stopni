@@ -1,4 +1,4 @@
-// @file: apps/web/src/lib/server/redis.client.ts
+// @file: apps/web/src/server/redis.client.ts
 import "server-only";
 
 import Redis from "ioredis";
@@ -8,6 +8,24 @@ import { envServer } from "@/config/env.server";
 declare global {
   var __hssRedisClient: Redis | undefined;
   var __hssRedisReadyPromise: Promise<Redis> | undefined;
+}
+
+const REDIS_TRANSIENT_ERROR_PATTERNS = [
+  "stream isn't writeable",
+  "connection is closed",
+  "connection ended",
+  "socket closed unexpectedly",
+  "econnrefused",
+  "etimedout",
+  "read econnreset",
+];
+
+function isTransientRedisClientError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return REDIS_TRANSIENT_ERROR_PATTERNS.some((pattern) =>
+    message.includes(pattern),
+  );
 }
 
 function createRedisClient(): Redis {
@@ -29,6 +47,33 @@ function createRedisClient(): Redis {
   });
 
   return client;
+}
+
+async function closeRedisClient(client: Redis): Promise<void> {
+  if (client.status === "end") return;
+
+  try {
+    await client.quit();
+    return;
+  } catch {
+    // noop
+  }
+
+  try {
+    client.disconnect();
+  } catch {
+    // noop
+  }
+}
+
+async function resetRedisClient(): Promise<void> {
+  const client = globalThis.__hssRedisClient;
+  globalThis.__hssRedisClient = undefined;
+  globalThis.__hssRedisReadyPromise = undefined;
+
+  if (client) {
+    await closeRedisClient(client);
+  }
 }
 
 function readyTimeoutMs(): number {
@@ -104,4 +149,21 @@ export async function getRedisClient(): Promise<Redis> {
   }
 
   return globalThis.__hssRedisReadyPromise;
+}
+
+export async function runRedisCommand<T>(
+  command: (client: Redis) => Promise<T>,
+): Promise<T> {
+  try {
+    const client = await getRedisClient();
+    return await command(client);
+  } catch (error) {
+    if (!isTransientRedisClientError(error)) {
+      throw error;
+    }
+
+    await resetRedisClient();
+    const retryClient = await getRedisClient();
+    return command(retryClient);
+  }
 }

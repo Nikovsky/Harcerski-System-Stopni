@@ -1,11 +1,17 @@
 // @file: apps/web/src/components/ui/SignOutButton.tsx
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
+import type { SignOutButtonProps } from "@/components/props/ui";
 import { Button } from "./Button";
 import { Popup } from "./Popup";
 
-export function SignOutButton() {
+export function SignOutButton({
+  label,
+  className = "",
+}: SignOutButtonProps) {
+  const t = useTranslations("common.signOutPopup");
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,7 +40,7 @@ export function SignOutButton() {
       window.location.href = "/";
     } catch {
       setIsLoggingOut(false);
-      setErrorMessage("Nie udało się wylogować. Spróbuj ponownie.");
+      setErrorMessage(t("error"));
     }
   };
 
@@ -42,51 +48,58 @@ export function SignOutButton() {
     <>
       <Button
         type="button"
-        className="bg-red-500 text-white border-red-600"
+        className={[
+          "bg-red-500 text-white border-red-600",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => {
           setOpen(true);
           setErrorMessage(null);
         }}
       >
-        LOGOUT
+        {label ?? t("logoutTrigger")}
       </Button>
 
       {open && (
-        <Popup onClose={closePopup} ariaLabel="Wylogowanie">
-          <div className="flex flex-col gap-4">
-            <div className="text-lg font-semibold">WYLOGOWANIE</div>
-
-            {isLoggingOut ? (
-              <div className="opacity-90">Wylogowywanie...</div>
-            ) : (
-              <div className="opacity-90">
-                Czy na pewno chcesz się wylogować z aplikacji?
-              </div>
-            )}
-
-            {errorMessage && (
-              <div className="rounded-md border border-red-400/60 bg-red-500/20 px-3 py-2 text-sm text-red-100">
-                {errorMessage}
-              </div>
-            )}
-
-            {!isLoggingOut && (
-              <div className="flex gap-2 justify-end pt-2">
+        <Popup
+          onClose={closePopup}
+          ariaLabel={t("ariaLabel")}
+          title={t("title")}
+          disableClose={isLoggingOut}
+          showCloseButton={!isLoggingOut}
+          closeOnBackdropClick={!isLoggingOut}
+          closeOnEscape={!isLoggingOut}
+          content={
+            <div className="space-y-3">
+              <p className="text-foreground">
+                {isLoggingOut ? t("loggingOut") : t("message")}
+              </p>
+              {errorMessage ? (
+                <div className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-sm text-red-600">
+                  {errorMessage}
+                </div>
+              ) : null}
+            </div>
+          }
+          actions={
+            isLoggingOut ? undefined : (
+              <>
                 <Button type="button" onClick={closePopup}>
-                  Anuluj
+                  {t("cancel")}
                 </Button>
-
                 <Button
-                  className="bg-red-500 text-white border-red-600"
+                  colorClass="bg-red-600 text-white border-red-700"
                   type="button"
                   onClick={() => void handleLogout()}
                 >
-                  Wyloguj teraz
+                  {t("logoutNow")}
                 </Button>
-              </div>
-            )}
-          </div>
-        </Popup>
+              </>
+            )
+          }
+        />
       )}
     </>
   );

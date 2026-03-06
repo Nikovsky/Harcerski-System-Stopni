@@ -1,0 +1,4 @@
+interface:
+  display_name: "HSS Next Web"
+  short_description: "Next.js SSR-first features with secure data boundaries"
+  default_prompt: "Use $hss-next-web to build this UI flow with SSR protection, i18n structure, and minimal client-side exposure."

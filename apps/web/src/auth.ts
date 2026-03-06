@@ -5,6 +5,7 @@ import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import "next-auth/jwt";
 import type { JWT, JWTDecodeParams, JWTEncodeParams } from "next-auth/jwt";
+import { decode as defaultJwtDecode, encode as defaultJwtEncode } from "next-auth/jwt";
 
 import { envServer } from "@/config/env.server";
 import {
@@ -15,7 +16,7 @@ import {
   readSessionBySid,
   releaseSessionRefreshLock,
   type SessionJwt,
-} from "@/lib/server/bff-session.store";
+} from "@/server/bff-session.store";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -23,6 +24,8 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     refreshToken?: string;
     accessTokenExpiresAt?: number;
+    realmRoles?: string[];
+    clientRoles?: string[];
     error?: "RefreshTokenExpired";
     hssSid?: string;
     hssSessionCreatedAtMs?: number;
@@ -34,6 +37,8 @@ declare module "next-auth" {
   interface Session {
     error?: "RefreshTokenExpired";
     accessToken?: string;
+    realmRoles?: string[];
+    clientRoles?: string[];
     user: {
       id?: string;
       name?: string | null;
@@ -45,12 +50,22 @@ declare module "next-auth" {
 
 const sessionCookieIsSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://");
 export const authSessionCookieName = envServer.HSS_SESSION_COOKIE_NAME;
+export const forceReauthCookieName = "hss_force_reauth_once";
 
 export async function authJwtEncode(params: JWTEncodeParams): Promise<string> {
+  // Only the session token should use our opaque Redis-backed codec.
+  // Other Auth.js cookies (pkce/state/nonce) must use default JWT handling.
+  if (params.salt !== authSessionCookieName) {
+    return defaultJwtEncode(params);
+  }
   return encodeOpaqueSessionToken(params);
 }
 
 export async function authJwtDecode(params: JWTDecodeParams): Promise<JWT | null> {
+  // Keep default handling for non-session Auth.js cookies.
+  if (params.salt !== authSessionCookieName) {
+    return defaultJwtDecode(params);
+  }
   return decodeOpaqueSessionToken(params);
 }
 
@@ -69,6 +84,8 @@ function expireSessionToken(token: SessionJwt): SessionJwt {
     refreshToken: undefined,
     idToken: undefined,
     accessTokenExpiresAt: undefined,
+    realmRoles: [],
+    clientRoles: [],
     error: "RefreshTokenExpired",
   };
 }
@@ -233,9 +250,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // First login — persist all tokens from Keycloak
       if (account) {
+        const accessToken = account.access_token as string | undefined;
+
         return {
           ...sessionToken,
-          accessToken: account.access_token as string | undefined,
+          accessToken,
           idToken: account.id_token as string | undefined,
           refreshToken: account.refresh_token as string | undefined,
           accessTokenExpiresAt:
@@ -281,6 +300,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (token.error) session.error = token.error;
       session.accessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
+      session.realmRoles = Array.isArray(token.realmRoles) ? token.realmRoles : [];
+      session.clientRoles = Array.isArray(token.clientRoles) ? token.clientRoles : [];
 
       // Ensure shape exists (avoids TS edge cases)
       session.user = session.user ?? { name: null, email: null, image: null };

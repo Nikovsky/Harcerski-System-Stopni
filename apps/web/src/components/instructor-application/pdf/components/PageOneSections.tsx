@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 import { Image, Text, View } from "@react-pdf/renderer";
 import type { InstructorApplicationDetail } from "@hss/schemas";
+import { supervisorFunctionKey } from "@/lib/applications-i18n";
 import { ZHR_LOGO } from "../zhr-logo";
 import { Cb, DEGREE_LABEL, GRAY, SCOUT_RANK, fmt, s, GrayLabel, ValueCell } from "../helpers";
 
@@ -210,8 +211,8 @@ export function ResultsSection({ data }: { data: InstructorApplicationDetail }) 
 export function TrialInfoSection({ data }: { data: InstructorApplicationDetail }) {
   const supervisorName = [data.supervisorFirstName, data.supervisorSurname].filter(Boolean).join(" ");
   const supervisorFunction = data.supervisorInstructorFunction ?? "";
-  const supervisorFunctionLower = supervisorFunction.toLowerCase();
-  const functionIsPreset = ["drużynowy", "opiekun drużyny"].includes(supervisorFunctionLower);
+  const supervisorFunctionTranslationKey = supervisorFunction ? supervisorFunctionKey(supervisorFunction) : null;
+  const functionIsPreset = supervisorFunctionTranslationKey !== null;
 
   return (
     <View wrap={false}>
@@ -294,8 +295,11 @@ export function TrialInfoSection({ data }: { data: InstructorApplicationDetail }
                   gap: 2,
                 }}
               >
-                <Cb checked={supervisorFunctionLower === "drużynowy"} label="Drużynowy" />
-                <Cb checked={supervisorFunctionLower === "opiekun drużyny"} label="Opiekun drużyny" />
+                <Cb checked={supervisorFunctionTranslationKey === "supervisorFunction.druzynowy"} label="Drużynowy" />
+                <Cb
+                  checked={supervisorFunctionTranslationKey === "supervisorFunction.opiekunDruzyny"}
+                  label="Opiekun drużyny"
+                />
                 <Cb
                   checked={!!supervisorFunction && !functionIsPreset}
                   label={`Inna: ${!functionIsPreset && supervisorFunction ? supervisorFunction : ""}`}

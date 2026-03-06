@@ -1,0 +1,17 @@
+<!-- @file: apps/web/public/team/kacper-bos-placeholder.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Placeholder portrait for Kacper Bos</title>
+  <desc id="desc">Decorative placeholder card with initials KB.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)" />
+  <circle cx="600" cy="430" r="170" fill="#ffffff" opacity="0.12" />
+  <text x="600" y="470" text-anchor="middle" font-size="180" font-family="Arial, Helvetica, sans-serif"
+    font-weight="700" fill="#FFFFFF">KB</text>
+  <text x="600" y="760" text-anchor="middle" font-size="42" font-family="Arial, Helvetica, sans-serif"
+    letter-spacing="8" fill="#BFDBFE">PLACEHOLDER</text>
+</svg>

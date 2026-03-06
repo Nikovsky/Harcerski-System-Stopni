@@ -1,4 +1,23 @@
 {
-  "title": "Witaj w MODULON",
-  "subtitle": "Panel startowy"
+  "buttons": {
+    "clickMe": "Kliknij mnie",
+    "deploy": "Wdróż",
+    "refresh": "Odśwież",
+    "refreshing": "Odświeżanie..."
+  },
+  "status": {
+    "backendHealthStatus": "Status backend /health: {status}",
+    "ok": "(ok)",
+    "error": "(błąd)",
+    "authRequired": "Wymagane uwierzytelnienie dla /api/backend/health.",
+    "requestFailed": "Żądanie nieudane ({status})",
+    "invalidSchema": "Niepoprawny schemat odpowiedzi health",
+    "unknownError": "Nieznany błąd",
+    "backendHealth": "Kondycja backendu:",
+    "checking": "sprawdzanie…",
+    "authRequiredShort": "wymagane logowanie",
+    "healthy": "zdrowy",
+    "unhealthy": "niezdrowy",
+    "message": "wiadomość: {message}"
+  }
 }

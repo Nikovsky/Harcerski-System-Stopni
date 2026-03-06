@@ -36,6 +36,10 @@ export class StorageService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    await this.ensureBucketReady();
+  }
+
+  async ensureBucketReady(): Promise<void> {
     try {
       const exists = await this.minio.bucketExists(this.bucket);
       if (exists) {

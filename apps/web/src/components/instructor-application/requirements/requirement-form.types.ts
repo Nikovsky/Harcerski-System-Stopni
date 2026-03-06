@@ -41,6 +41,7 @@ export type FlushRegistry = MutableRefObject<
 
 export type RequirementFormProps = {
   applicationId: string;
+  degreeCode: string;
   requirements: RequirementRowResponse[];
   groupDefinitions?: GroupDefinition[];
   readOnly?: boolean;

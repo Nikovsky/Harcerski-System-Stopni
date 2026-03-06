@@ -1,4 +1,23 @@
 {
-  "title": "Welcome to MODULON",
-  "subtitle": "Dashboard"
+  "buttons": {
+    "clickMe": "Click me",
+    "deploy": "Deploy",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing..."
+  },
+  "status": {
+    "backendHealthStatus": "Backend /health status: {status}",
+    "ok": "(ok)",
+    "error": "(error)",
+    "authRequired": "Authentication required for /api/backend/health.",
+    "requestFailed": "Request failed ({status})",
+    "invalidSchema": "Invalid health response schema",
+    "unknownError": "Unknown error",
+    "backendHealth": "Backend health:",
+    "checking": "checking…",
+    "authRequiredShort": "auth required",
+    "healthy": "healthy",
+    "unhealthy": "unhealthy",
+    "message": "message: {message}"
+  }
 }

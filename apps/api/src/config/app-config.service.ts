@@ -85,7 +85,7 @@ export class AppConfigService {
     );
   }
 
-  // === MINIO / S3 ===
+  // === STORAGE (MinIO / S3) ===
   get minioEndpoint(): string {
     return this.cfg.get('MINIO_ENDPOINT', { infer: true });
   }
@@ -98,16 +98,24 @@ export class AppConfigService {
     return this.cfg.get('MINIO_SECRET_KEY', { infer: true });
   }
 
-  get minioBucket(): string {
-    return this.cfg.get('MINIO_BUCKET', { infer: true });
+  get minioBucketName(): string {
+    return (
+      this.cfg.get('MINIO_BUCKET_NAME', { infer: true }) ??
+      this.cfg.get('MINIO_BUCKET', { infer: true })
+    );
   }
 
   get minioRegion(): string {
     return this.cfg.get('MINIO_REGION', { infer: true });
   }
 
+  // backward-compatible alias used by legacy storage service
+  get minioBucket(): string {
+    return this.minioBucketName;
+  }
+
   get minioUseSsl(): boolean {
-    return this.cfg.get('MINIO_USE_SSL', { infer: true });
+    return this.cfg.get('MINIO_USE_SSL', { infer: true }) ?? false;
   }
 
   get minioPublicEndpoint(): string | undefined {
