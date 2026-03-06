@@ -43,6 +43,9 @@ export function AttachmentUploadShared({
   }, [initialAttachments]);
 
   async function handleDelete(attachmentId: string) {
+    if (readOnly) {
+      return;
+    }
     setDeletingId(attachmentId);
     try {
       await apiFetch(`instructor-applications/${applicationId}/attachments/${attachmentId}`, {
@@ -131,7 +134,7 @@ export function AttachmentUploadShared({
                     </button>
                   )}
                 </div>
-              ) : (
+              ) : !readOnly ? (
                 <button
                   type="button"
                   onClick={() => handleDelete(att.uuid)}
@@ -140,7 +143,7 @@ export function AttachmentUploadShared({
                 >
                   {t("actions.removeFile")}
                 </button>
-              )}
+              ) : null}
             </li>
           ))}
         </ul>

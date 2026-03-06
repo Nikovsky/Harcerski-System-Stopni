@@ -1,16 +1,15 @@
 // @file: apps/web/src/app/[locale]/applications/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { bffServerFetch } from "@/app/[locale]/applications/_server/bff-fetch";
+import { z } from "zod";
+import { bffServerFetchValidated } from "@/app/[locale]/applications/_server/bff-fetch";
 import { ApplicationCard } from "@/components/instructor-application/ui/ApplicationCard";
 import { IA_BUTTON_PRIMARY_MD } from "@/components/instructor-application/ui/button-classnames";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
-import type { InstructorApplicationListItem } from "@hss/schemas";
-
-type ProfileCheck = {
-  complete: boolean;
-  missingFields: string[];
-};
+import {
+  instructorApplicationListItemSchema,
+  instructorApplicationProfileCheckResponseSchema,
+} from "@hss/schemas";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -19,8 +18,14 @@ export default async function ApplicationsPage({ params }: Props) {
   const t = await getTranslations("applications");
 
   const [applications, profile] = await Promise.all([
-    bffServerFetch<InstructorApplicationListItem[]>("instructor-applications"),
-    bffServerFetch<ProfileCheck>("instructor-applications/profile-check"),
+    bffServerFetchValidated(
+      z.array(instructorApplicationListItemSchema),
+      "instructor-applications",
+    ),
+    bffServerFetchValidated(
+      instructorApplicationProfileCheckResponseSchema,
+      "instructor-applications/profile-check",
+    ),
   ]);
 
   const profileComplete = profile.complete;
@@ -40,7 +45,7 @@ export default async function ApplicationsPage({ params }: Props) {
         ) : (
           <span
             className="cursor-not-allowed rounded-md bg-primary/40 px-4 py-2 text-sm font-medium text-primary-foreground/60"
-            title={t("profileIncomplete.completeProfileInDashboard")}
+            title={t("profileIncomplete.completeProfileInProfile")}
           >
             {t("newApplication")}
           </span>
@@ -51,8 +56,8 @@ export default async function ApplicationsPage({ params }: Props) {
         <div className="mb-6 rounded-lg border border-orange-300 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-950/30">
           <p className="mb-2 font-medium text-orange-800 dark:text-orange-300">
             {t("profileIncomplete.prefix")} {" "}
-            <Link href={`/${locale}/dashboard`} className="underline hover:no-underline">
-              {t("profileIncomplete.dashboard")}
+            <Link href={`/${locale}/profile/edit`} className="underline hover:no-underline">
+              {t("profileIncomplete.profile")}
             </Link>
             :
           </p>

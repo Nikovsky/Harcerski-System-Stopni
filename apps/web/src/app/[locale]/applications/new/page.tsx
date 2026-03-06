@@ -1,10 +1,12 @@
 // @file: apps/web/src/app/[locale]/applications/new/page.tsx
-import { bffServerFetch } from "@/app/[locale]/applications/_server/bff-fetch";
+import { z } from "zod";
+import { bffServerFetchValidated } from "@/app/[locale]/applications/_server/bff-fetch";
 import { NewApplicationClient } from "@/components/instructor-application/clients/NewApplicationClient";
-import type { RequirementTemplateListItem } from "@hss/schemas";
+import { requirementTemplateListItemSchema } from "@hss/schemas";
 
 export default async function NewApplicationPage() {
-  const templates = await bffServerFetch<RequirementTemplateListItem[]>(
+  const templates = await bffServerFetchValidated(
+    z.array(requirementTemplateListItemSchema),
     "instructor-applications/templates",
   );
 

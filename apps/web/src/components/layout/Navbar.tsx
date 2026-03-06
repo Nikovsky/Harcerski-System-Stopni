@@ -15,14 +15,17 @@ export async function Navbar({ locale, session }: NavbarProps) {
   const principal = resolvedPrincipal.status === "authenticated"
     ? resolvedPrincipal.principal
     : null;
+  const isAuthenticated = resolvedPrincipal.status === "authenticated";
+  const canSeeApplications = canAccess(principal, ROLE_RANK.USER);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
     { label: t("about"), href: "/about" },
   ];
-  const navItems: NavItem[] = session?.user
+  const navItems: NavItem[] = isAuthenticated
     ? [
       ...NAV_BASE,
+      ...(canSeeApplications ? [{ label: t("applications"), href: "/applications" }] : []),
       ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
       { label: t("profile"), href: "/profile" },
     ]

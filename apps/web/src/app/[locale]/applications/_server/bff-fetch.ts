@@ -2,7 +2,9 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import type { ZodType } from "zod";
 import { envServer } from "@/config/env.server";
+import { normalizeRequestId } from "@/server/request-security";
 
 type BffErrorPayload = {
   code?: string;
@@ -58,6 +60,11 @@ export async function bffServerFetch<T = unknown>(
     upstreamHeaders.set("cookie", cookie);
   }
 
+  const requestId = normalizeRequestId(incomingHeaders.get("x-request-id"));
+  if (requestId && !upstreamHeaders.has("x-request-id")) {
+    upstreamHeaders.set("x-request-id", requestId);
+  }
+
   if (!upstreamHeaders.has("accept")) {
     upstreamHeaders.set("accept", "application/json");
   }
@@ -84,4 +91,13 @@ export async function bffServerFetch<T = unknown>(
   }
 
   return body as T;
+}
+
+export async function bffServerFetchValidated<T>(
+  schema: ZodType<T>,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const body = await bffServerFetch<unknown>(path, init);
+  return schema.parse(body);
 }
