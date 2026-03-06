@@ -1,11 +1,12 @@
 // @file: apps/web/src/app/[locale]/meetings/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import type { MeetingListItem } from "@hss/schemas";
+import { ZodError, z } from "zod";
+import { meetingListItemSchema, type MeetingListItem } from "@hss/schemas";
 
 import {
   BffServerFetchError,
-  bffServerFetch,
+  bffServerFetchValidated,
 } from "@/app/[locale]/meetings/_server/bff-fetch";
 import { MeetingCalendarView } from "@/components/meetings/MeetingCalendarView";
 
@@ -22,9 +23,22 @@ export default async function MeetingsPage({ params }: Props) {
   let fetchError: string | null = null;
 
   try {
-    meetings = await bffServerFetch<MeetingListItem[]>("meetings?limit=60");
+    meetings = await bffServerFetchValidated(
+      z.array(meetingListItemSchema),
+      "meetings?limit=60",
+    );
   } catch (error) {
     if (error instanceof BffServerFetchError) {
+      if (error.status === 401) {
+        fetchError = t("errors.authRequired");
+      } else if (error.status === 403) {
+        fetchError = t("errors.forbidden");
+      } else if (error.status === 503) {
+        fetchError = t("errors.serviceUnavailable");
+      } else {
+        fetchError = t("errors.loadFailed");
+      }
+    } else if (error instanceof ZodError) {
       fetchError = t("errors.loadFailed");
     } else {
       throw error;

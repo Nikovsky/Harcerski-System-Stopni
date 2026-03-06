@@ -1,6 +1,8 @@
 // @file: apps/web/src/components/meetings/MeetingStatusBadge.tsx
+import type { MeetingStatus } from "@hss/schemas";
+
 type Props = {
-  status: "DRAFT" | "OPEN_FOR_REGISTRATION" | "CLOSED" | "COMPLETED" | "CANCELLED";
+  status: MeetingStatus;
   label: string;
 };
 

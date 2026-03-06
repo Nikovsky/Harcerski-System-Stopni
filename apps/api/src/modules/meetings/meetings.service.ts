@@ -313,7 +313,6 @@ export class MeetingsService {
                     slotUuid: registration.slotUuid,
                   },
                 },
-                tx,
               );
 
               return registration;
@@ -350,7 +349,6 @@ export class MeetingsService {
                   slotUuid: registration.slotUuid,
                 },
               },
-              tx,
             );
 
             return registration;
@@ -467,7 +465,6 @@ export class MeetingsService {
                 slotUuid: updated.slotUuid,
               },
             },
-            tx,
           );
 
           return this.toMeetingRegistrationSummary(updated);
@@ -520,7 +517,6 @@ export class MeetingsService {
             date: formatDateOnly(meeting.date),
           },
         },
-        tx,
       );
 
       return meeting;
@@ -640,7 +636,6 @@ export class MeetingsService {
               createdSlotsCount: slotsToCreate.length,
             },
           },
-          tx,
         );
 
         return {
@@ -823,7 +818,6 @@ export class MeetingsService {
               slotUuid: updated.slotUuid,
             },
           },
-          tx,
         );
 
         return this.toMeetingRegistrationSummary(updated);
@@ -958,7 +952,6 @@ export class MeetingsService {
                   newSlotUuid: updated.slotUuid,
                 },
               },
-              tx,
             );
 
             return this.toMeetingRegistrationSummary(updated);

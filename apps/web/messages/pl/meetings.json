@@ -43,6 +43,9 @@
     "NO_FREE_SLOTS": "Brak wolnych slotów na to posiedzenie."
   },
   "errors": {
+    "authRequired": "Musisz być zalogowany(-a), aby zobaczyć posiedzenia.",
+    "forbidden": "Twoja rola nie ma dostępu do tej sekcji.",
+    "serviceUnavailable": "Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
     "loadFailed": "Nie udało się pobrać listy posiedzeń. Spróbuj ponownie później.",
     "slotAlreadyBooked": "Ten slot został właśnie zajęty przez inną osobę.",
     "alreadyRegistered": "Masz już aktywny zapis na to posiedzenie.",

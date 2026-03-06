@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type {
   MeetingBookingBlockedReasonCode,
   MeetingListItem,
+  MeetingStatus,
 } from "@hss/schemas";
 import { MeetingBookingButton } from "@/components/meetings/MeetingBookingButton";
 import { MeetingCancellationButton } from "@/components/meetings/MeetingCancellationButton";
@@ -14,27 +15,27 @@ type Props = {
   meetings: MeetingListItem[];
 };
 
+type BlockedReasonKey = `blocked.${MeetingBookingBlockedReasonCode}`;
+type MeetingStatusKey = `status.${MeetingStatus}`;
+type MeetingModeKey = `mode.${MeetingListItem["slotMode"]}`;
+
 function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split("-").map((part) => Number(part));
   return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
 }
 
-function mapBlockedReason(
+function toBlockedReasonKey(
   code: MeetingBookingBlockedReasonCode | null,
-): "blocked.NOT_APPROVED_APPLICATION" | "blocked.MEETING_NOT_OPEN" | "blocked.ALREADY_REGISTERED" | "blocked.NO_FREE_SLOTS" | null {
-  if (!code) return null;
-  switch (code) {
-    case "NOT_APPROVED_APPLICATION":
-      return "blocked.NOT_APPROVED_APPLICATION";
-    case "MEETING_NOT_OPEN":
-      return "blocked.MEETING_NOT_OPEN";
-    case "ALREADY_REGISTERED":
-      return "blocked.ALREADY_REGISTERED";
-    case "NO_FREE_SLOTS":
-      return "blocked.NO_FREE_SLOTS";
-    default:
-      return null;
-  }
+): BlockedReasonKey | null {
+  return code ? `blocked.${code}` : null;
+}
+
+function toStatusKey(status: MeetingStatus): MeetingStatusKey {
+  return `status.${status}`;
+}
+
+function toModeKey(slotMode: MeetingListItem["slotMode"]): MeetingModeKey {
+  return `mode.${slotMode}`;
 }
 
 export function MeetingCalendarView({ meetings }: Props) {
@@ -58,16 +59,11 @@ export function MeetingCalendarView({ meetings }: Props) {
   return (
     <div className="space-y-4">
       {meetings.map((meeting) => {
-        const blockedReasonKey = mapBlockedReason(meeting.bookingBlockedReasonCode);
-        const statusKey = `status.${meeting.status}` as
-          | "status.DRAFT"
-          | "status.OPEN_FOR_REGISTRATION"
-          | "status.CLOSED"
-          | "status.COMPLETED"
-          | "status.CANCELLED";
-        const modeKey = `mode.${meeting.slotMode}` as
-          | "mode.SLOTS"
-          | "mode.DAY_ONLY";
+        const blockedReasonKey = toBlockedReasonKey(
+          meeting.bookingBlockedReasonCode,
+        );
+        const statusKey = toStatusKey(meeting.status);
+        const modeKey = toModeKey(meeting.slotMode);
 
         return (
           <article
@@ -142,10 +138,7 @@ export function MeetingCalendarView({ meetings }: Props) {
                           </p>
                           {meeting.canCancelMyRegistration &&
                           meeting.myRegistrationUuid ? (
-                            <MeetingCancellationButton
-                              meetingUuid={meeting.uuid}
-                              registrationUuid={meeting.myRegistrationUuid}
-                            />
+                            <MeetingCancellationButton meetingUuid={meeting.uuid} />
                           ) : null}
                         </div>
                       ) : slot.isBooked ? (
@@ -178,7 +171,6 @@ export function MeetingCalendarView({ meetings }: Props) {
                     {meeting.canCancelMyRegistration ? (
                       <MeetingCancellationButton
                         meetingUuid={meeting.uuid}
-                        registrationUuid={meeting.myRegistrationUuid}
                         className="rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     ) : null}

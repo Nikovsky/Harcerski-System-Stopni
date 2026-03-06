@@ -43,6 +43,9 @@
     "NO_FREE_SLOTS": "No free slots are available for this meeting."
   },
   "errors": {
+    "authRequired": "You must be signed in to view meetings.",
+    "forbidden": "Your role is not allowed to access this section.",
+    "serviceUnavailable": "The service is temporarily unavailable. Please try again in a moment.",
     "loadFailed": "Failed to load meetings. Please try again later.",
     "slotAlreadyBooked": "This slot has just been booked by someone else.",
     "alreadyRegistered": "You already have an active registration for this meeting.",

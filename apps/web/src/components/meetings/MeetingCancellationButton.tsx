@@ -8,7 +8,6 @@ import { ApiError, apiFetch } from "@/lib/api";
 
 type Props = {
   meetingUuid: string;
-  registrationUuid: string;
   className?: string;
 };
 
@@ -34,7 +33,6 @@ function mapCancellationError(
 
 export function MeetingCancellationButton({
   meetingUuid,
-  registrationUuid,
   className,
 }: Props) {
   const t = useTranslations("meetings");
@@ -82,7 +80,6 @@ export function MeetingCancellationButton({
         onClick={onCancel}
         disabled={isPending}
         aria-busy={isPending}
-        data-registration-uuid={registrationUuid}
         className={
           className ??
           "rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"

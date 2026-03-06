@@ -31,15 +31,10 @@ import { CurrentUser } from '@/decorators/current-user.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { RolesGuard } from '@/guards/roles.guard';
+import { extractRequestId } from '@/helpers/request-id.helper';
 import { AuthPrincipalPipe } from '@/pipelines/auth-principal.pipe';
 import { ZodValidationPipe } from '@/pipelines/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
-
-function extractRequestId(req: Request): string | null {
-  const headerValue = req.headers['x-request-id'];
-  const requestId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  return typeof requestId === 'string' ? requestId : null;
-}
 
 @Controller('meetings')
 @UseGuards(JwtAuthGuard, RolesGuard)
