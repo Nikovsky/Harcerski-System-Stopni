@@ -109,6 +109,23 @@ export const envSchema = z
         message: 'MINIO_ENDPOINT must not use http:// in production.',
       });
     }
+
+    const hasApiClientId = Boolean(env.KEYCLOAK_API_CLIENT_ID);
+    const hasApiClientSecret = Boolean(env.KEYCLOAK_API_CLIENT_SECRET);
+    if (hasApiClientId !== hasApiClientSecret) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['KEYCLOAK_API_CLIENT_ID'],
+        message:
+          'KEYCLOAK_API_CLIENT_ID and KEYCLOAK_API_CLIENT_SECRET must be provided together.',
+      });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['KEYCLOAK_API_CLIENT_SECRET'],
+        message:
+          'KEYCLOAK_API_CLIENT_ID and KEYCLOAK_API_CLIENT_SECRET must be provided together.',
+      });
+    }
   });
 
 export type Env = z.infer<typeof envSchema>;

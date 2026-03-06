@@ -24,6 +24,7 @@ import type {
   UpdateInstructorRequirement,
   PresignUploadRequest,
   ConfirmUploadRequest,
+  InstructorApplicationProfileCheckResponse,
 } from '@hss/schemas';
 
 const INSTRUCTOR_APPLICATION_AUDIT_SELECT = {
@@ -97,7 +98,9 @@ export class InstructorApplicationService {
   ) {}
 
   // ── Profile check ─────────────────────────────────────────────────────────
-  async checkProfile(principal: AuthPrincipal) {
+  async checkProfile(
+    principal: AuthPrincipal,
+  ): Promise<InstructorApplicationProfileCheckResponse> {
     const user = await this.prisma.user.findUnique({
       where: { keycloakUuid: principal.sub },
     });
