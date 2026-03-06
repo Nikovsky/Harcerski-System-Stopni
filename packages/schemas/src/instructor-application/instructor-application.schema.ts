@@ -108,6 +108,17 @@ export const candidateProfileResponseSchema = z.object({
 });
 export type CandidateProfileResponse = z.infer<typeof candidateProfileResponseSchema>;
 
+// ── Response: Profile Check ────────────────────────────────────────────────
+export const instructorApplicationProfileCheckResponseSchema = z
+  .object({
+    complete: z.boolean(),
+    missingFields: z.array(z.string()),
+  })
+  .strict();
+export type InstructorApplicationProfileCheckResponse = z.infer<
+  typeof instructorApplicationProfileCheckResponseSchema
+>;
+
 // ── Response: Template List Item ───────────────────────────────────────────
 export const requirementTemplateListItemSchema = z.object({
   uuid: z.string().uuid(),
