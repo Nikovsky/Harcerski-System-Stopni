@@ -149,7 +149,8 @@
     "pdfGenerationError": "Failed to generate PDF. Please try again.",
     "actionDescriptionError": "Task implementation description is required",
     "verificationTextError": "Proof/attachment description is required",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "saveChangesError": "Failed to save changes. Please try again."
   },
   "verificationTextRequired": "Attachment description (required) *",
   "pdf": {
@@ -158,8 +159,10 @@
   },
   "profileIncomplete": {
     "completeProfileInDashboard": "Complete your profile in Dashboard",
+    "completeProfileInProfile": "Complete your profile",
     "prefix": "To create an application, complete missing fields in",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "profile": "Profile"
   },
   "createdAt": "Created",
   "updatedAt": "Updated",

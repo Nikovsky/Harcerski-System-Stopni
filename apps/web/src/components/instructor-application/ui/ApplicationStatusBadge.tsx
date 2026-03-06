@@ -1,5 +1,7 @@
 // @file: apps/web/src/components/instructor-application/ui/ApplicationStatusBadge.tsx
-const COLORS: Record<string, string> = {
+import type { ApplicationStatus } from "@hss/schemas";
+
+const COLORS: Record<ApplicationStatus, string> = {
   DRAFT: "bg-gray-200 text-gray-800",
   SUBMITTED: "bg-blue-100 text-blue-800",
   TO_FIX: "bg-orange-100 text-orange-800",
@@ -16,10 +18,10 @@ export function ApplicationStatusBadge({
   status,
   label,
 }: {
-  status: string;
+  status: ApplicationStatus;
   label: string;
 }) {
-  const color = COLORS[status] ?? "bg-gray-200 text-gray-800";
+  const color = COLORS[status];
 
   return (
     <span

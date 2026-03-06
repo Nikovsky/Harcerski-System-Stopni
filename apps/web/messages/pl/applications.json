@@ -149,7 +149,8 @@
     "pdfGenerationError": "Nie udało się wygenerować PDF. Spróbuj ponownie.",
     "actionDescriptionError": "Opis realizacji zadania jest wymagany",
     "verificationTextError": "Opis dowodu/załącznika jest wymagany",
-    "saving": "Zapisywanie..."
+    "saving": "Zapisywanie...",
+    "saveChangesError": "Nie udało się zapisać zmian. Spróbuj ponownie."
   },
   "verificationTextRequired": "Opis załącznika (wymagane) *",
   "pdf": {
@@ -158,8 +159,10 @@
   },
   "profileIncomplete": {
     "completeProfileInDashboard": "Uzupełnij profil w Dashboard",
+    "completeProfileInProfile": "Uzupełnij profil",
     "prefix": "Aby utworzyć wniosek, uzupełnij brakujące pola w",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "profile": "Profilu"
   },
   "createdAt": "Utworzono",
   "updatedAt": "Zaktualizowano",

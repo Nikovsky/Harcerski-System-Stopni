@@ -12,23 +12,25 @@ import { ROLE_RANK } from "@hss/schemas";
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
   const resolvedPrincipal = await resolveVerifiedPrincipal(session);
-  const principal =
-    resolvedPrincipal.status === "authenticated"
-      ? resolvedPrincipal.principal
-      : null;
+  const principal = resolvedPrincipal.status === "authenticated"
+    ? resolvedPrincipal.principal
+    : null;
+  const isAuthenticated = resolvedPrincipal.status === "authenticated";
+  const canSeeApplications = canAccess(principal, ROLE_RANK.USER);
+  const canSeeMeetings = canAccess(principal, ROLE_RANK.USER);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
     { label: t("about"), href: "/about" },
   ];
-  const navItems: NavItem[] = session?.user
+  const navItems: NavItem[] = isAuthenticated
     ? [
-        ...NAV_BASE,
-        ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
-        { label: t("applications"), href: "/applications" },
-        { label: t("meetings"), href: "/meetings" },
-        { label: t("profile"), href: "/profile" },
-      ]
+      ...NAV_BASE,
+      ...(canSeeApplications ? [{ label: t("applications"), href: "/applications" }] : []),
+      ...(canSeeMeetings ? [{ label: t("meetings"), href: "/meetings" }] : []),
+      ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
+      { label: t("profile"), href: "/profile" },
+    ]
     : NAV_BASE;
 
   return (

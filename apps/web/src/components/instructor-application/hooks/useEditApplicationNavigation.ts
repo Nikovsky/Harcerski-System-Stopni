@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiFetch, ApiError } from "@/lib/api";
 import {
   RequirementValidationError,
@@ -257,6 +258,7 @@ function extractStepDataFromDraft(
 }
 
 export function useEditApplicationNavigation({ initialApp, id }: Params) {
+  const t = useTranslations("applications");
   const [step, setStep] = useState(0);
   const [app, setApp] = useState(initialApp);
   const [isSaving, setIsSaving] = useState(false);
@@ -401,7 +403,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
         setNavigationError(
           error instanceof ApiError
             ? error.message
-            : "Nie udało się zapisać zmian. Spróbuj ponownie.",
+            : t("messages.saveChangesError"),
         );
         scrollToTop();
         return;
@@ -413,7 +415,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
       stepRef.current = targetStep;
       setStep(targetStep);
     },
-    [getChangedPatchData, id],
+    [getChangedPatchData, id, t],
   );
 
   return {
