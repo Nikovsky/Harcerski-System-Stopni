@@ -9,19 +9,20 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { UserRole } from '@hss/database';
 import {
   createMeetingBodySchema,
   createMeetingSlotsBodySchema,
+  meetingByDateQuerySchema,
   meetingListQuerySchema,
   meetingRegistrationCreateBodySchema,
   meetingRegistrationReassignBodySchema,
   type AuthPrincipal,
   type CreateMeetingBody,
   type CreateMeetingSlotsBody,
+  type MeetingByDateQuery,
   type MeetingListQuery,
   type MeetingRegistrationCreateBody,
   type MeetingRegistrationReassignBody,
@@ -29,20 +30,17 @@ import {
 
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { Roles } from '@/decorators/roles.decorator';
-import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
-import { RolesGuard } from '@/guards/roles.guard';
 import { extractRequestId } from '@/helpers/request-id.helper';
 import { AuthPrincipalPipe } from '@/pipelines/auth-principal.pipe';
 import { ZodValidationPipe } from '@/pipelines/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
 
 @Controller('meetings')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class MeetingsController {
   constructor(private readonly service: MeetingsService) {}
 
   @Get()
-  @Roles(UserRole.USER)
+  @Roles(UserRole.SCOUT)
   async listForScout(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Query(new ZodValidationPipe(meetingListQuerySchema))
@@ -51,8 +49,26 @@ export class MeetingsController {
     return this.service.listForScout(principal, query);
   }
 
+  @Get('by-date')
+  @Roles(UserRole.SCOUT)
+  async listDetailsForScoutByDate(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Query(new ZodValidationPipe(meetingByDateQuerySchema))
+    query: MeetingByDateQuery,
+  ) {
+    return this.service.listDetailsForScoutByDate(principal, query);
+  }
+
+  @Get('my-registrations')
+  @Roles(UserRole.SCOUT)
+  async listMyRegistrationsForScout(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+  ) {
+    return this.service.listMyRegistrationsForScout(principal);
+  }
+
   @Get(':meetingUuid')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.SCOUT)
   async getDetailForScout(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('meetingUuid', ParseUUIDPipe) meetingUuid: string,
@@ -61,7 +77,7 @@ export class MeetingsController {
   }
 
   @Post(':meetingUuid/registrations')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.SCOUT)
   async createRegistration(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('meetingUuid', ParseUUIDPipe) meetingUuid: string,
@@ -78,7 +94,7 @@ export class MeetingsController {
   }
 
   @Patch(':meetingUuid/my-registration/cancel')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.SCOUT)
   async cancelMyRegistration(
     @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
     @Param('meetingUuid', ParseUUIDPipe) meetingUuid: string,

@@ -2,6 +2,7 @@
 import { z } from "zod";
 
 import {
+  commissionTypeSchema,
   meetingStatusSchema,
   registrationStatusSchema,
   slotModeSchema,
@@ -38,6 +39,7 @@ const isoDateSchema = z
 
 export const meetingBookingBlockedReasonCodeSchema = z.enum([
   "NOT_APPROVED_APPLICATION",
+  "NO_MATCHING_APPROVED_APPLICATION",
   "MEETING_NOT_OPEN",
   "ALREADY_REGISTERED",
   "NO_FREE_SLOTS",
@@ -57,6 +59,12 @@ export const meetingListQuerySchema = z
       path: ["toDate"],
     },
   )
+  .strict();
+
+export const meetingByDateQuerySchema = z
+  .object({
+    date: isoDateSchema,
+  })
   .strict();
 
 export const meetingPathParamsSchema = z
@@ -90,6 +98,14 @@ export const meetingRegistrationSummarySchema = z
     status: registrationStatusSchema,
     registeredAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,
+  })
+  .strict();
+
+export const myMeetingRegistrationSlotSchema = z
+  .object({
+    uuid: uuidSchema,
+    startTime: isoDateTimeSchema,
+    endTime: isoDateTimeSchema,
   })
   .strict();
 
@@ -140,7 +156,8 @@ export const meetingListItemSchema = z
     date: isoDateSchema,
     slotMode: slotModeSchema,
     status: meetingStatusSchema,
-    notes: z.string().nullable(),
+    commissionType: commissionTypeSchema.nullable(),
+    commissionName: z.string().max(128).nullable(),
     totalSlots: z.number().int().min(0),
     availableSlots: z.number().int().min(0),
     registrationsCount: z.number().int().min(0),
@@ -148,11 +165,47 @@ export const meetingListItemSchema = z
     bookingBlockedReasonCode: meetingBookingBlockedReasonCodeSchema.nullable(),
     myRegistrationUuid: uuidSchema.nullable(),
     canCancelMyRegistration: z.boolean(),
+  })
+  .strict();
+
+export const meetingDayDetailItemSchema = meetingListItemSchema
+  .extend({
+    notes: z.string().nullable(),
     slots: z.array(meetingSlotViewSchema),
   })
   .strict();
 
-export const meetingDetailSchema = meetingListItemSchema
+export const meetingDayDetailsResponseSchema = z
+  .object({
+    date: isoDateSchema,
+    meetings: z.array(meetingDayDetailItemSchema),
+  })
+  .strict();
+
+export const myMeetingRegistrationListItemSchema = z
+  .object({
+    registrationUuid: uuidSchema,
+    meetingUuid: uuidSchema,
+    date: isoDateSchema,
+    slotMode: slotModeSchema,
+    status: meetingStatusSchema,
+    commissionType: commissionTypeSchema.nullable(),
+    commissionName: z.string().max(128).nullable(),
+    notes: z.string().nullable(),
+    assignedTime: isoDateTimeSchema.nullable(),
+    registeredAt: isoDateTimeSchema,
+    canCancelMyRegistration: z.boolean(),
+    slot: myMeetingRegistrationSlotSchema.nullable(),
+  })
+  .strict();
+
+export const myMeetingRegistrationsResponseSchema = z
+  .object({
+    registrations: z.array(myMeetingRegistrationListItemSchema),
+  })
+  .strict();
+
+export const meetingDetailSchema = meetingDayDetailItemSchema
   .extend({
     commissionUuid: uuidSchema,
     createdAt: isoDateTimeSchema,
@@ -245,6 +298,7 @@ export type MeetingBookingBlockedReasonCode = z.infer<
   typeof meetingBookingBlockedReasonCodeSchema
 >;
 export type MeetingListQuery = z.infer<typeof meetingListQuerySchema>;
+export type MeetingByDateQuery = z.infer<typeof meetingByDateQuerySchema>;
 export type MeetingPathParams = z.infer<typeof meetingPathParamsSchema>;
 export type MeetingRegistrationPathParams = z.infer<
   typeof meetingRegistrationPathParamsSchema
@@ -252,6 +306,9 @@ export type MeetingRegistrationPathParams = z.infer<
 export type MeetingSlotView = z.infer<typeof meetingSlotViewSchema>;
 export type MeetingRegistrationSummary = z.infer<
   typeof meetingRegistrationSummarySchema
+>;
+export type MyMeetingRegistrationSlot = z.infer<
+  typeof myMeetingRegistrationSlotSchema
 >;
 export type MeetingSlotAdminView = z.infer<typeof meetingSlotAdminViewSchema>;
 export type MeetingRegistrationCandidateView = z.infer<
@@ -264,6 +321,16 @@ export type MeetingRegistrationListItem = z.infer<
   typeof meetingRegistrationListItemSchema
 >;
 export type MeetingListItem = z.infer<typeof meetingListItemSchema>;
+export type MeetingDayDetailItem = z.infer<typeof meetingDayDetailItemSchema>;
+export type MeetingDayDetailsResponse = z.infer<
+  typeof meetingDayDetailsResponseSchema
+>;
+export type MyMeetingRegistrationListItem = z.infer<
+  typeof myMeetingRegistrationListItemSchema
+>;
+export type MyMeetingRegistrationsResponse = z.infer<
+  typeof myMeetingRegistrationsResponseSchema
+>;
 export type MeetingDetail = z.infer<typeof meetingDetailSchema>;
 export type MeetingRegistrationCreateBody = z.infer<
   typeof meetingRegistrationCreateBodySchema

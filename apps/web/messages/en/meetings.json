@@ -1,7 +1,80 @@
 {
   "title": "Meetings calendar",
-  "subtitle": "Choose a date and book your place after your application is approved.",
+  "subtitle": "Choose a month, inspect a day and book your place after your application is approved.",
   "empty": "No meetings to display.",
+  "navigation": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
+  },
+  "views": {
+    "list": "List",
+    "calendar": "Calendar",
+    "mine": "My registrations"
+  },
+  "filters": {
+    "title": "Filters",
+    "open": "Open",
+    "available": "Available",
+    "allCommissions": "All commissions",
+    "scout": "Scout",
+    "instructor": "Instructor",
+    "clear": "Clear filters",
+    "resultsCount": "{count, plural, one {# result after filtering} other {# results after filtering}}",
+    "emptyTitle": "No dates match the selected filters.",
+    "emptyDescription": "Clear some filters or switch to another month."
+  },
+  "mine": {
+    "badge": "You are registered",
+    "calendarMarker": "Your registration",
+    "calendarAria": "You have an active registration on this day"
+  },
+  "myRegistrations": {
+    "eyebrow": "Your schedule",
+    "title": "My registrations",
+    "description": "{count, plural, one {You have # active registration for an upcoming meeting.} other {You have # active registrations for upcoming meetings.}}",
+    "emptyTitle": "You do not have any active registrations yet.",
+    "emptyDescription": "This view will show your upcoming meetings together with the available cancellation action.",
+    "exploreCta": "Browse available dates",
+    "nextBadge": "Next up",
+    "slotTime": "Time slot: {timeRange}",
+    "assignedTime": "Assigned time: {time}",
+    "dayOnly": "No assigned time",
+    "registeredAt": "Booked on: {dateTime}"
+  },
+  "calendar": {
+    "legendTitle": "Month view",
+    "dayHint": "Select a day in the calendar to inspect meetings and available actions.",
+    "monthAriaLabel": "Meetings calendar for {month}",
+    "dayAriaLabel": "Show meetings for {date}",
+    "outsideMonthAriaLabel": "Day outside the current month",
+    "today": "Today",
+    "selectedDayEyebrow": "Selected day",
+    "selectedDayTitle": "{date}",
+    "selectedDayCount": "{count, plural, one {# meeting} other {# meetings}}",
+    "selectedDayAnnouncement": "{date}. {count, plural, one {# meeting.} other {# meetings.}}",
+    "emptyDayAnnouncement": "{date}. There are no meetings on this day.",
+    "emptyMonthTitle": "There are no meetings in this month.",
+    "emptyMonthDescription": "Switch to the previous or next month to look for available dates.",
+    "emptyDayTitle": "No meetings on this day.",
+    "emptyDayDescription": "Choose another day marked with a commission badge or switch to a different month."
+  },
+  "list": {
+    "legendTitle": "List view",
+    "dayHint": "This view shows only days with actual meetings so the user can move straight to booking or cancellation.",
+    "dayEyebrow": "Day with meetings",
+    "emptyTitle": "There are no meetings in this month.",
+    "emptyDescription": "Switch to another month or come back later when commissions publish new dates."
+  },
+  "commissionType": {
+    "INSTRUCTOR": "Instructor commission",
+    "SCOUT": "Scout commission",
+    "UNKNOWN": "Commission"
+  },
+  "commissionTypeShort": {
+    "INSTRUCTOR": "Inst.",
+    "SCOUT": "Scout",
+    "UNKNOWN": "Comm."
+  },
   "mode": {
     "SLOTS": "Time slots mode",
     "DAY_ONLY": "Day-only mode"
@@ -29,15 +102,33 @@
     "bookedByYou": "You already have an active registration for this day.",
     "notAvailableNow": "Booking for this date is currently unavailable."
   },
+  "details": {
+    "loading": "Loading details for the selected day...",
+    "loadFailed": "Failed to load details for this day.",
+    "retry": "Try again",
+    "showDay": "Show meetings",
+    "hideDay": "Hide meetings",
+    "showDayAria": "Show {count, plural, one {# meeting} other {# meetings}} for {date}",
+    "hideDayAria": "Hide meetings for {date}",
+    "emptyTitle": "Meetings for this day are no longer available.",
+    "emptyDescription": "Refresh the month view or choose another day.",
+    "filteredEmptyTitle": "No meetings on this day match the current filters.",
+    "filteredEmptyDescription": "Change the filters or choose another day."
+  },
   "actions": {
     "book": "Book",
     "booking": "Booking...",
     "cancel": "Cancel registration",
     "cancelling": "Cancelling...",
+    "bookMeetingAria": "Book {commission} meeting on {date}",
+    "bookSlotAria": "Book slot {timeRange}, {date}, {commission}",
+    "cancelMeetingAria": "Cancel registration for {commission} meeting on {date}",
+    "cancelSlotAria": "Cancel registration for slot {timeRange}, {date}, {commission}",
     "retry": "Try again"
   },
   "blocked": {
     "NOT_APPROVED_APPLICATION": "Booking is available only after your application is accepted by the commission.",
+    "NO_MATCHING_APPROVED_APPLICATION": "This meeting is available only for the commission type matching your approved application.",
     "MEETING_NOT_OPEN": "This meeting is currently not open for registration.",
     "ALREADY_REGISTERED": "You already have an active registration for this meeting.",
     "NO_FREE_SLOTS": "No free slots are available for this meeting."
@@ -50,6 +141,7 @@
     "slotAlreadyBooked": "This slot has just been booked by someone else.",
     "alreadyRegistered": "You already have an active registration for this meeting.",
     "bookingNotAllowedStatus": "Booking is available only after your application is accepted by the commission.",
+    "bookingNotAllowedApplicationType": "This meeting is available only for the commission matching your approved application type.",
     "generic": "An error occurred while booking.",
     "cancellationNotAllowedStatus": "This meeting is no longer open, so cancellation is not available.",
     "cancellationDeadlinePassed": "Cancellation is available only until the day before the meeting date.",

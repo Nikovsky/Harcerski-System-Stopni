@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   ApplicationStatus,
+  CommissionType,
   CommissionRole,
   MeetingStatus,
   Prisma,
@@ -21,10 +22,15 @@ import type {
   CreateMeetingResponse,
   CreateMeetingSlotsBody,
   CreateMeetingSlotsResponse,
+  MeetingByDateQuery,
   MeetingBookingBlockedReasonCode,
+  MeetingDayDetailItem,
+  MeetingDayDetailsResponse,
   MeetingDetail,
   MeetingListItem,
   MeetingListQuery,
+  MyMeetingRegistrationListItem,
+  MyMeetingRegistrationsResponse,
   MeetingRegistrationCancelResponse,
   MeetingRegistrationCreateBody,
   MeetingRegistrationCreateResponse,
@@ -47,34 +53,48 @@ const LIST_DEFAULT_TO_DAYS = 180;
 const SERIALIZABLE_RETRY_ATTEMPTS = 3;
 const SERIALIZABLE_RETRY_DELAY_MS = 30;
 const SELF_CANCELLATION_BLOCK_START_DAYS_BEFORE_MEETING = 1;
+const SCOUT_VISIBLE_MEETING_STATUSES = [
+  MeetingStatus.OPEN_FOR_REGISTRATION,
+  MeetingStatus.CLOSED,
+  MeetingStatus.COMPLETED,
+  MeetingStatus.CANCELLED,
+] as const;
 
 const COMMISSION_MANAGER_ROLES: CommissionRole[] = [
   CommissionRole.SECRETARY,
   CommissionRole.CHAIRMAN,
 ];
 
-const MEETING_LIST_INCLUDE = {
-  slots: {
-    orderBy: { sortOrder: 'asc' as const },
-    include: {
-      registrations: {
-        where: ACTIVE_REGISTRATION_WHERE,
-        select: {
-          candidateUuid: true,
-        },
-      },
+const ACTIVE_MEETING_REGISTRATION_SELECT = {
+  uuid: true,
+  meetingUuid: true,
+  slotUuid: true,
+  status: true,
+  registeredAt: true,
+  updatedAt: true,
+} satisfies Prisma.MeetingRegistrationSelect;
+
+const MEETING_SUMMARY_SELECT = {
+  uuid: true,
+  date: true,
+  slotMode: true,
+  status: true,
+  commission: {
+    select: {
+      type: true,
+      name: true,
     },
   },
-  registrations: {
-    where: ACTIVE_REGISTRATION_WHERE,
+  slots: {
     select: {
       uuid: true,
-      meetingUuid: true,
-      candidateUuid: true,
-      slotUuid: true,
-      status: true,
-      registeredAt: true,
-      updatedAt: true,
+      _count: {
+        select: {
+          registrations: {
+            where: ACTIVE_REGISTRATION_WHERE,
+          },
+        },
+      },
     },
   },
   _count: {
@@ -82,23 +102,50 @@ const MEETING_LIST_INCLUDE = {
       registrations: {
         where: ACTIVE_REGISTRATION_WHERE,
       },
+      slots: true,
     },
   },
-} satisfies Prisma.CommissionMeetingInclude;
+} satisfies Prisma.CommissionMeetingSelect;
 
-const MEETING_LIST_SELECT = {
+const MEETING_DAY_DETAIL_SELECT = {
   uuid: true,
   date: true,
   slotMode: true,
   status: true,
+  commission: {
+    select: {
+      type: true,
+      name: true,
+    },
+  },
   notes: true,
-  slots: MEETING_LIST_INCLUDE.slots,
-  registrations: MEETING_LIST_INCLUDE.registrations,
-  _count: MEETING_LIST_INCLUDE._count,
+  slots: {
+    orderBy: { sortOrder: 'asc' as const },
+    select: {
+      uuid: true,
+      startTime: true,
+      endTime: true,
+      _count: {
+        select: {
+          registrations: {
+            where: ACTIVE_REGISTRATION_WHERE,
+          },
+        },
+      },
+    },
+  },
+  _count: {
+    select: {
+      registrations: {
+        where: ACTIVE_REGISTRATION_WHERE,
+      },
+      slots: true,
+    },
+  },
 } satisfies Prisma.CommissionMeetingSelect;
 
 const MEETING_DETAIL_SELECT = {
-  ...MEETING_LIST_SELECT,
+  ...MEETING_DAY_DETAIL_SELECT,
   commissionUuid: true,
   createdAt: true,
   updatedAt: true,
@@ -113,8 +160,44 @@ const CREATED_REGISTRATION_SELECT = {
   updatedAt: true,
 } satisfies Prisma.MeetingRegistrationSelect;
 
-type MeetingListRow = Prisma.CommissionMeetingGetPayload<{
-  select: typeof MEETING_LIST_SELECT;
+const MY_MEETING_REGISTRATION_SELECT = {
+  uuid: true,
+  meetingUuid: true,
+  slotUuid: true,
+  status: true,
+  assignedTime: true,
+  registeredAt: true,
+  updatedAt: true,
+  meeting: {
+    select: {
+      uuid: true,
+      date: true,
+      slotMode: true,
+      status: true,
+      notes: true,
+      commission: {
+        select: {
+          type: true,
+          name: true,
+        },
+      },
+    },
+  },
+  slot: {
+    select: {
+      uuid: true,
+      startTime: true,
+      endTime: true,
+    },
+  },
+} satisfies Prisma.MeetingRegistrationSelect;
+
+type MeetingSummaryRow = Prisma.CommissionMeetingGetPayload<{
+  select: typeof MEETING_SUMMARY_SELECT;
+}>;
+
+type MeetingDayDetailRow = Prisma.CommissionMeetingGetPayload<{
+  select: typeof MEETING_DAY_DETAIL_SELECT;
 }>;
 
 type MeetingDetailRow = Prisma.CommissionMeetingGetPayload<{
@@ -123,6 +206,14 @@ type MeetingDetailRow = Prisma.CommissionMeetingGetPayload<{
 
 type CreatedMeetingRegistration = Prisma.MeetingRegistrationGetPayload<{
   select: typeof CREATED_REGISTRATION_SELECT;
+}>;
+
+type MyMeetingRegistrationRow = Prisma.MeetingRegistrationGetPayload<{
+  select: typeof MY_MEETING_REGISTRATION_SELECT;
+}>;
+
+type ActiveMeetingRegistration = Prisma.MeetingRegistrationGetPayload<{
+  select: typeof ACTIVE_MEETING_REGISTRATION_SELECT;
 }>;
 
 type ApprovedApplicationRef = {
@@ -147,6 +238,44 @@ type SlotCreateInput = {
   sortOrder: number;
 };
 
+function hasAnyApprovedApplication(
+  approvedApplications: ApprovedApplicationRef | null,
+): boolean {
+  return Boolean(
+    approvedApplications?.instructorApplicationUuid ||
+      approvedApplications?.scoutApplicationUuid,
+  );
+}
+
+function selectApprovedApplicationForCommissionType(
+  approvedApplications: ApprovedApplicationRef | null,
+  commissionType: CommissionType | null,
+): ApprovedApplicationRef | null {
+  if (!approvedApplications) {
+    return null;
+  }
+
+  switch (commissionType) {
+    case CommissionType.INSTRUCTOR:
+      return approvedApplications.instructorApplicationUuid
+        ? {
+            instructorApplicationUuid:
+              approvedApplications.instructorApplicationUuid,
+            scoutApplicationUuid: null,
+          }
+        : null;
+    case CommissionType.SCOUT:
+      return approvedApplications.scoutApplicationUuid
+        ? {
+            instructorApplicationUuid: null,
+            scoutApplicationUuid: approvedApplications.scoutApplicationUuid,
+          }
+        : null;
+    default:
+      return null;
+  }
+}
+
 function formatDateOnly(value: Date): string {
   return value.toISOString().split('T')[0] ?? '';
 }
@@ -155,10 +284,22 @@ function parseIsoDateToUtcStart(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+function toUtcDayStart(value: Date): Date {
+  return new Date(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+  );
+}
+
 function addUtcDays(value: Date, days: number): Date {
   const result = new Date(value.getTime());
   result.setUTCDate(result.getUTCDate() + days);
   return result;
+}
+
+function isWithinMeetingUtcDay(value: Date, meetingDate: Date): boolean {
+  const dayStart = toUtcDayStart(meetingDate);
+  const nextDayStart = addUtcDays(dayStart, 1);
+  return value >= dayStart && value < nextDayStart;
 }
 
 function intersectsRange(
@@ -180,20 +321,103 @@ export class MeetingsService {
     query: MeetingListQuery,
   ): Promise<MeetingListItem[]> {
     const user = await this.resolveUser(principal);
-    const hasApprovedApplication = await this.hasApprovedApplication(user.uuid);
+    const approvedApplications = await this.resolveApprovedApplicationRefs(
+      this.prisma,
+      user.uuid,
+    );
     const where = this.buildMeetingWhere(query);
     const limit = query.limit ?? LIST_DEFAULT_LIMIT;
 
     const meetings = await this.prisma.commissionMeeting.findMany({
       where,
-      select: MEETING_LIST_SELECT,
+      select: MEETING_SUMMARY_SELECT,
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
       take: limit,
     });
+    const myRegistrations = await this.listActiveRegistrationsForCandidate(
+      this.prisma,
+      user.uuid,
+      meetings.map((meeting) => meeting.uuid),
+    );
 
     return meetings.map((meeting) =>
-      this.toMeetingListItem(meeting, user.uuid, hasApprovedApplication),
+      this.toMeetingListItem(
+        meeting,
+        myRegistrations.get(meeting.uuid) ?? null,
+        approvedApplications,
+      ),
     );
+  }
+
+  async listDetailsForScoutByDate(
+    principal: AuthPrincipal,
+    query: MeetingByDateQuery,
+  ): Promise<MeetingDayDetailsResponse> {
+    const user = await this.resolveUser(principal);
+    const approvedApplications = await this.resolveApprovedApplicationRefs(
+      this.prisma,
+      user.uuid,
+    );
+    const meetingDate = parseIsoDateToUtcStart(query.date);
+
+    const meetings = await this.prisma.commissionMeeting.findMany({
+      where: {
+        date: meetingDate,
+        status: {
+          in: [...SCOUT_VISIBLE_MEETING_STATUSES],
+        },
+      },
+      select: MEETING_DAY_DETAIL_SELECT,
+      orderBy: [{ createdAt: 'asc' }, { uuid: 'asc' }],
+    });
+    const myRegistrations = await this.listActiveRegistrationsForCandidate(
+      this.prisma,
+      user.uuid,
+      meetings.map((meeting) => meeting.uuid),
+    );
+
+    return {
+      date: query.date,
+      meetings: meetings.map((meeting) =>
+        this.toMeetingDayDetailItem(
+          meeting,
+          myRegistrations.get(meeting.uuid) ?? null,
+          approvedApplications,
+        ),
+      ),
+    };
+  }
+
+  async listMyRegistrationsForScout(
+    principal: AuthPrincipal,
+  ): Promise<MyMeetingRegistrationsResponse> {
+    const user = await this.resolveUser(principal);
+    const todayStart = toUtcDayStart(new Date());
+    const registrations = await this.prisma.meetingRegistration.findMany({
+      where: {
+        candidateUuid: user.uuid,
+        status: RegistrationStatus.REGISTERED,
+        meeting: {
+          date: {
+            gte: todayStart,
+          },
+          status: {
+            in: [...SCOUT_VISIBLE_MEETING_STATUSES],
+          },
+        },
+      },
+      select: MY_MEETING_REGISTRATION_SELECT,
+    });
+
+    const items = registrations
+      .map((registration) => this.toMyMeetingRegistrationListItem(registration))
+      .sort((left, right) =>
+        this.compareMyMeetingRegistrations(left, right),
+      );
+
+    return {
+      registrations: items,
+    };
   }
 
   async getDetailForScout(
@@ -201,10 +425,18 @@ export class MeetingsService {
     meetingUuid: string,
   ): Promise<MeetingDetail> {
     const user = await this.resolveUser(principal);
-    const hasApprovedApplication = await this.hasApprovedApplication(user.uuid);
+    const approvedApplications = await this.resolveApprovedApplicationRefs(
+      this.prisma,
+      user.uuid,
+    );
 
-    const meeting = await this.prisma.commissionMeeting.findUnique({
-      where: { uuid: meetingUuid },
+    const meeting = await this.prisma.commissionMeeting.findFirst({
+      where: {
+        uuid: meetingUuid,
+        status: {
+          in: [...SCOUT_VISIBLE_MEETING_STATUSES],
+        },
+      },
       select: MEETING_DETAIL_SELECT,
     });
 
@@ -215,7 +447,13 @@ export class MeetingsService {
       });
     }
 
-    return this.toMeetingDetail(meeting, user.uuid, hasApprovedApplication);
+    const myRegistration = await this.findActiveRegistrationForCandidate(
+      this.prisma,
+      user.uuid,
+      meeting.uuid,
+    );
+
+    return this.toMeetingDetail(meeting, myRegistration, approvedApplications);
   }
 
   async createRegistration(
@@ -230,24 +468,17 @@ export class MeetingsService {
       const created = await this.withSerializableRetries(() =>
         this.prisma.$transaction(
           async (tx) => {
-            const approvedRef = await this.resolveApprovedApplicationRef(
-              tx,
-              user.uuid,
-            );
-            if (!approvedRef) {
-              throw new ForbiddenException({
-                code: 'BOOKING_NOT_ALLOWED_STATUS',
-                message:
-                  'Booking is allowed only after your application is accepted.',
-              });
-            }
-
             const meeting = await tx.commissionMeeting.findUnique({
               where: { uuid: meetingUuid },
               select: {
                 uuid: true,
                 status: true,
                 slotMode: true,
+                commission: {
+                  select: {
+                    type: true,
+                  },
+                },
               },
             });
 
@@ -264,6 +495,38 @@ export class MeetingsService {
                 message: 'Meeting is not open for registration.',
               });
             }
+
+            const approvedApplications = await this.resolveApprovedApplicationRefs(
+              tx,
+              user.uuid,
+            );
+            const approvedRef = selectApprovedApplicationForCommissionType(
+              approvedApplications,
+              meeting.commission.type,
+            );
+
+            if (!approvedRef) {
+              if (!hasAnyApprovedApplication(approvedApplications)) {
+                throw new ForbiddenException({
+                  code: 'BOOKING_NOT_ALLOWED_STATUS',
+                  message:
+                    'Booking is allowed only after your application is accepted.',
+                });
+              }
+
+              throw new ForbiddenException({
+                code: 'BOOKING_NOT_ALLOWED_APPLICATION_TYPE',
+                message:
+                  'Booking is allowed only for meetings matching your approved application type.',
+              });
+            }
+
+            await this.lockMeetingRow(tx, meetingUuid);
+            await this.ensureNoActiveRegistrationForMeeting(
+              tx,
+              meetingUuid,
+              user.uuid,
+            );
 
             if (meeting.slotMode === SlotMode.SLOTS) {
               if (!dto.slotUuid) {
@@ -287,6 +550,8 @@ export class MeetingsService {
                   message: 'Slot not found for this meeting.',
                 });
               }
+
+              await this.ensureMeetingSlotIsAvailable(tx, meetingUuid, slot.uuid);
 
               const registration = await tx.meetingRegistration.create({
                 select: CREATED_REGISTRATION_SELECT,
@@ -547,7 +812,9 @@ export class MeetingsService {
           select: {
             uuid: true,
             commissionUuid: true,
+            date: true,
             slotMode: true,
+            status: true,
           },
         });
 
@@ -571,6 +838,13 @@ export class MeetingsService {
           });
         }
 
+        if (meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+          throw new ConflictException({
+            code: 'MEETING_NOT_OPEN',
+            message: 'Meeting must be open for registration to manage slots.',
+          });
+        }
+
         await this.lockMeetingRow(tx, meetingUuid);
 
         const existingSlots = await tx.meetingSlot.findMany({
@@ -589,6 +863,7 @@ export class MeetingsService {
           endTime: new Date(slot.endTime),
         }));
         this.ensureSlotIntervalsValid(newIntervals);
+        this.ensureSlotIntervalsMatchMeetingDate(newIntervals, meeting.date);
         this.ensureSlotsDoNotOverlap(newIntervals, existingSlots);
 
         const startSortOrder = existingSlots.length;
@@ -849,6 +1124,7 @@ export class MeetingsService {
                 meeting: {
                   select: {
                     commissionUuid: true,
+                    date: true,
                     slotMode: true,
                   },
                 },
@@ -874,6 +1150,8 @@ export class MeetingsService {
                 message: 'Only active registrations can be reassigned.',
               });
             }
+
+            await this.lockMeetingRow(tx, meetingUuid);
 
             let updated: CreatedMeetingRegistration;
 
@@ -908,6 +1186,13 @@ export class MeetingsService {
                 });
               }
 
+              await this.ensureMeetingSlotIsAvailable(
+                tx,
+                meetingUuid,
+                targetSlot.uuid,
+                registrationUuid,
+              );
+
               updated = await tx.meetingRegistration.update({
                 where: { uuid: registrationUuid },
                 data: {
@@ -928,6 +1213,13 @@ export class MeetingsService {
               const assignedTime = dto.assignedTime
                 ? new Date(dto.assignedTime)
                 : null;
+
+              if (assignedTime) {
+                this.ensureAssignedTimeMatchesMeetingDate(
+                  assignedTime,
+                  registration.meeting.date,
+                );
+              }
 
               updated = await tx.meetingRegistration.update({
                 where: { uuid: registrationUuid },
@@ -999,94 +1291,104 @@ export class MeetingsService {
         gte: fromDate,
         lte: toDate,
       },
+      status: {
+        in: [...SCOUT_VISIBLE_MEETING_STATUSES],
+      },
     };
   }
 
   private toMeetingListItem(
-    meeting: MeetingListRow,
-    candidateUuid: string,
-    hasApprovedApplication: boolean,
+    meeting: MeetingSummaryRow,
+    myRegistration: ActiveMeetingRegistration | null,
+    approvedApplications: ApprovedApplicationRef | null,
   ): MeetingListItem {
-    const now = new Date();
-    const myRegistration = meeting.registrations.find(
-      (registration) => registration.candidateUuid === candidateUuid,
+    const hasApprovedApplication = hasAnyApprovedApplication(approvedApplications);
+    const hasMatchingApprovedApplication = Boolean(
+      selectApprovedApplicationForCommissionType(
+        approvedApplications,
+        meeting.commission.type,
+      ),
     );
-    const canCancelMyRegistration =
-      Boolean(myRegistration) &&
-      meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
-      this.isSelfCancellationAllowedByMeetingDate(meeting.date, now);
     const totalSlots =
-      meeting.slotMode === SlotMode.SLOTS ? meeting.slots.length : 0;
+      meeting.slotMode === SlotMode.SLOTS ? meeting._count.slots : 0;
     const availableSlots =
       meeting.slotMode === SlotMode.SLOTS
-        ? meeting.slots.filter((slot) => slot.registrations.length === 0).length
+        ? meeting.slots.filter((slot) => slot._count.registrations === 0).length
         : 0;
-    const hasAnyFreeSlot =
-      meeting.slotMode === SlotMode.DAY_ONLY ? true : availableSlots > 0;
 
-    const canBook =
-      hasApprovedApplication &&
-      meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
-      !myRegistration &&
-      hasAnyFreeSlot;
+    return this.buildMeetingSummaryState(
+      {
+        uuid: meeting.uuid,
+        date: meeting.date,
+        slotMode: meeting.slotMode,
+        status: meeting.status,
+        commissionType: meeting.commission.type,
+        commissionName: meeting.commission.name,
+        totalSlots,
+        availableSlots,
+        registrationsCount: meeting._count.registrations,
+      },
+      myRegistration,
+      hasApprovedApplication,
+      hasMatchingApprovedApplication,
+    );
+  }
 
-    let bookingBlockedReasonCode: MeetingBookingBlockedReasonCode | null = null;
-    if (!hasApprovedApplication) {
-      bookingBlockedReasonCode = 'NOT_APPROVED_APPLICATION';
-    } else if (meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
-      bookingBlockedReasonCode = 'MEETING_NOT_OPEN';
-    } else if (myRegistration) {
-      bookingBlockedReasonCode = 'ALREADY_REGISTERED';
-    } else if (!hasAnyFreeSlot) {
-      bookingBlockedReasonCode = 'NO_FREE_SLOTS';
-    }
+  private toMeetingDayDetailItem(
+    meeting: MeetingDayDetailRow,
+    myRegistration: ActiveMeetingRegistration | null,
+    approvedApplications: ApprovedApplicationRef | null,
+  ): MeetingDayDetailItem {
+    const hasApprovedApplication = hasAnyApprovedApplication(approvedApplications);
+    const hasMatchingApprovedApplication = Boolean(
+      selectApprovedApplicationForCommissionType(
+        approvedApplications,
+        meeting.commission.type,
+      ),
+    );
+    const summary = this.buildMeetingSummaryState(
+      {
+        uuid: meeting.uuid,
+        date: meeting.date,
+        slotMode: meeting.slotMode,
+        status: meeting.status,
+        commissionType: meeting.commission.type,
+        commissionName: meeting.commission.name,
+        totalSlots: meeting.slotMode === SlotMode.SLOTS ? meeting._count.slots : 0,
+        availableSlots:
+          meeting.slotMode === SlotMode.SLOTS
+            ? meeting.slots.filter((slot) => slot._count.registrations === 0)
+                .length
+            : 0,
+        registrationsCount: meeting._count.registrations,
+      },
+      myRegistration,
+      hasApprovedApplication,
+      hasMatchingApprovedApplication,
+    );
 
     return {
-      uuid: meeting.uuid,
-      date: formatDateOnly(meeting.date),
-      slotMode: meeting.slotMode,
-      status: meeting.status,
+      ...summary,
       notes: meeting.notes,
-      totalSlots,
-      availableSlots,
-      registrationsCount: meeting._count.registrations,
-      canBook,
-      bookingBlockedReasonCode,
-      myRegistrationUuid: myRegistration?.uuid ?? null,
-      canCancelMyRegistration,
       slots: meeting.slots.map((slot) => ({
         uuid: slot.uuid,
         startTime: slot.startTime.toISOString(),
         endTime: slot.endTime.toISOString(),
-        isBooked: slot.registrations.length > 0,
-        bookedByMe: slot.registrations.some(
-          (registration) => registration.candidateUuid === candidateUuid,
-        ),
+        isBooked: slot._count.registrations > 0,
+        bookedByMe: myRegistration?.slotUuid === slot.uuid,
       })),
     };
   }
 
   private toMeetingDetail(
     meeting: MeetingDetailRow,
-    candidateUuid: string,
-    hasApprovedApplication: boolean,
+    myRegistration: ActiveMeetingRegistration | null,
+    approvedApplications: ApprovedApplicationRef | null,
   ): MeetingDetail {
-    const base = this.toMeetingListItem(
-      {
-        uuid: meeting.uuid,
-        date: meeting.date,
-        slotMode: meeting.slotMode,
-        status: meeting.status,
-        notes: meeting.notes,
-        slots: meeting.slots,
-        registrations: meeting.registrations,
-        _count: meeting._count,
-      },
-      candidateUuid,
-      hasApprovedApplication,
-    );
-    const myRegistration = meeting.registrations.find(
-      (registration) => registration.candidateUuid === candidateUuid,
+    const base = this.toMeetingDayDetailItem(
+      meeting,
+      myRegistration,
+      approvedApplications,
     );
 
     return {
@@ -1107,6 +1409,127 @@ export class MeetingsService {
     };
   }
 
+  private toMyMeetingRegistrationListItem(
+    registration: MyMeetingRegistrationRow,
+  ): MyMeetingRegistrationListItem {
+    return {
+      registrationUuid: registration.uuid,
+      meetingUuid: registration.meetingUuid,
+      date: formatDateOnly(registration.meeting.date),
+      slotMode: registration.meeting.slotMode,
+      status: registration.meeting.status,
+      commissionType: registration.meeting.commission.type,
+      commissionName: registration.meeting.commission.name,
+      notes: registration.meeting.notes,
+      assignedTime: registration.assignedTime?.toISOString() ?? null,
+      registeredAt: registration.registeredAt.toISOString(),
+      canCancelMyRegistration:
+        registration.meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
+        this.isSelfCancellationAllowedByMeetingDate(
+          registration.meeting.date,
+          new Date(),
+        ),
+      slot: registration.slot
+        ? {
+            uuid: registration.slot.uuid,
+            startTime: registration.slot.startTime.toISOString(),
+            endTime: registration.slot.endTime.toISOString(),
+          }
+        : null,
+    };
+  }
+
+  private compareMyMeetingRegistrations(
+    left: MyMeetingRegistrationListItem,
+    right: MyMeetingRegistrationListItem,
+  ): number {
+    const leftSortValue = this.resolveMyMeetingRegistrationSortValue(left);
+    const rightSortValue = this.resolveMyMeetingRegistrationSortValue(right);
+
+    if (leftSortValue !== rightSortValue) {
+      return leftSortValue - rightSortValue;
+    }
+
+    if (left.date !== right.date) {
+      return left.date.localeCompare(right.date);
+    }
+
+    return left.registrationUuid.localeCompare(right.registrationUuid);
+  }
+
+  private resolveMyMeetingRegistrationSortValue(
+    registration: MyMeetingRegistrationListItem,
+  ): number {
+    if (registration.slot) {
+      return new Date(registration.slot.startTime).getTime();
+    }
+
+    if (registration.assignedTime) {
+      return new Date(registration.assignedTime).getTime();
+    }
+
+    return parseIsoDateToUtcStart(registration.date).getTime();
+  }
+
+  private buildMeetingSummaryState(
+    meeting: {
+      uuid: string;
+      date: Date;
+      slotMode: SlotMode;
+      status: MeetingStatus;
+      commissionType: CommissionType | null;
+      commissionName: string | null;
+      totalSlots: number;
+      availableSlots: number;
+      registrationsCount: number;
+    },
+    myRegistration: ActiveMeetingRegistration | null,
+    hasApprovedApplication: boolean,
+    hasMatchingApprovedApplication: boolean,
+  ): MeetingListItem {
+    const canCancelMyRegistration =
+      Boolean(myRegistration) &&
+      meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
+      this.isSelfCancellationAllowedByMeetingDate(meeting.date, new Date());
+    const hasAnyFreeSlot =
+      meeting.slotMode === SlotMode.DAY_ONLY ? true : meeting.availableSlots > 0;
+
+    const canBook =
+      hasMatchingApprovedApplication &&
+      meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
+      !myRegistration &&
+      hasAnyFreeSlot;
+
+    let bookingBlockedReasonCode: MeetingBookingBlockedReasonCode | null = null;
+    if (!hasApprovedApplication) {
+      bookingBlockedReasonCode = 'NOT_APPROVED_APPLICATION';
+    } else if (!hasMatchingApprovedApplication) {
+      bookingBlockedReasonCode = 'NO_MATCHING_APPROVED_APPLICATION';
+    } else if (meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+      bookingBlockedReasonCode = 'MEETING_NOT_OPEN';
+    } else if (myRegistration) {
+      bookingBlockedReasonCode = 'ALREADY_REGISTERED';
+    } else if (!hasAnyFreeSlot) {
+      bookingBlockedReasonCode = 'NO_FREE_SLOTS';
+    }
+
+    return {
+      uuid: meeting.uuid,
+      date: formatDateOnly(meeting.date),
+      slotMode: meeting.slotMode,
+      status: meeting.status,
+      commissionType: meeting.commissionType,
+      commissionName: meeting.commissionName,
+      totalSlots: meeting.totalSlots,
+      availableSlots: meeting.availableSlots,
+      registrationsCount: meeting.registrationsCount,
+      canBook,
+      bookingBlockedReasonCode,
+      myRegistrationUuid: myRegistration?.uuid ?? null,
+      canCancelMyRegistration,
+    };
+  }
+
   private isSelfCancellationAllowedByMeetingDate(
     meetingDate: Date,
     now: Date,
@@ -1116,6 +1539,49 @@ export class MeetingsService {
       -SELF_CANCELLATION_BLOCK_START_DAYS_BEFORE_MEETING,
     );
     return now < cancellationBlockedFrom;
+  }
+
+  private async listActiveRegistrationsForCandidate(
+    tx: Prisma.TransactionClient | PrismaService,
+    candidateUuid: string,
+    meetingUuids: string[],
+  ): Promise<Map<string, ActiveMeetingRegistration>> {
+    if (meetingUuids.length === 0) {
+      return new Map();
+    }
+
+    const registrations = await tx.meetingRegistration.findMany({
+      where: {
+        candidateUuid,
+        status: RegistrationStatus.REGISTERED,
+        meetingUuid: {
+          in: meetingUuids,
+        },
+      },
+      select: ACTIVE_MEETING_REGISTRATION_SELECT,
+    });
+
+    return new Map(
+      registrations.map((registration) => [
+        registration.meetingUuid,
+        registration,
+      ]),
+    );
+  }
+
+  private async findActiveRegistrationForCandidate(
+    tx: Prisma.TransactionClient | PrismaService,
+    candidateUuid: string,
+    meetingUuid: string,
+  ): Promise<ActiveMeetingRegistration | null> {
+    return tx.meetingRegistration.findFirst({
+      where: {
+        candidateUuid,
+        meetingUuid,
+        status: RegistrationStatus.REGISTERED,
+      },
+      select: ACTIVE_MEETING_REGISTRATION_SELECT,
+    });
   }
 
   private toMeetingRegistrationCreateResponse(
@@ -1238,31 +1704,8 @@ export class MeetingsService {
     }
   }
 
-  private async hasApprovedApplication(
-    candidateUuid: string,
-  ): Promise<boolean> {
-    const [instructor, scout] = await Promise.all([
-      this.prisma.instructorApplication.findFirst({
-        where: {
-          candidateUuid,
-          status: ApplicationStatus.APPROVED,
-        },
-        select: { uuid: true },
-      }),
-      this.prisma.scoutApplication.findFirst({
-        where: {
-          candidateUuid,
-          status: ApplicationStatus.APPROVED,
-        },
-        select: { uuid: true },
-      }),
-    ]);
-
-    return Boolean(instructor || scout);
-  }
-
-  private async resolveApprovedApplicationRef(
-    tx: Prisma.TransactionClient,
+  private async resolveApprovedApplicationRefs(
+    tx: Prisma.TransactionClient | PrismaService,
     candidateUuid: string,
   ): Promise<ApprovedApplicationRef | null> {
     const [instructor, scout] = await Promise.all([
@@ -1272,7 +1715,7 @@ export class MeetingsService {
           status: ApplicationStatus.APPROVED,
         },
         orderBy: { updatedAt: 'desc' },
-        select: { uuid: true, updatedAt: true },
+        select: { uuid: true },
       }),
       tx.scoutApplication.findFirst({
         where: {
@@ -1280,7 +1723,7 @@ export class MeetingsService {
           status: ApplicationStatus.APPROVED,
         },
         orderBy: { updatedAt: 'desc' },
-        select: { uuid: true, updatedAt: true },
+        select: { uuid: true },
       }),
     ]);
 
@@ -1288,24 +1731,41 @@ export class MeetingsService {
       return null;
     }
 
-    if (instructor && scout) {
-      if (instructor.updatedAt >= scout.updatedAt) {
-        return {
-          instructorApplicationUuid: instructor.uuid,
-          scoutApplicationUuid: null,
-        };
-      }
-
-      return {
-        instructorApplicationUuid: null,
-        scoutApplicationUuid: scout.uuid,
-      };
-    }
-
     return {
       instructorApplicationUuid: instructor?.uuid ?? null,
       scoutApplicationUuid: scout?.uuid ?? null,
     };
+  }
+
+  private ensureSlotIntervalsMatchMeetingDate(
+    slots: MeetingSlotInterval[],
+    meetingDate: Date,
+  ): void {
+    for (const slot of slots) {
+      if (
+        !isWithinMeetingUtcDay(slot.startTime, meetingDate) ||
+        !isWithinMeetingUtcDay(slot.endTime, meetingDate)
+      ) {
+        throw new BadRequestException({
+          code: 'SLOT_OUTSIDE_MEETING_DATE',
+          message: 'Slot startTime and endTime must fall on the meeting date.',
+        });
+      }
+    }
+  }
+
+  private ensureAssignedTimeMatchesMeetingDate(
+    assignedTime: Date,
+    meetingDate: Date,
+  ): void {
+    if (isWithinMeetingUtcDay(assignedTime, meetingDate)) {
+      return;
+    }
+
+    throw new BadRequestException({
+      code: 'ASSIGNED_TIME_OUTSIDE_MEETING_DATE',
+      message: 'assignedTime must fall on the meeting date.',
+    });
   }
 
   private ensureSlotIntervalsValid(slots: MeetingSlotInterval[]): void {
@@ -1369,8 +1829,64 @@ export class MeetingsService {
           FROM "CommissionMeeting"
          WHERE "uuid" = ${meetingUuid}::uuid
          FOR UPDATE
-      `,
+        `,
     );
+  }
+
+  private async ensureNoActiveRegistrationForMeeting(
+    tx: Prisma.TransactionClient,
+    meetingUuid: string,
+    candidateUuid: string,
+  ): Promise<void> {
+    const existingRegistration = await tx.meetingRegistration.findFirst({
+      where: {
+        meetingUuid,
+        candidateUuid,
+        status: RegistrationStatus.REGISTERED,
+      },
+      select: { uuid: true },
+    });
+
+    if (!existingRegistration) {
+      return;
+    }
+
+    throw new ConflictException({
+      code: 'ALREADY_REGISTERED_FOR_MEETING',
+      message: 'You already have an active registration for this meeting.',
+    });
+  }
+
+  private async ensureMeetingSlotIsAvailable(
+    tx: Prisma.TransactionClient,
+    meetingUuid: string,
+    slotUuid: string,
+    excludedRegistrationUuid?: string,
+  ): Promise<void> {
+    const existingRegistration = await tx.meetingRegistration.findFirst({
+      where: {
+        meetingUuid,
+        slotUuid,
+        status: RegistrationStatus.REGISTERED,
+        ...(excludedRegistrationUuid
+          ? {
+              uuid: {
+                not: excludedRegistrationUuid,
+              },
+            }
+          : {}),
+      },
+      select: { uuid: true },
+    });
+
+    if (!existingRegistration) {
+      return;
+    }
+
+    throw new ConflictException({
+      code: 'SLOT_ALREADY_BOOKED',
+      message: 'Selected slot is already booked.',
+    });
   }
 
   private async withSerializableRetries<T>(run: () => Promise<T>): Promise<T> {
