@@ -3,6 +3,7 @@ import "server-only";
 
 import { headers } from "next/headers";
 import type { ZodType } from "zod";
+import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
 import { normalizeRequestId } from "@/server/request-security";
 
@@ -15,6 +16,45 @@ type BffErrorPayload = {
 
 function normalizePath(path: string): string {
   return path.replace(/^\/+/, "");
+}
+
+function getSessionAccessToken(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function buildApiUrl(path: string): string {
+  const baseUrl = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
+  return `${baseUrl}/${normalizePath(path)}`;
+}
+
+function buildUpstreamHeaders(
+  initHeaders: HeadersInit | undefined,
+  requestId: string | null,
+  accessToken?: string,
+): Headers {
+  const upstreamHeaders = new Headers(initHeaders);
+
+  upstreamHeaders.delete("authorization");
+  upstreamHeaders.delete("content-length");
+  upstreamHeaders.delete("cookie");
+  upstreamHeaders.delete("host");
+
+  if (accessToken) {
+    upstreamHeaders.set("authorization", `Bearer ${accessToken}`);
+  }
+
+  if (requestId && !upstreamHeaders.has("x-request-id")) {
+    upstreamHeaders.set("x-request-id", requestId);
+  }
+
+  if (!upstreamHeaders.has("accept")) {
+    upstreamHeaders.set("accept", "application/json");
+  }
+
+  return upstreamHeaders;
 }
 
 function toBffErrorPayload(value: unknown): BffErrorPayload {
@@ -53,29 +93,21 @@ export async function bffServerFetch<T = unknown>(
   init?: RequestInit,
 ): Promise<T> {
   const incomingHeaders = await headers();
-  const upstreamHeaders = new Headers(init?.headers);
-
-  const cookie = incomingHeaders.get("cookie");
-  if (cookie) {
-    upstreamHeaders.set("cookie", cookie);
-  }
-
   const requestId = normalizeRequestId(incomingHeaders.get("x-request-id"));
-  if (requestId && !upstreamHeaders.has("x-request-id")) {
-    upstreamHeaders.set("x-request-id", requestId);
-  }
-
-  if (!upstreamHeaders.has("accept")) {
-    upstreamHeaders.set("accept", "application/json");
-  }
-
-  const baseUrl = envServer.HSS_WEB_ORIGIN.replace(/\/$/, "");
-  const targetUrl = `${baseUrl}/api/backend/${normalizePath(path)}`;
+  const session = await auth();
+  const accessToken = getSessionAccessToken(session?.accessToken);
+  const upstreamHeaders = buildUpstreamHeaders(
+    init?.headers,
+    requestId,
+    accessToken,
+  );
+  const targetUrl = buildApiUrl(path);
 
   const res = await fetch(targetUrl, {
     ...init,
     headers: upstreamHeaders,
     cache: "no-store",
+    signal: init?.signal ?? AbortSignal.timeout(30_000),
   });
 
   const body = (await res.json().catch(() => null)) as unknown;
