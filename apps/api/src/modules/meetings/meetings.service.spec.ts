@@ -120,8 +120,7 @@ function createMyRegistrationRow(
     assignedTime: overrides.assignedTime ?? null,
     registeredAt:
       overrides.registeredAt ?? new Date('2026-03-10T08:00:00.000Z'),
-    updatedAt:
-      overrides.updatedAt ?? new Date('2026-03-10T08:00:00.000Z'),
+    updatedAt: overrides.updatedAt ?? new Date('2026-03-10T08:00:00.000Z'),
     meeting: {
       uuid: overrides.meetingUuid ?? MEETING_UUID,
       date: overrides.meetingDate ?? new Date('2026-04-10T00:00:00.000Z'),
@@ -248,24 +247,31 @@ describe('MeetingsService', () => {
 
     await service.listForScout(PRINCIPAL, {});
 
-    expect(prisma.commissionMeeting.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: {
-            in: [
-              MeetingStatus.OPEN_FOR_REGISTRATION,
-              MeetingStatus.CLOSED,
-              MeetingStatus.COMPLETED,
-              MeetingStatus.CANCELLED,
-            ],
-          },
-        }),
-      }),
-    );
+    const listForScoutCalls = prisma.commissionMeeting.findMany.mock
+      .calls as Array<
+      [
+        {
+          where?: {
+            status?: {
+              in?: MeetingStatus[];
+            };
+          };
+        },
+      ]
+    >;
+    const listForScoutArgs = listForScoutCalls[0]?.[0];
+
+    expect(listForScoutArgs).toBeDefined();
+    expect(listForScoutArgs?.where?.status?.in).toEqual([
+      MeetingStatus.OPEN_FOR_REGISTRATION,
+      MeetingStatus.CLOSED,
+      MeetingStatus.COMPLETED,
+      MeetingStatus.CANCELLED,
+    ]);
   });
 
   it('hides non-public meeting details from scouts', async () => {
-    expect.assertions(3);
+    expect.assertions(5);
 
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
@@ -280,21 +286,29 @@ describe('MeetingsService', () => {
       expect((error as NotFoundException).getResponse()).toMatchObject({
         code: 'MEETING_NOT_FOUND',
       });
-      expect(prisma.commissionMeeting.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            uuid: MEETING_UUID,
-            status: {
-              in: [
-                MeetingStatus.OPEN_FOR_REGISTRATION,
-                MeetingStatus.CLOSED,
-                MeetingStatus.COMPLETED,
-                MeetingStatus.CANCELLED,
-              ],
-            },
-          }),
-        }),
-      );
+      const detailCalls = prisma.commissionMeeting.findFirst.mock
+        .calls as Array<
+        [
+          {
+            where?: {
+              uuid?: string;
+              status?: {
+                in?: MeetingStatus[];
+              };
+            };
+          },
+        ]
+      >;
+      const detailArgs = detailCalls[0]?.[0];
+
+      expect(detailArgs).toBeDefined();
+      expect(detailArgs?.where?.uuid).toBe(MEETING_UUID);
+      expect(detailArgs?.where?.status?.in).toEqual([
+        MeetingStatus.OPEN_FOR_REGISTRATION,
+        MeetingStatus.CLOSED,
+        MeetingStatus.COMPLETED,
+        MeetingStatus.CANCELLED,
+      ]);
       return;
     }
 
@@ -341,12 +355,21 @@ describe('MeetingsService', () => {
       date: '2026-05-12',
     });
 
-    expect(prisma.commissionMeeting.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          date: new Date('2026-05-12T00:00:00.000Z'),
-        }),
-      }),
+    const dayDetailsCalls = prisma.commissionMeeting.findMany.mock
+      .calls as Array<
+      [
+        {
+          where?: {
+            date?: Date;
+          };
+        },
+      ]
+    >;
+    const dayDetailsArgs = dayDetailsCalls[0]?.[0];
+
+    expect(dayDetailsArgs).toBeDefined();
+    expect(dayDetailsArgs?.where?.date).toEqual(
+      new Date('2026-05-12T00:00:00.000Z'),
     );
     expect(result).toMatchObject({
       date: '2026-05-12',
@@ -404,37 +427,52 @@ describe('MeetingsService', () => {
 
     const result = await service.listMyRegistrationsForScout(PRINCIPAL);
 
-    expect(prisma.meetingRegistration.findMany).toHaveBeenCalledWith({
-      where: {
-        candidateUuid: USER_UUID,
-        status: RegistrationStatus.REGISTERED,
-        meeting: {
-          date: {
-            gte: expect.any(Date),
-          },
-          status: {
-            in: [
-              MeetingStatus.OPEN_FOR_REGISTRATION,
-              MeetingStatus.CLOSED,
-              MeetingStatus.COMPLETED,
-              MeetingStatus.CANCELLED,
-            ],
-          },
+    const myRegistrationCalls = prisma.meetingRegistration.findMany.mock
+      .calls as Array<
+      [
+        {
+          where?: {
+            candidateUuid?: string;
+            status?: RegistrationStatus;
+            meeting?: {
+              date?: {
+                gte?: Date;
+              };
+              status?: {
+                in?: MeetingStatus[];
+              };
+            };
+          };
+          select?: object;
         },
-      },
-      select: expect.any(Object),
-    });
+      ]
+    >;
+    const myRegistrationsArgs = myRegistrationCalls[0]?.[0];
+
+    expect(myRegistrationsArgs).toBeDefined();
+    expect(myRegistrationsArgs?.where?.candidateUuid).toBe(USER_UUID);
+    expect(myRegistrationsArgs?.where?.status).toBe(
+      RegistrationStatus.REGISTERED,
+    );
+    expect(myRegistrationsArgs?.where?.meeting?.date?.gte).toBeInstanceOf(Date);
+    expect(myRegistrationsArgs?.where?.meeting?.status?.in).toEqual([
+      MeetingStatus.OPEN_FOR_REGISTRATION,
+      MeetingStatus.CLOSED,
+      MeetingStatus.COMPLETED,
+      MeetingStatus.CANCELLED,
+    ]);
+    expect(myRegistrationsArgs?.select).toEqual(expect.any(Object));
     expect(result.registrations).toHaveLength(3);
     expect(result.registrations[0]).toMatchObject({
       registrationUuid: REGISTRATION_UUID,
       meetingUuid: MEETING_UUID,
       date: '2026-04-10',
       assignedTime: '2026-04-10T17:00:00.000Z',
-        slot: null,
-        canCancelMyRegistration: true,
-        commissionType: CommissionType.INSTRUCTOR,
-        commissionName: 'Komisja Instruktorska',
-      });
+      slot: null,
+      canCancelMyRegistration: true,
+      commissionType: CommissionType.INSTRUCTOR,
+      commissionName: 'Komisja Instruktorska',
+    });
     expect(result.registrations[1]).toMatchObject({
       registrationUuid: SECOND_REGISTRATION_UUID,
       meetingUuid: SECOND_MEETING_UUID,
@@ -503,18 +541,34 @@ describe('MeetingsService', () => {
     tx.meetingRegistration.findFirst.mockResolvedValue(null);
     tx.meetingRegistration.create.mockResolvedValue(createRegistrationRow());
 
-    const result = await service.createRegistration(PRINCIPAL, MEETING_UUID, {});
-
-    expect(tx.meetingRegistration.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          meetingUuid: MEETING_UUID,
-          candidateUuid: USER_UUID,
-          instructorApplicationUuid: INSTRUCTOR_APPLICATION_UUID,
-          scoutApplicationUuid: null,
-        }),
-      }),
+    const result = await service.createRegistration(
+      PRINCIPAL,
+      MEETING_UUID,
+      {},
     );
+
+    const createRegistrationCalls = tx.meetingRegistration.create.mock
+      .calls as Array<
+      [
+        {
+          data?: {
+            meetingUuid?: string;
+            candidateUuid?: string;
+            instructorApplicationUuid?: string | null;
+            scoutApplicationUuid?: string | null;
+          };
+        },
+      ]
+    >;
+    const createRegistrationArgs = createRegistrationCalls[0]?.[0];
+
+    expect(createRegistrationArgs).toBeDefined();
+    expect(createRegistrationArgs?.data).toMatchObject({
+      meetingUuid: MEETING_UUID,
+      candidateUuid: USER_UUID,
+      instructorApplicationUuid: INSTRUCTOR_APPLICATION_UUID,
+      scoutApplicationUuid: null,
+    });
     expect(result).toMatchObject({
       uuid: REGISTRATION_UUID,
       meetingUuid: MEETING_UUID,
@@ -616,18 +670,14 @@ describe('MeetingsService', () => {
     tx.meetingSlot.findMany.mockResolvedValue([]);
 
     try {
-      await service.createSlots(
-        PRINCIPAL,
-        MEETING_UUID,
-        {
-          slots: [
-            {
-              startTime: '2026-05-13T10:00:00.000Z',
-              endTime: '2026-05-13T10:30:00.000Z',
-            },
-          ],
-        },
-      );
+      await service.createSlots(PRINCIPAL, MEETING_UUID, {
+        slots: [
+          {
+            startTime: '2026-05-13T10:00:00.000Z',
+            endTime: '2026-05-13T10:30:00.000Z',
+          },
+        ],
+      });
     } catch (error) {
       expect(error).toBeInstanceOf(BadRequestException);
       expect((error as BadRequestException).getResponse()).toMatchObject({

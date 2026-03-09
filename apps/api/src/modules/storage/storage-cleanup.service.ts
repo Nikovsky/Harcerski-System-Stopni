@@ -69,7 +69,8 @@ export class StorageCleanupService {
 
       const now = Date.now();
       const archiveCutoff = new Date(
-        now - StorageCleanupService.STALE_DRAFT_ARCHIVE_DAYS * 24 * 60 * 60 * 1000,
+        now -
+          StorageCleanupService.STALE_DRAFT_ARCHIVE_DAYS * 24 * 60 * 60 * 1000,
       );
       const deleteCutoff = new Date(
         now -

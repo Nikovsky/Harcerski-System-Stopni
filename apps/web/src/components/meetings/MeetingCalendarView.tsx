@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   meetingDayDetailsResponseSchema,
@@ -365,6 +365,32 @@ function buildSummaryChipClass(): string {
   return "inline-flex rounded-full border border-border/80 bg-muted/35 px-3 py-1 text-xs font-semibold text-foreground/85 shadow-sm";
 }
 
+type MeetingDayDetailsPrefetchProps = {
+  dateKeys: string[];
+  meetingsByDate: Record<string, MeetingListItem[]>;
+  dayDetailsByDate: Record<string, DayDetailsState>;
+  onPrefetch: (dateKey: string) => Promise<void>;
+};
+
+function MeetingDayDetailsPrefetch({
+  dateKeys,
+  meetingsByDate,
+  dayDetailsByDate,
+  onPrefetch,
+}: MeetingDayDetailsPrefetchProps) {
+  useEffect(() => {
+    for (const dateKey of dateKeys) {
+      if ((meetingsByDate[dateKey]?.length ?? 0) === 0 || dayDetailsByDate[dateKey]) {
+        continue;
+      }
+
+      void onPrefetch(dateKey);
+    }
+  }, [dateKeys, dayDetailsByDate, meetingsByDate, onPrefetch]);
+
+  return null;
+}
+
 export function MeetingCalendarView({
   meetings,
   view,
@@ -377,7 +403,7 @@ export function MeetingCalendarView({
   const locale = useLocale();
   const pathname = usePathname();
   const filteredMeetings = filterMeetings(meetings, filters);
-  const [selectedDayKey, setSelectedDayKey] = useState(() =>
+  const [selectedDayKeyState, setSelectedDayKey] = useState(() =>
     getInitialSelectedDayKey(filteredMeetings, visibleMonth),
   );
   const [expandedDayKeys, setExpandedDayKeys] = useState(() =>
@@ -389,6 +415,9 @@ export function MeetingCalendarView({
 
   const weekStartsOn = getWeekStartsOn(locale);
   const meetingsByDate = buildMeetingsByDate(filteredMeetings);
+  const selectedDayKey = selectedDayKeyState.startsWith(visibleMonth)
+    ? selectedDayKeyState
+    : getInitialSelectedDayKey(filteredMeetings, visibleMonth);
   const calendarCells = buildCalendarCells(
     visibleMonth,
     meetingsByDate,
@@ -399,6 +428,7 @@ export function MeetingCalendarView({
   const selectedDate = parseDateOnly(selectedDayKey);
   const monthDate = parseDateOnly(`${visibleMonth}-01`);
   const listGroups = sortMeetingGroups(meetingsByDate);
+  const dayDetailsByDateRef = useRef<Record<string, DayDetailsState>>({});
   const clearFiltersHref = buildMeetingsFilterHref(pathname, visibleMonth, view, {
     open: false,
     available: false,
@@ -406,23 +436,11 @@ export function MeetingCalendarView({
   });
 
   useEffect(() => {
-    setSelectedDayKey((currentValue) =>
-      currentValue && currentValue.startsWith(visibleMonth)
-        ? currentValue
-        : getInitialSelectedDayKey(filteredMeetings, visibleMonth),
-    );
-    setExpandedDayKeys(getInitialExpandedDayKeys(filteredMeetings));
-    setDayDetailsByDate({});
-  }, [
-    filters.available,
-    filters.commission,
-    filters.open,
-    meetings,
-    visibleMonth,
-  ]);
+    dayDetailsByDateRef.current = dayDetailsByDate;
+  }, [dayDetailsByDate]);
 
-  async function loadDayDetails(dateKey: string, force = false) {
-    const currentState = dayDetailsByDate[dateKey];
+  const loadDayDetails = useCallback(async (dateKey: string, force = false) => {
+    const currentState = dayDetailsByDateRef.current[dateKey];
     if (!force && currentState) {
       return;
     }
@@ -457,29 +475,7 @@ export function MeetingCalendarView({
         },
       }));
     }
-  }
-
-  useEffect(() => {
-    if (selectedMeetingSummaries.length === 0 || dayDetailsByDate[selectedDayKey]) {
-      return;
-    }
-
-    void loadDayDetails(selectedDayKey);
-  }, [
-    dayDetailsByDate,
-    selectedDayKey,
-    selectedMeetingSummaries.length,
-  ]);
-
-  useEffect(() => {
-    for (const dateKey of expandedDayKeys) {
-      if ((meetingsByDate[dateKey]?.length ?? 0) === 0 || dayDetailsByDate[dateKey]) {
-        continue;
-      }
-
-      void loadDayDetails(dateKey);
-    }
-  }, [dayDetailsByDate, expandedDayKeys, meetingsByDate]);
+  }, []);
 
   const monthFormatter = new Intl.DateTimeFormat(locale, {
     month: "long",
@@ -864,6 +860,18 @@ export function MeetingCalendarView({
 
   return (
     <div className="space-y-6">
+      <MeetingDayDetailsPrefetch
+        dateKeys={
+          view === "calendar"
+            ? selectedMeetingSummaries.length > 0
+              ? [selectedDayKey]
+              : []
+            : expandedDayKeys
+        }
+        meetingsByDate={meetingsByDate}
+        dayDetailsByDate={dayDetailsByDate}
+        onPrefetch={loadDayDetails}
+      />
       <section className="rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>

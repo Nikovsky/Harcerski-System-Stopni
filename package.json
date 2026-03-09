@@ -57,7 +57,7 @@
   "pnpm": {
     "overrides": {
       "@angular-devkit/core>ajv": "8.18.0",
-      "@nestjs/platform-express>multer": "2.1.0",
+      "@nestjs/platform-express>multer": "2.1.1",
       "@typescript-eslint/typescript-estree>minimatch": "9.0.8",
       "terser-webpack-plugin>serialize-javascript": "7.0.3",
       "minio>fast-xml-parser": "5.3.8",

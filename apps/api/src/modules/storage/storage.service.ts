@@ -81,9 +81,14 @@ export class StorageService implements OnModuleInit {
   ): Promise<string> {
     const { expiresIn = 300, inline = false } = options;
     const disposition = this.buildContentDisposition(filename, inline);
-    return this.presignMinio.presignedGetObject(this.bucket, objectKey, expiresIn, {
-      'response-content-disposition': disposition,
-    });
+    return this.presignMinio.presignedGetObject(
+      this.bucket,
+      objectKey,
+      expiresIn,
+      {
+        'response-content-disposition': disposition,
+      },
+    );
   }
 
   async headObject(
@@ -172,7 +177,9 @@ export class StorageService implements OnModuleInit {
         results.push({ key: obj.name, lastModified: asDate });
       });
 
-      stream.on('error', (error: unknown) => reject(error));
+      stream.on('error', (error: unknown) =>
+        reject(error instanceof Error ? error : new Error(String(error))),
+      );
       stream.on('end', () => resolve(results));
     });
   }
@@ -182,7 +189,10 @@ export class StorageService implements OnModuleInit {
     this.logger.log(`Deleted object: ${objectKey}`);
   }
 
-  private createClient(endpointRaw: string, defaultUseSSL: boolean): Minio.Client {
+  private createClient(
+    endpointRaw: string,
+    defaultUseSSL: boolean,
+  ): Minio.Client {
     const endpoint = this.parseEndpoint(endpointRaw, defaultUseSSL);
     return new Minio.Client({
       endPoint: endpoint.endPoint,

@@ -243,7 +243,7 @@ function hasAnyApprovedApplication(
 ): boolean {
   return Boolean(
     approvedApplications?.instructorApplicationUuid ||
-      approvedApplications?.scoutApplicationUuid,
+    approvedApplications?.scoutApplicationUuid,
   );
 }
 
@@ -411,9 +411,7 @@ export class MeetingsService {
 
     const items = registrations
       .map((registration) => this.toMyMeetingRegistrationListItem(registration))
-      .sort((left, right) =>
-        this.compareMyMeetingRegistrations(left, right),
-      );
+      .sort((left, right) => this.compareMyMeetingRegistrations(left, right));
 
     return {
       registrations: items,
@@ -496,10 +494,8 @@ export class MeetingsService {
               });
             }
 
-            const approvedApplications = await this.resolveApprovedApplicationRefs(
-              tx,
-              user.uuid,
-            );
+            const approvedApplications =
+              await this.resolveApprovedApplicationRefs(tx, user.uuid);
             const approvedRef = selectApprovedApplicationForCommissionType(
               approvedApplications,
               meeting.commission.type,
@@ -551,7 +547,11 @@ export class MeetingsService {
                 });
               }
 
-              await this.ensureMeetingSlotIsAvailable(tx, meetingUuid, slot.uuid);
+              await this.ensureMeetingSlotIsAvailable(
+                tx,
+                meetingUuid,
+                slot.uuid,
+              );
 
               const registration = await tx.meetingRegistration.create({
                 select: CREATED_REGISTRATION_SELECT,
@@ -566,19 +566,17 @@ export class MeetingsService {
                 },
               });
 
-              await this.auditService.log(
-                {
-                  principal,
-                  action: 'SLOT_BOOKED',
-                  targetType: 'MEETING_REGISTRATION',
-                  targetUuid: registration.uuid,
-                  requestId,
-                  metadata: {
-                    meetingUuid: registration.meetingUuid,
-                    slotUuid: registration.slotUuid,
-                  },
+              await this.auditService.log({
+                principal,
+                action: 'SLOT_BOOKED',
+                targetType: 'MEETING_REGISTRATION',
+                targetUuid: registration.uuid,
+                requestId,
+                metadata: {
+                  meetingUuid: registration.meetingUuid,
+                  slotUuid: registration.slotUuid,
                 },
-              );
+              });
 
               return registration;
             }
@@ -602,19 +600,17 @@ export class MeetingsService {
               },
             });
 
-            await this.auditService.log(
-              {
-                principal,
-                action: 'SLOT_BOOKED',
-                targetType: 'MEETING_REGISTRATION',
-                targetUuid: registration.uuid,
-                requestId,
-                metadata: {
-                  meetingUuid: registration.meetingUuid,
-                  slotUuid: registration.slotUuid,
-                },
+            await this.auditService.log({
+              principal,
+              action: 'SLOT_BOOKED',
+              targetType: 'MEETING_REGISTRATION',
+              targetUuid: registration.uuid,
+              requestId,
+              metadata: {
+                meetingUuid: registration.meetingUuid,
+                slotUuid: registration.slotUuid,
               },
-            );
+            });
 
             return registration;
           },
@@ -690,7 +686,9 @@ export class MeetingsService {
             });
           }
 
-          if (registration.meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+          if (
+            registration.meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION
+          ) {
             throw new ConflictException({
               code: 'MEETING_NOT_OPEN',
               message: 'Meeting is not open for registration.',
@@ -718,19 +716,17 @@ export class MeetingsService {
             select: CREATED_REGISTRATION_SELECT,
           });
 
-          await this.auditService.log(
-            {
-              principal,
-              action: 'SLOT_CANCELED',
-              targetType: 'MEETING_REGISTRATION',
-              targetUuid: updated.uuid,
-              requestId,
-              metadata: {
-                meetingUuid: updated.meetingUuid,
-                slotUuid: updated.slotUuid,
-              },
+          await this.auditService.log({
+            principal,
+            action: 'SLOT_CANCELED',
+            targetType: 'MEETING_REGISTRATION',
+            targetUuid: updated.uuid,
+            requestId,
+            metadata: {
+              meetingUuid: updated.meetingUuid,
+              slotUuid: updated.slotUuid,
             },
-          );
+          });
 
           return this.toMeetingRegistrationSummary(updated);
         },
@@ -769,20 +765,18 @@ export class MeetingsService {
         },
       });
 
-      await this.auditService.log(
-        {
-          principal,
-          action: 'MEETING_CREATED',
-          targetType: 'MEETING',
-          targetUuid: meeting.uuid,
-          requestId,
-          metadata: {
-            commissionUuid: meeting.commissionUuid,
-            slotMode: meeting.slotMode,
-            date: formatDateOnly(meeting.date),
-          },
+      await this.auditService.log({
+        principal,
+        action: 'MEETING_CREATED',
+        targetType: 'MEETING',
+        targetUuid: meeting.uuid,
+        requestId,
+        metadata: {
+          commissionUuid: meeting.commissionUuid,
+          slotMode: meeting.slotMode,
+          date: formatDateOnly(meeting.date),
         },
-      );
+      });
 
       return meeting;
     });
@@ -900,18 +894,16 @@ export class MeetingsService {
           orderBy: [{ sortOrder: 'asc' }, { startTime: 'asc' }],
         });
 
-        await this.auditService.log(
-          {
-            principal,
-            action: 'SLOTS_CREATED',
-            targetType: 'MEETING',
-            targetUuid: meetingUuid,
-            requestId,
-            metadata: {
-              createdSlotsCount: slotsToCreate.length,
-            },
+        await this.auditService.log({
+          principal,
+          action: 'SLOTS_CREATED',
+          targetType: 'MEETING',
+          targetUuid: meetingUuid,
+          requestId,
+          metadata: {
+            createdSlotsCount: slotsToCreate.length,
           },
-        );
+        });
 
         return {
           meetingUuid,
@@ -1081,19 +1073,17 @@ export class MeetingsService {
           select: CREATED_REGISTRATION_SELECT,
         });
 
-        await this.auditService.log(
-          {
-            principal,
-            action: 'SLOT_CANCELED',
-            targetType: 'MEETING_REGISTRATION',
-            targetUuid: updated.uuid,
-            requestId,
-            metadata: {
-              meetingUuid: updated.meetingUuid,
-              slotUuid: updated.slotUuid,
-            },
+        await this.auditService.log({
+          principal,
+          action: 'SLOT_CANCELED',
+          targetType: 'MEETING_REGISTRATION',
+          targetUuid: updated.uuid,
+          requestId,
+          metadata: {
+            meetingUuid: updated.meetingUuid,
+            slotUuid: updated.slotUuid,
           },
-        );
+        });
 
         return this.toMeetingRegistrationSummary(updated);
       },
@@ -1231,20 +1221,18 @@ export class MeetingsService {
               });
             }
 
-            await this.auditService.log(
-              {
-                principal,
-                action: 'SLOT_REASSIGNED',
-                targetType: 'MEETING_REGISTRATION',
-                targetUuid: updated.uuid,
-                requestId,
-                metadata: {
-                  meetingUuid: updated.meetingUuid,
-                  previousSlotUuid: registration.slotUuid,
-                  newSlotUuid: updated.slotUuid,
-                },
+            await this.auditService.log({
+              principal,
+              action: 'SLOT_REASSIGNED',
+              targetType: 'MEETING_REGISTRATION',
+              targetUuid: updated.uuid,
+              requestId,
+              metadata: {
+                meetingUuid: updated.meetingUuid,
+                previousSlotUuid: registration.slotUuid,
+                newSlotUuid: updated.slotUuid,
               },
-            );
+            });
 
             return this.toMeetingRegistrationSummary(updated);
           },
@@ -1302,7 +1290,8 @@ export class MeetingsService {
     myRegistration: ActiveMeetingRegistration | null,
     approvedApplications: ApprovedApplicationRef | null,
   ): MeetingListItem {
-    const hasApprovedApplication = hasAnyApprovedApplication(approvedApplications);
+    const hasApprovedApplication =
+      hasAnyApprovedApplication(approvedApplications);
     const hasMatchingApprovedApplication = Boolean(
       selectApprovedApplicationForCommissionType(
         approvedApplications,
@@ -1339,7 +1328,8 @@ export class MeetingsService {
     myRegistration: ActiveMeetingRegistration | null,
     approvedApplications: ApprovedApplicationRef | null,
   ): MeetingDayDetailItem {
-    const hasApprovedApplication = hasAnyApprovedApplication(approvedApplications);
+    const hasApprovedApplication =
+      hasAnyApprovedApplication(approvedApplications);
     const hasMatchingApprovedApplication = Boolean(
       selectApprovedApplicationForCommissionType(
         approvedApplications,
@@ -1354,7 +1344,8 @@ export class MeetingsService {
         status: meeting.status,
         commissionType: meeting.commission.type,
         commissionName: meeting.commission.name,
-        totalSlots: meeting.slotMode === SlotMode.SLOTS ? meeting._count.slots : 0,
+        totalSlots:
+          meeting.slotMode === SlotMode.SLOTS ? meeting._count.slots : 0,
         availableSlots:
           meeting.slotMode === SlotMode.SLOTS
             ? meeting.slots.filter((slot) => slot._count.registrations === 0)
@@ -1492,7 +1483,9 @@ export class MeetingsService {
       meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
       this.isSelfCancellationAllowedByMeetingDate(meeting.date, new Date());
     const hasAnyFreeSlot =
-      meeting.slotMode === SlotMode.DAY_ONLY ? true : meeting.availableSlots > 0;
+      meeting.slotMode === SlotMode.DAY_ONLY
+        ? true
+        : meeting.availableSlots > 0;
 
     const canBook =
       hasMatchingApprovedApplication &&

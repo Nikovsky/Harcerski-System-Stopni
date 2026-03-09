@@ -43,10 +43,10 @@ export class JwtAuthGuard extends AuthGuard('keycloak-jwt') {
   }
 
   override canActivate(context: ExecutionContext) {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      PUBLIC_ROUTE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (isPublic) {
       return true;
     }

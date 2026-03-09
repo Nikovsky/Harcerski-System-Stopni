@@ -54,9 +54,10 @@ const INSTRUCTOR_APPLICATION_UPDATE_SELECT = {
   ...INSTRUCTOR_APPLICATION_AUDIT_SELECT,
 } satisfies Prisma.InstructorApplicationSelect;
 
-type InstructorApplicationAuditSnapshot = Prisma.InstructorApplicationGetPayload<{
-  select: typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
-}>;
+type InstructorApplicationAuditSnapshot =
+  Prisma.InstructorApplicationGetPayload<{
+    select: typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
+  }>;
 
 type InstructorApplicationAuditField =
   keyof typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
@@ -67,25 +68,26 @@ type AuditJsonValue =
   | AuditJsonValue[]
   | { [key: string]: AuditJsonValue };
 
-const INSTRUCTOR_APPLICATION_TEXT_AUDIT_FIELDS = new Set<
-  InstructorApplicationAuditField
->([
-  'teamFunction',
-  'hufiecFunction',
-  'functionsHistory',
-  'coursesHistory',
-  'campsHistory',
-  'successes',
-  'failures',
-  'supervisorFirstName',
-  'supervisorSecondName',
-  'supervisorSurname',
-  'supervisorInstructorFunction',
-]);
+const INSTRUCTOR_APPLICATION_TEXT_AUDIT_FIELDS =
+  new Set<InstructorApplicationAuditField>([
+    'teamFunction',
+    'hufiecFunction',
+    'functionsHistory',
+    'coursesHistory',
+    'campsHistory',
+    'successes',
+    'failures',
+    'supervisorFirstName',
+    'supervisorSecondName',
+    'supervisorSurname',
+    'supervisorInstructorFunction',
+  ]);
 
-const INSTRUCTOR_APPLICATION_DATE_AUDIT_FIELDS = new Set<
-  InstructorApplicationAuditField
->(['plannedFinishAt', 'openTrialDeadline']);
+const INSTRUCTOR_APPLICATION_DATE_AUDIT_FIELDS =
+  new Set<InstructorApplicationAuditField>([
+    'plannedFinishAt',
+    'openTrialDeadline',
+  ]);
 
 @Injectable()
 export class InstructorApplicationService {
@@ -857,9 +859,7 @@ export class InstructorApplicationService {
         }
 
         if (!isOptionalRequirement && verificationText.length === 0) {
-          throw new BadRequestException(
-            'Opis załącznika jest wymagany.',
-          );
+          throw new BadRequestException('Opis załącznika jest wymagany.');
         }
 
         const updatedRequirement =
@@ -1030,7 +1030,9 @@ export class InstructorApplicationService {
         const beforeDate = this.toIsoDate(
           before[field] as Date | null | undefined,
         );
-        const afterDate = this.toIsoDate(after[field] as Date | null | undefined);
+        const afterDate = this.toIsoDate(
+          after[field] as Date | null | undefined,
+        );
         if (beforeDate !== afterDate) {
           changes[field] = {
             from: beforeDate,
