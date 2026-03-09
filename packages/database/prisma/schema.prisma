@@ -659,7 +659,11 @@ model MeetingRegistration {
   registeredAt              DateTime               @default(now()) @db.Timestamptz
   updatedAt                 DateTime               @updatedAt @db.Timestamptz
 
+  /// Domain invariants for active registrations are enforced with SQL partial unique indexes:
+  /// - one REGISTERED registration per meeting and candidate
+  /// - one REGISTERED registration per slot when slotUuid is present
   @@index([meetingUuid, status])
+  @@index([meetingUuid, candidateUuid, status])
   @@index([candidateUuid, status])
   @@index([instructorApplicationUuid])
   @@index([scoutApplicationUuid])
