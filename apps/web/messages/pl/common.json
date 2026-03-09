@@ -70,7 +70,18 @@
   },
   "dashboardPage": {
     "title": "Panel",
-    "description": "To jest strona panelu."
+    "description": "Najważniejsze informacje i szybki dostęp do Twoich najbliższych działań.",
+    "upcomingMeeting": {
+      "eyebrow": "Najbliższe posiedzenie",
+      "title": "Twój najbliższy termin",
+      "description": "Tutaj zobaczysz najbliższe posiedzenie, na które masz aktywny zapis.",
+      "emptyTitle": "Nie masz jeszcze aktywnych zapisów.",
+      "emptyDescription": "Przejdź do posiedzeń i wybierz termin, aby zobaczyć go tutaj.",
+      "unavailableTitle": "Nie udało się pobrać Twoich zapisów.",
+      "unavailableDescription": "Spróbuj ponownie za chwilę albo przejdź bezpośrednio do modułu posiedzeń.",
+      "viewAllCta": "Przejdź do moich zapisów",
+      "browseCta": "Przejdź do terminów"
+    }
   },
   "profilePage": {
     "title": "Profil",

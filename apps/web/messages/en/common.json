@@ -70,7 +70,18 @@
   },
   "dashboardPage": {
     "title": "Dashboard",
-    "description": "This is the dashboard page."
+    "description": "Your key information and quick access to the next actions.",
+    "upcomingMeeting": {
+      "eyebrow": "Upcoming meeting",
+      "title": "Your next date",
+      "description": "This card shows the nearest meeting with your active registration.",
+      "emptyTitle": "You do not have any active registrations yet.",
+      "emptyDescription": "Go to meetings and pick a date to see it here.",
+      "unavailableTitle": "Your registrations could not be loaded.",
+      "unavailableDescription": "Try again in a moment or open the meetings module directly.",
+      "viewAllCta": "Open my registrations",
+      "browseCta": "Browse meeting dates"
+    }
   },
   "profilePage": {
     "title": "Profile",
