@@ -11,6 +11,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module';
 import { ProfileModule } from './modules/user/profile/profile.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
 @Module({
@@ -27,6 +28,10 @@ import { RolesGuard } from './guards/roles.guard';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: RolesGuard,

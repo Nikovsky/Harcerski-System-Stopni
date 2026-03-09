@@ -10,11 +10,8 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
-import { RolesGuard } from '@/guards/roles.guard';
 import { extractRequestId } from '@/helpers/request-id.helper';
 import { Roles } from '@/decorators/roles.decorator';
 import { CurrentUser } from '@/decorators/current-user.decorator';
@@ -37,8 +34,7 @@ import {
 import { InstructorApplicationService } from './instructor-application.service';
 
 @Controller('instructor-applications')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.USER)
+@Roles(UserRole.SCOUT)
 export class InstructorApplicationController {
   constructor(private readonly service: InstructorApplicationService) {}
 

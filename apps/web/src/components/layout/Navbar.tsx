@@ -16,8 +16,8 @@ export async function Navbar({ locale, session }: NavbarProps) {
     ? resolvedPrincipal.principal
     : null;
   const isAuthenticated = resolvedPrincipal.status === "authenticated";
-  const canSeeApplications = canAccess(principal, ROLE_RANK.USER);
-  const canSeeMeetings = canAccess(principal, ROLE_RANK.USER);
+  const canSeeApplications = canAccess(principal, ROLE_RANK.SCOUT);
+  const canSeeMeetings = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
