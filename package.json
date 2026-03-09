@@ -27,6 +27,7 @@
     "az5": "pnpm delete:project",
     "db:build": "turbo run build --filter=@hss/database",
     "db:generate": "turbo run db:generate --filter=@hss/database --no-cache",
+    "db:prepare": "turbo run db:prepare --filter=@hss/database --no-cache",
     "db:migrate": "turbo run db:migrate --filter=@hss/database --no-cache",
     "db:deploy": "turbo run db:deploy --filter=@hss/database --no-cache",
     "db:studio": "turbo run db:studio --filter=@hss/database --no-cache",

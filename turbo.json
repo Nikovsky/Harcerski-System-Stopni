@@ -21,6 +21,9 @@
     "db:generate": {
       "cache": false
     },
+    "db:prepare": {
+      "cache": false
+    },
     "db:migrate": {
       "dependsOn": [
         "build"
@@ -62,14 +65,14 @@
     },
     "@hss/database#dev": {
       "dependsOn": [
-        "db:migrate"
+        "db:prepare"
       ],
       "cache": false,
       "persistent": true
     },
     "api#dev": {
       "dependsOn": [
-        "@hss/database#db:migrate",
+        "@hss/database#db:prepare",
         "^build"
       ],
       "cache": false,
@@ -77,7 +80,7 @@
     },
     "web#dev": {
       "dependsOn": [
-        "@hss/database#db:migrate",
+        "@hss/database#db:prepare",
         "^build"
       ],
       "cache": false,
