@@ -56,7 +56,9 @@ describe('InstructorApplicationValidationService', () => {
   it('passes when requirement actionDescription and verificationText are filled', () => {
     const payload = createValidSubmitPayload();
 
-    expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
+    expect(() =>
+      service.validateRequiredFieldsForSubmit(payload),
+    ).not.toThrow();
   });
 
   it('passes when optional requirement PWD/10 is blank', () => {
@@ -66,7 +68,9 @@ describe('InstructorApplicationValidationService', () => {
     payload.requirements[0].actionDescription = ' ';
     payload.requirements[0].verificationText = '';
 
-    expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
+    expect(() =>
+      service.validateRequiredFieldsForSubmit(payload),
+    ).not.toThrow();
   });
 
   it('passes when optional requirement PHM/11 is blank', () => {
@@ -76,7 +80,9 @@ describe('InstructorApplicationValidationService', () => {
     payload.requirements[0].actionDescription = '';
     payload.requirements[0].verificationText = ' ';
 
-    expect(() => service.validateRequiredFieldsForSubmit(payload)).not.toThrow();
+    expect(() =>
+      service.validateRequiredFieldsForSubmit(payload),
+    ).not.toThrow();
   });
 
   it('throws when non-optional requirement PWD/9 is blank', () => {

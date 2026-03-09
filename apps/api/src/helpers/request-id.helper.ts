@@ -3,7 +3,9 @@ import type { Request } from 'express';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
 
-export function sanitizeRequestId(value: string | null | undefined): string | null {
+export function sanitizeRequestId(
+  value: string | null | undefined,
+): string | null {
   if (!value) return null;
 
   const trimmed = value.trim();

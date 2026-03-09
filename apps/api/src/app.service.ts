@@ -8,6 +8,6 @@ export class AppService {
   }
 
   getHealth() {
-    return { message: 'healthy' } as const;
+    return { ok: true } as const;
   }
 }

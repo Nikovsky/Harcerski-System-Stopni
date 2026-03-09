@@ -1,4 +1,4 @@
-// @file: apps/web/src/app/[locale]/applications/layout.tsx
+// @file: apps/web/src/app/[locale]/meetings/layout.tsx
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -15,10 +15,10 @@ type Props = {
   params: Promise<{ locale: string }>;
 };
 
-export default async function ApplicationsLayout({ children, params }: Props) {
+export default async function MeetingsLayout({ children, params }: Props) {
   const { locale } = await params;
   const t = await getTranslations("common");
-  const signInHref = buildKeycloakSignInHref(locale, `/${locale}/applications`);
+  const signInHref = buildKeycloakSignInHref(locale, `/${locale}/meetings`);
   const session = await auth();
   const resolvedPrincipal = await resolveVerifiedPrincipal(session);
 
@@ -29,7 +29,7 @@ export default async function ApplicationsLayout({ children, params }: Props) {
   if (resolvedPrincipal.status === "unavailable") {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">{t("nav.applications")}</h1>
+        <h1 className="text-2xl font-semibold">{t("nav.meetings")}</h1>
         <AccessDenied
           code="503"
           codeLabel={t("accessDenied.codeLabel", { code: "503" })}
@@ -47,7 +47,7 @@ export default async function ApplicationsLayout({ children, params }: Props) {
   if (!canAccess(resolvedPrincipal.principal, ROLE_RANK.SCOUT)) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">{t("nav.applications")}</h1>
+        <h1 className="text-2xl font-semibold">{t("nav.meetings")}</h1>
         <AccessDenied
           code="403"
           codeLabel={t("accessDenied.codeLabel", { code: "403" })}

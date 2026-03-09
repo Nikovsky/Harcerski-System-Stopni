@@ -322,7 +322,111 @@ async function main() {
   }
 
   // =========================================================
-  // 4. Requirement templates
+  // 4. COMMISSION MEETINGS
+  // =========================================================
+  console.log('🗓️ Seeding commission meetings...');
+
+  async function ensureMeeting(data: {
+    commissionUuid: string;
+    createdByUuid: string;
+    date: Date;
+    slotMode: SlotMode;
+    status: MeetingStatus;
+    notes: string;
+  }) {
+    const existingMeeting = await prisma.commissionMeeting.findFirst({
+      where: {
+        commissionUuid: data.commissionUuid,
+        date: data.date,
+        slotMode: data.slotMode,
+      },
+    });
+
+    if (existingMeeting) {
+      return existingMeeting;
+    }
+
+    return prisma.commissionMeeting.create({
+      data: {
+        commissionUuid: data.commissionUuid,
+        createdByUuid: data.createdByUuid,
+        date: data.date,
+        slotMode: data.slotMode,
+        status: data.status,
+        notes: data.notes,
+      },
+    });
+  }
+
+  const instructorMeetingWithSlots = await ensureMeeting({
+    commissionUuid: instructorCommission.uuid,
+    createdByUuid: piotrKrajewski.uuid,
+    date: new Date('2026-04-10'),
+    slotMode: SlotMode.SLOTS,
+    status: MeetingStatus.OPEN_FOR_REGISTRATION,
+    notes: 'Posiedzenie KI z indywidualnymi slotami rozmów.',
+  });
+
+  await ensureMeeting({
+    commissionUuid: instructorCommission.uuid,
+    createdByUuid: adamNowakowski.uuid,
+    date: new Date('2026-05-15'),
+    slotMode: SlotMode.DAY_ONLY,
+    status: MeetingStatus.OPEN_FOR_REGISTRATION,
+    notes: 'Posiedzenie KI w formule całodniowej.',
+  });
+
+  await ensureMeeting({
+    commissionUuid: scoutCommission.uuid,
+    createdByUuid: krzysztofKier.uuid,
+    date: new Date('2026-05-16'),
+    slotMode: SlotMode.DAY_ONLY,
+    status: MeetingStatus.OPEN_FOR_REGISTRATION,
+    notes: 'Posiedzenie KSH dla prób i zamknięć stopni harcerskich.',
+  });
+
+  await ensureMeeting({
+    commissionUuid: scoutCommission.uuid,
+    createdByUuid: krzysztofKier.uuid,
+    date: new Date('2026-06-21'),
+    slotMode: SlotMode.DAY_ONLY,
+    status: MeetingStatus.OPEN_FOR_REGISTRATION,
+    notes: 'Posiedzenie KSH dla prób i zamknięć stopni harcerskich.',
+  });
+
+  const existingSlots = await prisma.meetingSlot.findMany({
+    where: { meetingUuid: instructorMeetingWithSlots.uuid },
+    select: { uuid: true },
+    take: 1,
+  });
+
+  if (existingSlots.length === 0) {
+    await prisma.meetingSlot.createMany({
+      data: [
+        {
+          meetingUuid: instructorMeetingWithSlots.uuid,
+          startTime: new Date('2026-04-10T16:00:00.000Z'),
+          endTime: new Date('2026-04-10T16:30:00.000Z'),
+          sortOrder: 0,
+        },
+        {
+          meetingUuid: instructorMeetingWithSlots.uuid,
+          startTime: new Date('2026-04-10T16:30:00.000Z'),
+          endTime: new Date('2026-04-10T17:00:00.000Z'),
+          sortOrder: 1,
+        },
+        {
+          meetingUuid: instructorMeetingWithSlots.uuid,
+          startTime: new Date('2026-04-10T17:00:00.000Z'),
+          endTime: new Date('2026-04-10T17:30:00.000Z'),
+          sortOrder: 2,
+        },
+      ],
+    });
+  }
+
+  // =========================================================
+  // 5. Requirement templates
   // =========================================================
   console.log('📑 Seeding requirement templates...');
 

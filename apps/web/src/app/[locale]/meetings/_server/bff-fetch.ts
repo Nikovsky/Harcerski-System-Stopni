@@ -1,4 +1,4 @@
-// @file: apps/web/src/app/[locale]/applications/_server/bff-fetch.ts
+// @file: apps/web/src/app/[locale]/meetings/_server/bff-fetch.ts
 import "server-only";
 
 export {

@@ -5,7 +5,6 @@ import {
   Get,
   InternalServerErrorException,
   Patch,
-  UseGuards,
 } from '@nestjs/common';
 import {
   AuthPrincipalSchema,
@@ -15,13 +14,11 @@ import {
   type UserDashboardUpdatePrivilegedBody,
 } from '@hss/schemas';
 import { CurrentUser } from '@/decorators/current-user.decorator';
-import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { AuthPrincipalPipe } from '@/pipelines/auth-principal.pipe';
 import { ZodValidationPipe } from '@/pipelines/zod-validation.pipe';
 import { ProfileService } from './profile.service';
 
 @Controller('profile')
-@UseGuards(JwtAuthGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 

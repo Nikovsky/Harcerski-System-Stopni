@@ -11,6 +11,8 @@
   --color-card-foreground: hsl(var(--card-foreground));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-ring: hsl(var(--ring));
@@ -33,6 +35,10 @@
   /* subtle UI */
   --muted: 210 40% 96%;
   --muted-foreground: 215 16% 47%;
+
+  /* primary */
+  --primary: 216 98% 52%;
+  --primary-foreground: 0 0% 100%;
 
   /* borders */
   --border: 214 32% 80%;
@@ -59,6 +65,9 @@
 
   --muted: 217 19% 20%;
   --muted-foreground: 215 20% 65%;
+
+  --primary: 216 98% 60%;
+  --primary-foreground: 222 47% 11%;
 
   --border: 217 19% 27%;
 

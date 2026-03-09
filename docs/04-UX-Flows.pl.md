@@ -236,12 +236,12 @@ Zasady:
 
 1. Harcerz wchodzi w “Kalendarz posiedzeń”.
 2. Widzi posiedzenia i wolne sloty lub dzień.
-3. Jeśli próba ma status `ACCEPTED`, może kliknąć “Zarezerwuj”.
+3. Jeśli próba ma status `APPROVED`, może kliknąć “Zarezerwuj”.
 4. Po rezerwacji slot oznaczony jako zajęty.
 
 **Kryteria akceptacji**
 
-- Jeśli próba nie `ACCEPTED`, UI blokuje akcję i pokazuje informację.
+- Jeśli próba nie ma statusu `APPROVED`, UI blokuje akcję i pokazuje informację.
 - Overbooking blokowany (409).
 
 ---

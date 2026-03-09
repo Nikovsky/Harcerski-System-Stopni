@@ -12,11 +12,13 @@ import { ROLE_RANK } from "@hss/schemas";
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
   const resolvedPrincipal = await resolveVerifiedPrincipal(session);
-  const principal = resolvedPrincipal.status === "authenticated"
-    ? resolvedPrincipal.principal
-    : null;
+  const principal =
+    resolvedPrincipal.status === "authenticated"
+      ? resolvedPrincipal.principal
+      : null;
   const isAuthenticated = resolvedPrincipal.status === "authenticated";
-  const canSeeApplications = canAccess(principal, ROLE_RANK.USER);
+  const canSeeApplications = canAccess(principal, ROLE_RANK.SCOUT);
+  const canSeeMeetings = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
@@ -24,11 +26,14 @@ export async function Navbar({ locale, session }: NavbarProps) {
   ];
   const navItems: NavItem[] = isAuthenticated
     ? [
-      ...NAV_BASE,
-      ...(canSeeApplications ? [{ label: t("applications"), href: "/applications" }] : []),
-      ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
-      { label: t("profile"), href: "/profile" },
-    ]
+        ...NAV_BASE,
+        ...(canSeeApplications
+          ? [{ label: t("applications"), href: "/applications" }]
+          : []),
+        ...(canSeeMeetings ? [{ label: t("meetings"), href: "/meetings" }] : []),
+        ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
+        { label: t("profile"), href: "/profile" },
+      ]
     : NAV_BASE;
 
   return (
@@ -49,7 +54,6 @@ export async function Navbar({ locale, session }: NavbarProps) {
         </div>
       </div>
 
-      {/* Mobile nav (simple) */}
       <div className="mx-auto max-w-6xl px-4 pb-3 md:hidden">
         <NavbarLinks items={navItems} mobile />
       </div>

@@ -1,0 +1,151 @@
+{
+  "title": "Kalendarz posiedzeń",
+  "subtitle": "Wybierz miesiąc, sprawdź dzień i zarezerwuj miejsce po zatwierdzeniu próby.",
+  "empty": "Brak posiedzeń do wyświetlenia.",
+  "navigation": {
+    "previousMonth": "Poprzedni miesiąc",
+    "nextMonth": "Następny miesiąc"
+  },
+  "views": {
+    "list": "Lista",
+    "calendar": "Kalendarz",
+    "mine": "Moje zapisy"
+  },
+  "filters": {
+    "title": "Filtry",
+    "open": "Otwarte",
+    "available": "Dostępne",
+    "allCommissions": "Wszystkie komisje",
+    "scout": "Harcerska",
+    "instructor": "Instruktorska",
+    "clear": "Wyczyść filtry",
+    "resultsCount": "{count, plural, one {# termin po filtrach} few {# terminy po filtrach} many {# terminów po filtrach} other {# terminu po filtrach}}",
+    "emptyTitle": "Żaden termin nie pasuje do wybranych filtrów.",
+    "emptyDescription": "Wyczyść część filtrów albo przejdź do innego miesiąca."
+  },
+  "mine": {
+    "badge": "Masz zapis",
+    "calendarMarker": "Twój zapis",
+    "calendarAria": "Masz aktywny zapis w tym dniu"
+  },
+  "myRegistrations": {
+    "eyebrow": "Twoje terminy",
+    "title": "Moje zapisy",
+    "description": "{count, plural, one {Masz # aktywny zapis na przyszłe posiedzenie.} few {Masz # aktywne zapisy na przyszłe posiedzenia.} many {Masz # aktywnych zapisów na przyszłe posiedzenia.} other {Masz # aktywnego zapisu na przyszłe posiedzenia.}}",
+    "emptyTitle": "Nie masz jeszcze aktywnych zapisów.",
+    "emptyDescription": "Tutaj zobaczysz najbliższe terminy, na które jesteś zapisany(-a), wraz z możliwością anulowania.",
+    "exploreCta": "Przejdź do listy terminów",
+    "nextBadge": "Najbliższe",
+    "slotTime": "Godzina: {timeRange}",
+    "assignedTime": "Przypisana godzina: {time}",
+    "dayOnly": "Bez przypisanej godziny",
+    "registeredAt": "Zapis utworzono: {dateTime}"
+  },
+  "calendar": {
+    "legendTitle": "Widok miesiąca",
+    "dayHint": "Kliknij dzień w kalendarzu, aby zobaczyć szczegóły posiedzeń i dostępne akcje.",
+    "monthAriaLabel": "Kalendarz posiedzeń dla miesiąca {month}",
+    "dayAriaLabel": "Pokaż posiedzenia z dnia {date}",
+    "outsideMonthAriaLabel": "Dzień spoza bieżącego miesiąca",
+    "today": "Dziś",
+    "selectedDayEyebrow": "Wybrany dzień",
+    "selectedDayTitle": "{date}",
+    "selectedDayCount": "{count, plural, one {# posiedzenie} few {# posiedzenia} many {# posiedzeń} other {# posiedzenia}}",
+    "selectedDayAnnouncement": "{date}. {count, plural, one {# posiedzenie.} few {# posiedzenia.} many {# posiedzeń.} other {# posiedzenia.}}",
+    "emptyDayAnnouncement": "{date}. Brak posiedzeń w tym dniu.",
+    "emptyMonthTitle": "W tym miesiącu nie ma żadnych posiedzeń.",
+    "emptyMonthDescription": "Przejdź do poprzedniego albo kolejnego miesiąca, aby sprawdzić dostępne terminy.",
+    "emptyDayTitle": "Brak posiedzeń w tym dniu.",
+    "emptyDayDescription": "Wybierz inny dzień z oznaczeniem komisji albo przejdź do kolejnego miesiąca."
+  },
+  "list": {
+    "legendTitle": "Widok listy",
+    "dayHint": "Ten widok pokazuje tylko dni z realnymi posiedzeniami, żeby szybciej przejść do zapisu lub anulowania.",
+    "dayEyebrow": "Dzień z posiedzeniami",
+    "emptyTitle": "W tym miesiącu nie ma żadnych posiedzeń.",
+    "emptyDescription": "Przejdź do kolejnego miesiąca albo wróć później, gdy komisje opublikują nowe terminy."
+  },
+  "commissionType": {
+    "INSTRUCTOR": "Komisja instruktorska",
+    "SCOUT": "Komisja harcerska",
+    "UNKNOWN": "Komisja"
+  },
+  "commissionTypeShort": {
+    "INSTRUCTOR": "Instr.",
+    "SCOUT": "Harc.",
+    "UNKNOWN": "Kom."
+  },
+  "mode": {
+    "SLOTS": "Tryb godzinowy",
+    "DAY_ONLY": "Tryb dzienny"
+  },
+  "status": {
+    "DRAFT": "Szkic",
+    "OPEN_FOR_REGISTRATION": "Otwarte zapisy",
+    "CLOSED": "Zapisy zamknięte",
+    "COMPLETED": "Zakończone",
+    "CANCELLED": "Anulowane"
+  },
+  "stats": {
+    "registrations": "Liczba zapisów: {count}",
+    "availableSlots": "Dostępne sloty: {available} / {total}"
+  },
+  "slots": {
+    "none": "Brak skonfigurowanych slotów.",
+    "free": "Wolny",
+    "booked": "Zajęty",
+    "bookedByYou": "Zarezerwowany przez Ciebie",
+    "notAvailableNow": "Rezerwacja tego slotu jest teraz niedostępna."
+  },
+  "dayOnly": {
+    "description": "To posiedzenie działa w trybie dziennym (bez wyboru konkretnej godziny).",
+    "bookedByYou": "Masz już aktywny zapis na ten dzień.",
+    "notAvailableNow": "Rezerwacja na ten termin jest teraz niedostępna."
+  },
+  "details": {
+    "loading": "Ładowanie szczegółów wybranego dnia...",
+    "loadFailed": "Nie udało się pobrać szczegółów tego dnia.",
+    "retry": "Spróbuj ponownie",
+    "showDay": "Pokaż posiedzenia",
+    "hideDay": "Ukryj posiedzenia",
+    "showDayAria": "Pokaż {count, plural, one {# posiedzenie} few {# posiedzenia} many {# posiedzeń} other {# posiedzenia}} z dnia {date}",
+    "hideDayAria": "Ukryj posiedzenia z dnia {date}",
+    "emptyTitle": "Posiedzenia z tego dnia nie są już dostępne.",
+    "emptyDescription": "Odśwież widok miesiąca albo wybierz inny dzień.",
+    "filteredEmptyTitle": "W tym dniu nie ma posiedzeń pasujących do filtrów.",
+    "filteredEmptyDescription": "Zmień filtry albo wybierz inny dzień."
+  },
+  "actions": {
+    "book": "Zarezerwuj",
+    "booking": "Rezerwowanie...",
+    "cancel": "Anuluj zapis",
+    "cancelling": "Anulowanie...",
+    "bookMeetingAria": "Zarezerwuj posiedzenie {commission} w dniu {date}",
+    "bookSlotAria": "Zarezerwuj slot {timeRange}, {date}, {commission}",
+    "cancelMeetingAria": "Anuluj zapis na posiedzenie {commission} w dniu {date}",
+    "cancelSlotAria": "Anuluj zapis na slot {timeRange}, {date}, {commission}",
+    "retry": "Spróbuj ponownie"
+  },
+  "blocked": {
+    "NOT_APPROVED_APPLICATION": "Zapis jest możliwy dopiero po zaakceptowaniu Twojej próby przez komisję.",
+    "NO_MATCHING_APPROVED_APPLICATION": "To posiedzenie jest dostępne tylko dla typu komisji zgodnego z Twoją zaakceptowaną próbą.",
+    "MEETING_NOT_OPEN": "To posiedzenie nie jest teraz otwarte na zapisy.",
+    "ALREADY_REGISTERED": "Masz już aktywny zapis na to posiedzenie.",
+    "NO_FREE_SLOTS": "Brak wolnych slotów na to posiedzenie."
+  },
+  "errors": {
+    "authRequired": "Musisz być zalogowany(-a), aby zobaczyć posiedzenia.",
+    "forbidden": "Twoja rola nie ma dostępu do tej sekcji.",
+    "serviceUnavailable": "Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
+    "loadFailed": "Nie udało się pobrać listy posiedzeń. Spróbuj ponownie później.",
+    "slotAlreadyBooked": "Ten slot został właśnie zajęty przez inną osobę.",
+    "alreadyRegistered": "Masz już aktywny zapis na to posiedzenie.",
+    "bookingNotAllowedStatus": "Rezerwacja jest możliwa dopiero po zaakceptowaniu Twojej próby przez komisję.",
+    "bookingNotAllowedApplicationType": "To posiedzenie jest dostępne tylko dla komisji zgodnej z typem Twojej zaakceptowanej próby.",
+    "generic": "Wystąpił błąd podczas rezerwacji.",
+    "cancellationNotAllowedStatus": "To posiedzenie nie jest już otwarte, więc anulowanie zapisu nie jest możliwe.",
+    "cancellationDeadlinePassed": "Anulowanie zapisu jest możliwe tylko do dnia poprzedzającego posiedzenie.",
+    "cancellationNotFound": "Nie znaleziono aktywnego zapisu do anulowania.",
+    "cancellationGeneric": "Wystąpił błąd podczas anulowania zapisu."
+  }
+}

@@ -95,14 +95,23 @@ export const envSchema = z
     MINIO_REGION: regionName.default('eu-central-1'),
     MINIO_BUCKET: bucketName.optional().default('hss'),
     MINIO_BUCKET_NAME: bucketName.optional(),
-    MINIO_USE_SSL: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+    MINIO_USE_SSL: z.preprocess(
+      (v) => toBool(v, false),
+      z.boolean().default(false),
+    ),
     MINIO_PUBLIC_ENDPOINT: z.string().optional().default(''),
 
     // ===[SECURITY / RUNTIME]===
-    TRUST_PROXY: z.preprocess((v) => toBool(v, false), z.boolean().default(false)),
+    TRUST_PROXY: z.preprocess(
+      (v) => toBool(v, false),
+      z.boolean().default(false),
+    ),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.MINIO_ENDPOINT.startsWith('http://')) {
+    if (
+      env.NODE_ENV === 'production' &&
+      env.MINIO_ENDPOINT.startsWith('http://')
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['MINIO_ENDPOINT'],

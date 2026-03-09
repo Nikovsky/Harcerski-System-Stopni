@@ -68,13 +68,13 @@ Dokument jest źródłem prawdy dla backlogu, API i pracy agentów AI.
 - Komisja tworzy posiedzenia.
 - Komisja generuje sloty czasowe lub konkretny dzień.
 - Harcerz przegląda kalendarz posiedzeń.
-- Harcerz rezerwuje slot tylko, gdy próba `ACCEPTED`.
+- Harcerz rezerwuje slot tylko, gdy próba ma status `APPROVED` (zaakceptowana).
 - Komisja widzi listę zapisanych na posiedzenie.
 - **MVP:** anulowanie/przeniesienie slotu tylko przez komisję (sekretarz/przewodniczący) – nie przez harcerza.
 
 **Kryteria akceptacji**
 
-- Rezerwacja slotu blokowana, jeśli próba nie jest `ACCEPTED`.
+- Rezerwacja slotu blokowana, jeśli próba nie ma statusu `APPROVED`.
 - Slot może być zajęty przez jedną osobę (brak overbookingu). W przypadku rezerwacji tylko na dzień - bez limitu.
 
 ---
