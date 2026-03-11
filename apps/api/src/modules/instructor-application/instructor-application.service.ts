@@ -7,7 +7,14 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { ApplicationStatus, Prisma, RequirementState } from '@hss/database';
+import {
+  ApplicationStatus,
+  InstructorFixRequestStatus,
+  InstructorReviewCandidateAnnotationStatus,
+  InstructorReviewRevisionRequestStatus,
+  Prisma,
+  RequirementState,
+} from '@hss/database';
 import { createHash } from 'node:crypto';
 import { InstructorAttachmentService } from '@/modules/instructor-application/instructor-attachment.service';
 import { InstructorApplicationValidationService } from '@/modules/instructor-application/instructor-application-validation.service';
@@ -15,17 +22,29 @@ import { InstructorApplicationAuditService } from '@/modules/instructor-applicat
 import { StorageService } from '@/modules/storage/storage.service';
 import type { AuthPrincipal } from '@hss/schemas';
 import {
+  canEditInstructorApplicationField,
+  canEditInstructorRequirement,
   isInstructorApplicationEditable,
   isOptionalInstructorRequirement,
 } from '@hss/schemas';
 import type {
   CreateInstructorApplication,
+  EditableInstructorApplicationField,
+  InstructorApplicationCandidateRevisionActivityResponse,
   UpdateInstructorApplication,
   UpdateInstructorRequirement,
   PresignUploadRequest,
   ConfirmUploadRequest,
   InstructorApplicationProfileCheckResponse,
 } from '@hss/schemas';
+import {
+  buildAttachmentRequirementMap,
+  buildInstructorApplicationCandidateEditScope,
+  PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
+  PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+  type PublishedFixRequestScopeRow,
+  type PublishedRevisionRequestScopeRow,
+} from './instructor-application-edit-scope';
 
 const INSTRUCTOR_APPLICATION_AUDIT_SELECT = {
   plannedFinishAt: true,
@@ -54,10 +73,21 @@ const INSTRUCTOR_APPLICATION_UPDATE_SELECT = {
   ...INSTRUCTOR_APPLICATION_AUDIT_SELECT,
 } satisfies Prisma.InstructorApplicationSelect;
 
+const REVISION_REQUEST_ACTIVITY_SELECT = {
+  uuid: true,
+  candidateFirstViewedAt: true,
+  candidateFirstEditedAt: true,
+  candidateLastActivityAt: true,
+} satisfies Prisma.InstructorReviewRevisionRequestSelect;
+
 type InstructorApplicationAuditSnapshot =
   Prisma.InstructorApplicationGetPayload<{
     select: typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
   }>;
+
+type RevisionRequestActivityRow = Prisma.InstructorReviewRevisionRequestGetPayload<{
+  select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
+}>;
 
 type InstructorApplicationAuditField =
   keyof typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
@@ -327,7 +357,6 @@ export class InstructorApplicationService {
           orderBy: { requirementDefinition: { sortOrder: 'asc' } },
         },
         attachments: {
-          where: { status: 'ACTIVE', instructorRequirementUuid: null },
           orderBy: { uploadedAt: 'desc' },
           select: {
             uuid: true,
@@ -335,7 +364,25 @@ export class InstructorApplicationService {
             contentType: true,
             sizeBytes: true,
             uploadedAt: true,
+            status: true,
+            instructorRequirementUuid: true,
           },
+        },
+        reviewRevisionRequests: {
+          where: {
+            status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+          },
+          orderBy: { publishedAt: 'desc' },
+          take: 1,
+          select: PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+        },
+        fixRequests: {
+          where: {
+            status: InstructorFixRequestStatus.PUBLISHED,
+          },
+          orderBy: { publishedAt: 'desc' },
+          take: 1,
+          select: PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
         },
       },
     });
@@ -343,6 +390,17 @@ export class InstructorApplicationService {
     if (!app) throw new NotFoundException('Application not found');
     if (app.candidate.keycloakUuid !== principal.sub)
       throw new ForbiddenException();
+
+    const attachmentRequirementByUuid = buildAttachmentRequirementMap(
+      app.attachments,
+    );
+    const candidateEditScope = buildInstructorApplicationCandidateEditScope(
+      app.status,
+      app.reviewRevisionRequests[0] ?? null,
+      app.fixRequests[0] ?? null,
+      attachmentRequirementByUuid,
+      app.hufcowyPresenceAttachmentUuid ?? null,
+    );
 
     return {
       uuid: app.uuid,
@@ -404,6 +462,7 @@ export class InstructorApplicationService {
           app.candidate.inZhrSince?.toISOString().split('T')[0] ?? null,
         oathDate: app.candidate.oathDate?.toISOString().split('T')[0] ?? null,
       },
+      candidateEditScope,
       requirements: app.requirements.map((r) => ({
         uuid: r.uuid,
         requirementDefinitionUuid: r.requirementDefinitionUuid,
@@ -426,14 +485,51 @@ export class InstructorApplicationService {
           uploadedAt: a.uploadedAt.toISOString(),
         })),
       })),
-      attachments: app.attachments.map((a) => ({
-        uuid: a.uuid,
-        originalFilename: a.originalFilename,
-        contentType: a.contentType,
-        sizeBytes: Number(a.sizeBytes),
-        uploadedAt: a.uploadedAt.toISOString(),
-      })),
+      attachments: app.attachments
+        .filter(
+          (attachment) =>
+            attachment.status === 'ACTIVE' &&
+            attachment.instructorRequirementUuid === null,
+        )
+        .map((a) => ({
+          uuid: a.uuid,
+          originalFilename: a.originalFilename,
+          contentType: a.contentType,
+          sizeBytes: Number(a.sizeBytes),
+          uploadedAt: a.uploadedAt.toISOString(),
+        })),
     };
+  }
+
+  async markActiveRevisionRequestViewed(
+    principal: AuthPrincipal,
+    applicationId: string,
+    _requestId?: string | null,
+  ): Promise<InstructorApplicationCandidateRevisionActivityResponse> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockApplicationRow(tx, applicationId);
+
+      const app = await tx.instructorApplication.findUnique({
+        where: { uuid: applicationId },
+        select: {
+          uuid: true,
+          candidate: {
+            select: {
+              keycloakUuid: true,
+            },
+          },
+        },
+      });
+
+      if (!app) {
+        throw new NotFoundException('Application not found');
+      }
+      if (app.candidate.keycloakUuid !== principal.sub) {
+        throw new ForbiddenException();
+      }
+
+      return this.markCandidateRevisionRequestViewed(tx, applicationId);
+    });
   }
 
   // ── Update draft ─────────────────────────────────────────────────────────
@@ -457,6 +553,29 @@ export class InstructorApplicationService {
                 keycloakUuid: true,
               },
             },
+            reviewRevisionRequests: {
+              where: {
+                status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+              },
+              orderBy: { publishedAt: 'desc' },
+              take: 1,
+              select: PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+            },
+            fixRequests: {
+              where: {
+                status: InstructorFixRequestStatus.PUBLISHED,
+              },
+              orderBy: { publishedAt: 'desc' },
+              take: 1,
+              select: PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
+            },
+            hufcowyPresenceAttachmentUuid: true,
+            attachments: {
+              select: {
+                uuid: true,
+                instructorRequirementUuid: true,
+              },
+            },
           },
         });
         if (!ownedApp) {
@@ -471,6 +590,14 @@ export class InstructorApplicationService {
             message: 'Application is not editable',
           });
         }
+        this.ensureApplicationFieldUpdatesAllowed(
+          ownedApp.status,
+          ownedApp.reviewRevisionRequests[0] ?? null,
+          ownedApp.fixRequests[0] ?? null,
+          dto,
+          buildAttachmentRequirementMap(ownedApp.attachments),
+          ownedApp.hufcowyPresenceAttachmentUuid ?? null,
+        );
 
         const beforeAuditSnapshot = await tx.instructorApplication.findUnique({
           where: { uuid: ownedApp.uuid },
@@ -537,6 +664,12 @@ export class InstructorApplicationService {
             }),
           },
         });
+
+        await this.markCandidateRevisionRequestEdited(
+          tx,
+          ownedApp.uuid,
+          ownedApp.reviewRevisionRequests[0] ?? null,
+        );
 
         return { beforeAuditSnapshot, updated };
       },
@@ -612,6 +745,7 @@ export class InstructorApplicationService {
         },
       });
       const nextRevision = (latestSnapshot?.revision ?? 0) + 1;
+      const submittedAt = new Date();
 
       // Create snapshot
       await tx.instructorApplicationSnapshot.create({
@@ -662,8 +796,39 @@ export class InstructorApplicationService {
         },
       });
 
+      const resolvedRevisionRequest = await tx.instructorReviewRevisionRequest.updateMany(
+        {
+          where: {
+            applicationUuid: fullApp.uuid,
+            status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+          },
+          data: {
+            status: InstructorReviewRevisionRequestStatus.RESOLVED,
+            resolvedAt: submittedAt,
+            resolvedByUuid: fullApp.candidate.uuid,
+            updatedByUuid: fullApp.candidate.uuid,
+          },
+        },
+      );
+
+      await tx.instructorReviewCandidateAnnotation.updateMany({
+        where: {
+          revisionRequest: {
+            applicationUuid: fullApp.uuid,
+            status: InstructorReviewRevisionRequestStatus.RESOLVED,
+          },
+          status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
+        },
+        data: {
+          status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+          resolvedAt: submittedAt,
+          resolvedByUuid: fullApp.candidate.uuid,
+          updatedByUuid: fullApp.candidate.uuid,
+        },
+      });
+
       // Update application status
-      return tx.instructorApplication.update({
+      const updatedApplication = await tx.instructorApplication.update({
         where: { uuid: fullApp.uuid },
         select: {
           uuid: true,
@@ -672,9 +837,14 @@ export class InstructorApplicationService {
         },
         data: {
           status: ApplicationStatus.SUBMITTED,
-          lastSubmittedAt: new Date(),
+          lastSubmittedAt: submittedAt,
         },
       });
+
+      return {
+        ...updatedApplication,
+        resolvedRevisionRequestCount: resolvedRevisionRequest.count,
+      };
     });
 
     await this.auditService.log({
@@ -685,6 +855,8 @@ export class InstructorApplicationService {
       requestId,
       metadata: {
         status: submittedApplication.status,
+        resolvedRevisionRequestCount:
+          submittedApplication.resolvedRevisionRequestCount,
       },
     });
 
@@ -811,6 +983,29 @@ export class InstructorApplicationService {
                 keycloakUuid: true,
               },
             },
+            reviewRevisionRequests: {
+              where: {
+                status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+              },
+              orderBy: { publishedAt: 'desc' },
+              take: 1,
+              select: PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+            },
+            fixRequests: {
+              where: {
+                status: InstructorFixRequestStatus.PUBLISHED,
+              },
+              orderBy: { publishedAt: 'desc' },
+              take: 1,
+              select: PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
+            },
+            hufcowyPresenceAttachmentUuid: true,
+            attachments: {
+              select: {
+                uuid: true,
+                instructorRequirementUuid: true,
+              },
+            },
           },
         });
         if (!ownedApp) {
@@ -825,6 +1020,14 @@ export class InstructorApplicationService {
             message: 'Application is not editable',
           });
         }
+        this.ensureRequirementUpdateAllowed(
+          ownedApp.status,
+          ownedApp.reviewRevisionRequests[0] ?? null,
+          ownedApp.fixRequests[0] ?? null,
+          requirementId,
+          buildAttachmentRequirementMap(ownedApp.attachments),
+          ownedApp.hufcowyPresenceAttachmentUuid ?? null,
+        );
 
         const req = await tx.instructorApplicationRequirement.findUnique({
           where: { uuid: requirementId },
@@ -882,6 +1085,12 @@ export class InstructorApplicationService {
               verificationText,
             },
           });
+
+        await this.markCandidateRevisionRequestEdited(
+          tx,
+          applicationId,
+          ownedApp.reviewRevisionRequests[0] ?? null,
+        );
 
         return { req, updatedRequirement };
       },
@@ -1062,6 +1271,177 @@ export class InstructorApplicationService {
     }
 
     return changes;
+  }
+
+  private toCandidateRevisionActivityDto(
+    revisionRequest: RevisionRequestActivityRow | null,
+  ): InstructorApplicationCandidateRevisionActivityResponse {
+    if (!revisionRequest) {
+      return {
+        requestUuid: null,
+        candidateFirstViewedAt: null,
+        candidateFirstEditedAt: null,
+        candidateLastActivityAt: null,
+      };
+    }
+
+    return {
+      requestUuid: revisionRequest.uuid,
+      candidateFirstViewedAt:
+        revisionRequest.candidateFirstViewedAt?.toISOString() ?? null,
+      candidateFirstEditedAt:
+        revisionRequest.candidateFirstEditedAt?.toISOString() ?? null,
+      candidateLastActivityAt:
+        revisionRequest.candidateLastActivityAt?.toISOString() ?? null,
+    };
+  }
+
+  private async findPublishedRevisionRequestActivity(
+    tx: Prisma.TransactionClient,
+    applicationId: string,
+  ): Promise<RevisionRequestActivityRow | null> {
+    return tx.instructorReviewRevisionRequest.findFirst({
+      where: {
+        applicationUuid: applicationId,
+        status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      select: REVISION_REQUEST_ACTIVITY_SELECT,
+    });
+  }
+
+  private async markCandidateRevisionRequestViewed(
+    tx: Prisma.TransactionClient,
+    applicationId: string,
+  ): Promise<InstructorApplicationCandidateRevisionActivityResponse> {
+    const publishedRevisionRequest = await this.findPublishedRevisionRequestActivity(
+      tx,
+      applicationId,
+    );
+
+    if (!publishedRevisionRequest) {
+      return this.toCandidateRevisionActivityDto(null);
+    }
+
+    if (publishedRevisionRequest.candidateFirstViewedAt) {
+      return this.toCandidateRevisionActivityDto(publishedRevisionRequest);
+    }
+
+    const now = new Date();
+    const updatedRevisionRequest = await tx.instructorReviewRevisionRequest.update({
+      where: { uuid: publishedRevisionRequest.uuid },
+      data: {
+        candidateFirstViewedAt: now,
+        candidateLastActivityAt: now,
+      },
+      select: REVISION_REQUEST_ACTIVITY_SELECT,
+    });
+
+    return this.toCandidateRevisionActivityDto(updatedRevisionRequest);
+  }
+
+  private async markCandidateRevisionRequestEdited(
+    tx: Prisma.TransactionClient,
+    applicationId: string,
+    publishedRevisionRequest:
+      | PublishedRevisionRequestScopeRow
+      | null
+      | undefined = null,
+  ): Promise<void> {
+    const request =
+      publishedRevisionRequest ??
+      (await this.findPublishedRevisionRequestActivity(tx, applicationId));
+
+    if (!request) {
+      return;
+    }
+
+    const now = new Date();
+    await tx.instructorReviewRevisionRequest.update({
+      where: { uuid: request.uuid },
+      data: {
+        candidateLastActivityAt: now,
+        ...(request.candidateFirstViewedAt
+          ? {}
+          : { candidateFirstViewedAt: now }),
+        ...(request.candidateFirstEditedAt
+          ? {}
+          : { candidateFirstEditedAt: now }),
+      },
+    });
+  }
+
+  private ensureApplicationFieldUpdatesAllowed(
+    status: ApplicationStatus,
+    publishedRevisionRequest: PublishedRevisionRequestScopeRow | null,
+    legacyPublishedFixRequest: PublishedFixRequestScopeRow | null,
+    dto: UpdateInstructorApplication,
+    attachmentRequirementByUuid: ReadonlyMap<string, string | null> = new Map(),
+    hufcowyPresenceAttachmentUuid: string | null = null,
+  ): void {
+    if (status !== ApplicationStatus.TO_FIX) {
+      return;
+    }
+
+    const scope = buildInstructorApplicationCandidateEditScope(
+      status,
+      publishedRevisionRequest,
+      legacyPublishedFixRequest,
+      attachmentRequirementByUuid,
+      hufcowyPresenceAttachmentUuid,
+    );
+    const requestedFields = Object.keys(
+      dto,
+    ) as EditableInstructorApplicationField[];
+    const disallowedFields = requestedFields.filter(
+      (field) => !canEditInstructorApplicationField(scope, field),
+    );
+
+    if (disallowedFields.length === 0) {
+      return;
+    }
+
+    throw new ForbiddenException({
+      code: 'FIELD_UPDATE_NOT_ALLOWED',
+      message: 'Możesz edytować tylko pola wyraźnie odblokowane przez komisję.',
+      details: {
+        fields: disallowedFields,
+      },
+    });
+  }
+
+  private ensureRequirementUpdateAllowed(
+    status: ApplicationStatus,
+    publishedRevisionRequest: PublishedRevisionRequestScopeRow | null,
+    legacyPublishedFixRequest: PublishedFixRequestScopeRow | null,
+    requirementUuid: string,
+    attachmentRequirementByUuid: ReadonlyMap<string, string | null> = new Map(),
+    hufcowyPresenceAttachmentUuid: string | null = null,
+  ): void {
+    if (status !== ApplicationStatus.TO_FIX) {
+      return;
+    }
+
+    const scope = buildInstructorApplicationCandidateEditScope(
+      status,
+      publishedRevisionRequest,
+      legacyPublishedFixRequest,
+      attachmentRequirementByUuid,
+      hufcowyPresenceAttachmentUuid,
+    );
+
+    if (canEditInstructorRequirement(scope, requirementUuid)) {
+      return;
+    }
+
+    throw new ForbiddenException({
+      code: 'REQUIREMENT_UPDATE_NOT_ALLOWED',
+      message:
+        'Możesz edytować tylko treść zadań wyraźnie odblokowanych przez komisję.',
+      details: {
+        requirementUuid,
+      },
+    });
   }
 
   private buildTextAuditChange(before: string | null, after: string | null) {

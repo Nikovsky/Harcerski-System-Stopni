@@ -249,7 +249,7 @@ function hasAnyApprovedApplication(
 
 function selectApprovedApplicationForCommissionType(
   approvedApplications: ApprovedApplicationRef | null,
-  commissionType: CommissionType | null,
+  commissionType: CommissionType,
 ): ApprovedApplicationRef | null {
   if (!approvedApplications) {
     return null;
@@ -271,8 +271,6 @@ function selectApprovedApplicationForCommissionType(
             scoutApplicationUuid: approvedApplications.scoutApplicationUuid,
           }
         : null;
-    default:
-      return null;
   }
 }
 
@@ -740,7 +738,10 @@ export class MeetingsService {
     dto: CreateMeetingBody,
     requestId?: string | null,
   ): Promise<CreateMeetingResponse> {
-    const membership = await this.resolveManagerMembership(principal);
+    const membership = await this.resolveManagerMembershipForCommission(
+      principal,
+      dto.commissionUuid,
+    );
     const date = parseIsoDateToUtcStart(dto.date);
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -1468,7 +1469,7 @@ export class MeetingsService {
       date: Date;
       slotMode: SlotMode;
       status: MeetingStatus;
-      commissionType: CommissionType | null;
+      commissionType: CommissionType;
       commissionName: string | null;
       totalSlots: number;
       availableSlots: number;
@@ -1621,11 +1622,14 @@ export class MeetingsService {
     return user;
   }
 
-  private async resolveManagerMembership(
+  private async resolveManagerMembershipForCommission(
     principal: AuthPrincipal,
+    commissionUuid: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<CommissionManagerMembership> {
-    const memberships = await this.prisma.commissionMember.findMany({
+    const membership = await tx.commissionMember.findFirst({
       where: {
+        commissionUuid,
         user: {
           keycloakUuid: principal.sub,
         },
@@ -1644,25 +1648,17 @@ export class MeetingsService {
         role: true,
       },
       orderBy: { joinedAt: 'desc' },
-      take: 2,
     });
 
-    if (memberships.length === 0) {
+    if (!membership) {
       throw new ForbiddenException({
         code: 'INSUFFICIENT_COMMISSION_ROLE',
-        message: 'Only commission secretary or chairman can manage meetings.',
-      });
-    }
-
-    if (memberships.length > 1) {
-      throw new ConflictException({
-        code: 'AMBIGUOUS_COMMISSION_MEMBERSHIP',
         message:
-          'Multiple active commission memberships found. Single-tenant setup required.',
+          'Only commission secretary or chairman can manage meetings for this commission.',
       });
     }
 
-    return memberships[0];
+    return membership;
   }
 
   private async ensureManagerMembershipForCommission(
@@ -1670,31 +1666,7 @@ export class MeetingsService {
     commissionUuid: string,
     tx: Prisma.TransactionClient | PrismaService,
   ): Promise<void> {
-    const membership = await tx.commissionMember.findFirst({
-      where: {
-        commissionUuid,
-        status: Status.ACTIVE,
-        leftAt: null,
-        role: {
-          in: COMMISSION_MANAGER_ROLES,
-        },
-        user: {
-          keycloakUuid: principal.sub,
-        },
-        commission: {
-          status: Status.ACTIVE,
-        },
-      },
-      select: { uuid: true },
-    });
-
-    if (!membership) {
-      throw new ForbiddenException({
-        code: 'INSUFFICIENT_COMMISSION_ROLE',
-        message:
-          'Only commission secretary or chairman can manage this meeting.',
-      });
-    }
+    await this.resolveManagerMembershipForCommission(principal, commissionUuid, tx);
   }
 
   private async resolveApprovedApplicationRefs(

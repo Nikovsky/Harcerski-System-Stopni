@@ -7,16 +7,47 @@ import {
   Logger,
 } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
-import { Prisma } from '@hss/database';
+import {
+  ApplicationStatus,
+  InstructorFixRequestStatus,
+  InstructorReviewRevisionRequestStatus,
+  Prisma,
+} from '@hss/database';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import { InstructorApplicationAuditService } from '@/modules/instructor-application/instructor-application-audit.service';
-import { isInstructorApplicationEditable, MAX_FILE_SIZE } from '@hss/schemas';
+import {
+  canEditInstructorApplicationField,
+  canEditInstructorHufcowyPresenceAttachment,
+  canEditInstructorRequirementAttachments,
+  canEditInstructorTopLevelAttachments,
+  isInstructorApplicationEditable,
+  MAX_FILE_SIZE,
+} from '@hss/schemas';
 import type {
   AuthPrincipal,
   PresignUploadRequest,
   ConfirmUploadRequest,
 } from '@hss/schemas';
+import {
+  buildAttachmentRequirementMap,
+  buildInstructorApplicationCandidateEditScope,
+  PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
+  PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+  type PublishedFixRequestScopeRow,
+  type PublishedRevisionRequestScopeRow,
+} from './instructor-application-edit-scope';
+
+const REVISION_REQUEST_ACTIVITY_SELECT = {
+  uuid: true,
+  candidateFirstViewedAt: true,
+  candidateFirstEditedAt: true,
+  candidateLastActivityAt: true,
+} satisfies Prisma.InstructorReviewRevisionRequestSelect;
+
+type RevisionRequestActivityRow = Prisma.InstructorReviewRevisionRequestGetPayload<{
+  select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
+}>;
 
 @Injectable()
 export class InstructorAttachmentService {
@@ -72,7 +103,22 @@ export class InstructorAttachmentService {
     dto: PresignUploadRequest,
     requestId?: string | null,
   ) {
-    await this.ensureOwnDraft(principal, applicationId);
+    const app = await this.ensureOwnEditableApplication(principal, applicationId);
+    const isHufcowyPresenceAttachment =
+      !dto.requirementUuid && app.hufcowyPresence === 'ATTACHMENT_OPINION';
+    this.ensureAttachmentEditAllowed(
+      app.status,
+      app.reviewRevisionRequests[0] ?? null,
+      app.fixRequests[0] ?? null,
+      dto.requirementUuid ?? null,
+      buildAttachmentRequirementMap(app.attachments),
+      app.hufcowyPresenceAttachmentUuid ?? null,
+      { isHufcowyPresenceAttachment },
+    );
+    await this.ensureRequirementBelongsToApplication(
+      applicationId,
+      dto.requirementUuid ?? null,
+    );
     await this.cleanupOrphanedUploads(applicationId);
 
     const attachmentCount = await this.prisma.attachment.count({
@@ -117,7 +163,17 @@ export class InstructorAttachmentService {
     dto: ConfirmUploadRequest,
     requestId?: string | null,
   ) {
-    await this.ensureOwnDraft(principal, applicationId);
+    const app = await this.ensureOwnEditableApplication(principal, applicationId);
+    const isHufcowyPresenceAttachment = dto.isHufcowyPresence === true;
+    this.ensureAttachmentEditAllowed(
+      app.status,
+      app.reviewRevisionRequests[0] ?? null,
+      app.fixRequests[0] ?? null,
+      dto.requirementUuid ?? null,
+      buildAttachmentRequirementMap(app.attachments),
+      app.hufcowyPresenceAttachmentUuid ?? null,
+      { isHufcowyPresenceAttachment },
+    );
 
     const expectedPrefix = `instructor-applications/${applicationId}/`;
     if (!dto.objectKey.startsWith(expectedPrefix)) {
@@ -184,24 +240,31 @@ export class InstructorAttachmentService {
       sizeBytes: bigint;
       uploadedAt: Date;
     };
+    let replacedAttachmentObjectKey: string | null = null;
     try {
-      attachment = await this.prisma.$transaction(async (tx) => {
+      const transactionResult = await this.prisma.$transaction(async (tx) => {
         await this.lockApplicationRow(tx, applicationId);
-        await this.ensureOwnDraft(principal, applicationId, tx);
+        const editableApp = await this.ensureOwnEditableApplication(
+          principal,
+          applicationId,
+          tx,
+        );
+        this.ensureAttachmentEditAllowed(
+          editableApp.status,
+          editableApp.reviewRevisionRequests[0] ?? null,
+          editableApp.fixRequests[0] ?? null,
+          dto.requirementUuid ?? null,
+          buildAttachmentRequirementMap(editableApp.attachments),
+          editableApp.hufcowyPresenceAttachmentUuid ?? null,
+          { isHufcowyPresenceAttachment },
+        );
 
         if (dto.requirementUuid) {
-          const requirement =
-            await tx.instructorApplicationRequirement.findUnique({
-              where: { uuid: dto.requirementUuid },
-              select: {
-                applicationUuid: true,
-              },
-            });
-          if (!requirement || requirement.applicationUuid !== applicationId) {
-            throw new BadRequestException(
-              'Requirement does not belong to this application',
-            );
-          }
+          await this.ensureRequirementBelongsToApplication(
+            applicationId,
+            dto.requirementUuid,
+            tx,
+          );
         }
 
         const attachmentCount = await tx.attachment.count({
@@ -235,15 +298,55 @@ export class InstructorAttachmentService {
           },
         });
 
+        let previousHufcowyAttachmentObjectKey: string | null = null;
+
         if (dto.isHufcowyPresence) {
+          if (
+            editableApp.hufcowyPresenceAttachmentUuid &&
+            editableApp.hufcowyPresenceAttachmentUuid !== attachment.uuid
+          ) {
+            const previousHufcowyAttachment = await tx.attachment.findUnique({
+              where: { uuid: editableApp.hufcowyPresenceAttachmentUuid },
+              select: {
+                uuid: true,
+                objectKey: true,
+                status: true,
+              },
+            });
+
+            if (
+              previousHufcowyAttachment &&
+              previousHufcowyAttachment.status === 'ACTIVE'
+            ) {
+              await tx.attachment.update({
+                where: { uuid: previousHufcowyAttachment.uuid },
+                data: { status: 'INACTIVE' },
+              });
+              previousHufcowyAttachmentObjectKey =
+                previousHufcowyAttachment.objectKey;
+            }
+          }
+
           await tx.instructorApplication.update({
             where: { uuid: applicationId },
             data: { hufcowyPresenceAttachmentUuid: attachment.uuid },
           });
         }
 
-        return attachment;
+        await this.markCandidateRevisionRequestEdited(
+          tx,
+          applicationId,
+          editableApp.reviewRevisionRequests[0] ?? null,
+        );
+
+        return {
+          attachment,
+          previousHufcowyAttachmentObjectKey,
+        };
       });
+      attachment = transactionResult.attachment;
+      replacedAttachmentObjectKey =
+        transactionResult.previousHufcowyAttachmentObjectKey;
     } catch (error) {
       try {
         await this.storage.deleteObject(dto.objectKey);
@@ -253,6 +356,16 @@ export class InstructorAttachmentService {
         );
       }
       throw error;
+    }
+
+    if (replacedAttachmentObjectKey) {
+      try {
+        await this.storage.deleteObject(replacedAttachmentObjectKey);
+      } catch (cleanupError) {
+        this.logger.warn(
+          `Failed to remove replaced district leader opinion object ${replacedAttachmentObjectKey}: ${cleanupError}`,
+        );
+      }
     }
 
     await this.auditService.log({
@@ -287,7 +400,11 @@ export class InstructorAttachmentService {
   ) {
     const attachmentObjectKey = await this.prisma.$transaction(async (tx) => {
       await this.lockApplicationRow(tx, applicationId);
-      const app = await this.ensureOwnDraft(principal, applicationId, tx);
+      const app = await this.ensureOwnEditableApplication(
+        principal,
+        applicationId,
+        tx,
+      );
 
       const attachment = await tx.attachment.findUnique({
         where: { uuid: attachmentId },
@@ -295,14 +412,29 @@ export class InstructorAttachmentService {
           uuid: true,
           objectKey: true,
           instructorApplicationUuid: true,
+          instructorRequirementUuid: true,
+          status: true,
         },
       });
       if (
         !attachment ||
-        attachment.instructorApplicationUuid !== applicationId
+        attachment.instructorApplicationUuid !== applicationId ||
+        attachment.status !== 'ACTIVE'
       ) {
         throw new NotFoundException('Attachment not found');
       }
+      this.ensureAttachmentEditAllowed(
+        app.status,
+        app.reviewRevisionRequests[0] ?? null,
+        app.fixRequests[0] ?? null,
+        attachment.instructorRequirementUuid ?? null,
+        buildAttachmentRequirementMap(app.attachments),
+        app.hufcowyPresenceAttachmentUuid ?? null,
+        {
+          isHufcowyPresenceAttachment:
+            app.hufcowyPresenceAttachmentUuid === attachmentId,
+        },
+      );
 
       if (app.hufcowyPresenceAttachmentUuid === attachmentId) {
         await tx.instructorApplication.update({
@@ -311,7 +443,15 @@ export class InstructorAttachmentService {
         });
       }
 
-      await tx.attachment.delete({ where: { uuid: attachmentId } });
+      await tx.attachment.update({
+        where: { uuid: attachmentId },
+        data: { status: 'INACTIVE' },
+      });
+      await this.markCandidateRevisionRequestEdited(
+        tx,
+        applicationId,
+        app.reviewRevisionRequests[0] ?? null,
+      );
       return attachment.objectKey;
     });
 
@@ -358,8 +498,19 @@ export class InstructorAttachmentService {
 
     const attachment = await this.prisma.attachment.findUnique({
       where: { uuid: attachmentId },
+      select: {
+        uuid: true,
+        instructorApplicationUuid: true,
+        objectKey: true,
+        originalFilename: true,
+        status: true,
+      },
     });
-    if (!attachment || attachment.instructorApplicationUuid !== applicationId) {
+    if (
+      !attachment ||
+      attachment.instructorApplicationUuid !== applicationId ||
+      attachment.status !== 'ACTIVE'
+    ) {
       throw new NotFoundException('Attachment not found');
     }
 
@@ -384,16 +535,42 @@ export class InstructorAttachmentService {
     return { url, filename: attachment.originalFilename };
   }
 
-  private async ensureOwnDraft(
+  private async ensureOwnEditableApplication(
     principal: AuthPrincipal,
     applicationId: string,
     client: PrismaService | Prisma.TransactionClient = this.prisma,
   ) {
     const app = await client.instructorApplication.findUnique({
       where: { uuid: applicationId },
-      include: {
+      select: {
+        uuid: true,
+        status: true,
+        hufcowyPresence: true,
+        hufcowyPresenceAttachmentUuid: true,
         candidate: {
           select: { keycloakUuid: true },
+        },
+        reviewRevisionRequests: {
+          where: {
+            status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+          },
+          orderBy: { publishedAt: 'desc' },
+          take: 1,
+          select: PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+        },
+        fixRequests: {
+          where: {
+            status: InstructorFixRequestStatus.PUBLISHED,
+          },
+          orderBy: { publishedAt: 'desc' },
+          take: 1,
+          select: PUBLISHED_FIX_REQUEST_SCOPE_SELECT,
+        },
+        attachments: {
+          select: {
+            uuid: true,
+            instructorRequirementUuid: true,
+          },
         },
       },
     });
@@ -407,6 +584,135 @@ export class InstructorAttachmentService {
       });
     }
     return app;
+  }
+
+  private async findPublishedRevisionRequestActivity(
+    client: PrismaService | Prisma.TransactionClient,
+    applicationId: string,
+  ): Promise<RevisionRequestActivityRow | null> {
+    return client.instructorReviewRevisionRequest.findFirst({
+      where: {
+        applicationUuid: applicationId,
+        status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      select: REVISION_REQUEST_ACTIVITY_SELECT,
+    });
+  }
+
+  private async markCandidateRevisionRequestEdited(
+    client: PrismaService | Prisma.TransactionClient,
+    applicationId: string,
+    publishedRevisionRequest:
+      | PublishedRevisionRequestScopeRow
+      | null
+      | undefined = null,
+  ): Promise<void> {
+    const request =
+      publishedRevisionRequest ??
+      (await this.findPublishedRevisionRequestActivity(client, applicationId));
+
+    if (!request) {
+      return;
+    }
+
+    const now = new Date();
+    await client.instructorReviewRevisionRequest.update({
+      where: { uuid: request.uuid },
+      data: {
+        candidateLastActivityAt: now,
+        ...(request.candidateFirstViewedAt
+          ? {}
+          : { candidateFirstViewedAt: now }),
+        ...(request.candidateFirstEditedAt
+          ? {}
+          : { candidateFirstEditedAt: now }),
+      },
+    });
+  }
+
+  private ensureAttachmentEditAllowed(
+    status: ApplicationStatus,
+    publishedRevisionRequest: PublishedRevisionRequestScopeRow | null,
+    legacyPublishedFixRequest: PublishedFixRequestScopeRow | null,
+    requirementUuid: string | null,
+    attachmentRequirementByUuid: ReadonlyMap<string, string | null> = new Map(),
+    hufcowyPresenceAttachmentUuid: string | null = null,
+    options: { isHufcowyPresenceAttachment?: boolean } = {},
+  ): void {
+    if (status !== ApplicationStatus.TO_FIX) {
+      return;
+    }
+
+    const scope = buildInstructorApplicationCandidateEditScope(
+      status,
+      publishedRevisionRequest,
+      legacyPublishedFixRequest,
+      attachmentRequirementByUuid,
+      hufcowyPresenceAttachmentUuid,
+    );
+
+    if (requirementUuid) {
+      if (canEditInstructorRequirementAttachments(scope, requirementUuid)) {
+        return;
+      }
+
+      throw new ForbiddenException({
+        code: 'ATTACHMENT_UPDATE_NOT_ALLOWED',
+        message:
+          'Możesz zmieniać załączniki tylko w zadaniach wyraźnie odblokowanych przez komisję.',
+        details: {
+          requirementUuid,
+        },
+      });
+    }
+
+    if (options.isHufcowyPresenceAttachment) {
+      if (
+        canEditInstructorHufcowyPresenceAttachment(scope)
+        || canEditInstructorApplicationField(scope, 'hufcowyPresence')
+      ) {
+        return;
+      }
+
+      throw new ForbiddenException({
+        code: 'ATTACHMENT_UPDATE_NOT_ALLOWED',
+        message:
+          'Możesz zmienić opinię hufcowego tylko wtedy, gdy komisja odblokowała to pole lub sam załącznik.',
+      });
+    }
+
+    if (canEditInstructorTopLevelAttachments(scope)) {
+      return;
+    }
+
+    throw new ForbiddenException({
+      code: 'ATTACHMENT_UPDATE_NOT_ALLOWED',
+      message:
+        'Możesz zmieniać załączniki ogólne tylko wtedy, gdy komisja je wyraźnie odblokowała.',
+    });
+  }
+
+  private async ensureRequirementBelongsToApplication(
+    applicationId: string,
+    requirementUuid: string | null,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    if (!requirementUuid) {
+      return;
+    }
+
+    const requirement = await client.instructorApplicationRequirement.findUnique({
+      where: { uuid: requirementUuid },
+      select: {
+        applicationUuid: true,
+      },
+    });
+    if (!requirement || requirement.applicationUuid !== applicationId) {
+      throw new BadRequestException(
+        'Requirement does not belong to this application',
+      );
+    }
   }
 
   private async lockApplicationRow(

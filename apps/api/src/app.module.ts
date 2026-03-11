@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './database/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AppConfigModule } from './config/app-config.module';
+import { CommissionReviewModule } from './modules/commission-review/commission-review.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { InstructorApplicationModule } from './modules/instructor-application/instructor-application.module';
 import { ProfileModule } from './modules/user/profile/profile.module';
@@ -22,6 +23,7 @@ import { RolesGuard } from './guards/roles.guard';
     AuthModule,
     ProfileModule,
     StorageModule,
+    CommissionReviewModule,
     InstructorApplicationModule,
     MeetingsModule,
   ],

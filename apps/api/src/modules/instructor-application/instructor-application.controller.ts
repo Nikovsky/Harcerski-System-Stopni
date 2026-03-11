@@ -25,6 +25,7 @@ import {
   presignUploadRequestSchema,
   confirmUploadRequestSchema,
   type AuthPrincipal,
+  type InstructorApplicationCandidateRevisionActivityResponse,
   type CreateInstructorApplication,
   type UpdateInstructorApplication,
   type UpdateInstructorRequirement,
@@ -69,6 +70,19 @@ export class InstructorApplicationController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.service.getDetail(principal, id);
+  }
+
+  @Post(':id/revision-request/viewed')
+  async markActiveRevisionRequestViewed(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<InstructorApplicationCandidateRevisionActivityResponse> {
+    return this.service.markActiveRevisionRequestViewed(
+      principal,
+      id,
+      extractRequestId(req),
+    );
   }
 
   @Patch(':id')

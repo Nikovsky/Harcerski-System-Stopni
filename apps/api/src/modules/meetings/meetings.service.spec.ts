@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  CommissionRole,
   CommissionType,
   MeetingStatus,
   RegistrationStatus,
@@ -144,6 +145,7 @@ function createMyRegistrationRow(
 function createPrismaMock() {
   const tx = {
     commissionMeeting: {
+      create: jest.fn(),
       findUnique: jest.fn(),
     },
     instructorApplication: {
@@ -172,6 +174,9 @@ function createPrismaMock() {
   const prisma = {
     user: {
       findUnique: jest.fn(),
+    },
+    commissionMember: {
+      findFirst: jest.fn(),
     },
     meetingRegistration: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -236,6 +241,86 @@ describe('MeetingsService', () => {
       canBook: false,
       bookingBlockedReasonCode: 'NO_MATCHING_APPROVED_APPLICATION',
     });
+  });
+
+  it('creates a meeting in the explicit commission context', async () => {
+    const { service, prisma, tx, auditService } = createService();
+    prisma.commissionMember.findFirst.mockResolvedValue({
+      commissionUuid: COMMISSION_UUID,
+      userUuid: USER_UUID,
+      role: CommissionRole.SECRETARY,
+    });
+    tx.commissionMeeting.create.mockResolvedValue({
+      uuid: MEETING_UUID,
+      commissionUuid: COMMISSION_UUID,
+      date: new Date('2026-05-12T00:00:00.000Z'),
+      slotMode: SlotMode.DAY_ONLY,
+      status: MeetingStatus.OPEN_FOR_REGISTRATION,
+      notes: 'Spotkanie komisji',
+      createdAt: new Date('2026-03-10T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-10T10:00:00.000Z'),
+    });
+
+    const result = await service.createMeeting(
+      PRINCIPAL,
+      {
+        commissionUuid: COMMISSION_UUID,
+        date: '2026-05-12',
+        slotMode: SlotMode.DAY_ONLY,
+        notes: 'Spotkanie komisji',
+      },
+      'req-123',
+    );
+
+    expect(tx.commissionMeeting.create).toHaveBeenCalledWith({
+      data: {
+        commissionUuid: COMMISSION_UUID,
+        createdByUuid: USER_UUID,
+        date: new Date('2026-05-12T00:00:00.000Z'),
+        slotMode: SlotMode.DAY_ONLY,
+        status: MeetingStatus.OPEN_FOR_REGISTRATION,
+        notes: 'Spotkanie komisji',
+      },
+      select: expect.any(Object),
+    });
+    expect(result).toMatchObject({
+      uuid: MEETING_UUID,
+      commissionUuid: COMMISSION_UUID,
+      date: '2026-05-12',
+      slotMode: SlotMode.DAY_ONLY,
+      status: MeetingStatus.OPEN_FOR_REGISTRATION,
+      notes: 'Spotkanie komisji',
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'MEETING_CREATED',
+        targetUuid: MEETING_UUID,
+        requestId: 'req-123',
+      }),
+    );
+  });
+
+  it('rejects meeting creation without manager membership in the requested commission', async () => {
+    expect.assertions(2);
+
+    const { service, prisma } = createService();
+    prisma.commissionMember.findFirst.mockResolvedValue(null);
+
+    try {
+      await service.createMeeting(PRINCIPAL, {
+        commissionUuid: COMMISSION_UUID,
+        date: '2026-05-12',
+        slotMode: SlotMode.DAY_ONLY,
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect((error as ForbiddenException).getResponse()).toMatchObject({
+        code: 'INSUFFICIENT_COMMISSION_ROLE',
+      });
+      return;
+    }
+
+    throw new Error('Expected createMeeting to throw.');
   });
 
   it('limits scout list queries to public meeting statuses', async () => {
