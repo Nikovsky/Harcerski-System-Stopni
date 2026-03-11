@@ -13,7 +13,7 @@ export const getAllCommissionItemSchema = z
   .object({
     uuid: uuidSchema,
     name: z.string().max(128).nullable(),
-    type: commissionTypeSchema.nullable(),
+    type: commissionTypeSchema,
     status: statusSchema,
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,

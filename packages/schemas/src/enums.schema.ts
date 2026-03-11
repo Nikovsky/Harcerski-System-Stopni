@@ -113,6 +113,16 @@ export const degreeTypeSchema = z.enum([
   "SCOUT",
 ]);
 
+export const instructorFixRequestStatusSchema = z.enum([
+  "DRAFT",
+  "PUBLISHED",
+  "RESOLVED",
+  "CANCELLED",
+]);
+export type InstructorFixRequestStatus = z.infer<
+  typeof instructorFixRequestStatusSchema
+>;
+
 export const statusSchema = z.enum([
   "ACTIVE",
   "INACTIVE",

@@ -3,6 +3,7 @@ export * from "./instructor-application";
 export * from "./auth.schema";
 export * from "./bff";
 export * from "./commission";
+export * from "./commission-review";
 export * from "./meeting";
 export * from "./enums.schema";
 export * from "./pagination.schema";

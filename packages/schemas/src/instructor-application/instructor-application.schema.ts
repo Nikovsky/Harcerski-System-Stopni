@@ -1,6 +1,13 @@
 // @file: packages/schemas/src/instructor-application/instructor-application.schema.ts
 import { z } from "zod";
-import { instructorRankSchema, scoutRankSchema, presenceTypeSchema, requirementStateSchema, degreeTypeSchema, applicationStatusSchema } from "../enums.schema";
+import {
+  instructorRankSchema,
+  scoutRankSchema,
+  presenceTypeSchema,
+  requirementStateSchema,
+  degreeTypeSchema,
+  applicationStatusSchema,
+} from "../enums.schema";
 
 // ── File upload security constants ───────────────────────────────────────────
 export const ALLOWED_MIME_TYPES = [
@@ -18,6 +25,139 @@ export const ALLOWED_MIME_TYPES = [
 export const ALLOWED_EXTENSIONS_REGEX = /\.(pdf|jpg|jpeg|png|webp|doc|docx|mp4|ppt|pptx)$/i;
 
 export const MAX_FILE_SIZE = 50_000_000; // 50 MB
+
+export const EDITABLE_INSTRUCTOR_APPLICATION_FIELDS = [
+  "plannedFinishAt",
+  "teamFunction",
+  "hufiecFunction",
+  "openTrialForRank",
+  "openTrialDeadline",
+  "hufcowyPresence",
+  "functionsHistory",
+  "coursesHistory",
+  "campsHistory",
+  "successes",
+  "failures",
+  "supervisorFirstName",
+  "supervisorSecondName",
+  "supervisorSurname",
+  "supervisorInstructorRank",
+  "supervisorInstructorFunction",
+] as const;
+
+export const editableInstructorApplicationFieldSchema = z.enum(
+  EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
+);
+export type EditableInstructorApplicationField = z.infer<
+  typeof editableInstructorApplicationFieldSchema
+>;
+
+export const instructorReviewAnchorTypeSchema = z.enum([
+  "APPLICATION",
+  "SECTION",
+  "FIELD",
+  "REQUIREMENT",
+  "ATTACHMENT",
+]);
+export type InstructorReviewAnchorType = z.infer<
+  typeof instructorReviewAnchorTypeSchema
+>;
+
+export const instructorReviewSectionKeySchema = z.enum([
+  "BASIC_INFO",
+  "SERVICE_HISTORY",
+  "SUPERVISOR",
+  "GENERAL_ATTACHMENTS",
+]);
+export type InstructorReviewSectionKey = z.infer<
+  typeof instructorReviewSectionKeySchema
+>;
+
+export const INSTRUCTOR_REVIEW_SECTION_EDITABLE_FIELDS = {
+  BASIC_INFO: [
+    "plannedFinishAt",
+    "teamFunction",
+    "hufiecFunction",
+    "openTrialForRank",
+    "openTrialDeadline",
+    "hufcowyPresence",
+  ],
+  SERVICE_HISTORY: [
+    "functionsHistory",
+    "coursesHistory",
+    "campsHistory",
+    "successes",
+    "failures",
+  ],
+  SUPERVISOR: [
+    "supervisorFirstName",
+    "supervisorSecondName",
+    "supervisorSurname",
+    "supervisorInstructorRank",
+    "supervisorInstructorFunction",
+  ],
+  GENERAL_ATTACHMENTS: [],
+} as const satisfies Record<
+  InstructorReviewSectionKey,
+  readonly EditableInstructorApplicationField[]
+>;
+
+export const instructorReviewCandidateAnnotationPublicSchema = z
+  .object({
+    uuid: z.string().uuid(),
+    anchorType: instructorReviewAnchorTypeSchema,
+    anchorKey: z.string().min(1).max(128),
+    body: z.string(),
+    publishedAt: z.string().datetime().nullable(),
+  })
+  .strict();
+export type InstructorReviewCandidateAnnotationPublic = z.infer<
+  typeof instructorReviewCandidateAnnotationPublicSchema
+>;
+
+export const candidateEditScopeModeSchema = z.enum([
+  "FULL",
+  "LIMITED",
+  "NONE",
+]);
+export type CandidateEditScopeMode = z.infer<
+  typeof candidateEditScopeModeSchema
+>;
+
+export const instructorApplicationCandidateEditScopeSchema = z
+  .object({
+    mode: candidateEditScopeModeSchema,
+    requestUuid: z.string().uuid().nullable(),
+    candidateMessage: z.string().nullable(),
+    publishedAt: z.string().datetime().nullable(),
+    candidateFirstViewedAt: z.string().datetime().nullable(),
+    candidateFirstEditedAt: z.string().datetime().nullable(),
+    candidateLastActivityAt: z.string().datetime().nullable(),
+    editableApplicationFields: z.array(
+      editableInstructorApplicationFieldSchema,
+    ),
+    editableRequirementUuids: z.array(z.string().uuid()),
+    editableRequirementAttachmentUuids: z.array(z.string().uuid()),
+    allowTopLevelAttachments: z.boolean(),
+    allowHufcowyPresenceAttachment: z.boolean(),
+    annotations: z.array(instructorReviewCandidateAnnotationPublicSchema),
+  })
+  .strict();
+export type InstructorApplicationCandidateEditScope = z.infer<
+  typeof instructorApplicationCandidateEditScopeSchema
+>;
+
+export const instructorApplicationCandidateRevisionActivityResponseSchema = z
+  .object({
+    requestUuid: z.string().uuid().nullable(),
+    candidateFirstViewedAt: z.string().datetime().nullable(),
+    candidateFirstEditedAt: z.string().datetime().nullable(),
+    candidateLastActivityAt: z.string().datetime().nullable(),
+  })
+  .strict();
+export type InstructorApplicationCandidateRevisionActivityResponse = z.infer<
+  typeof instructorApplicationCandidateRevisionActivityResponseSchema
+>;
 
 // ── Create ─────────────────────────────────────────────────────────────────
 export const createInstructorApplicationSchema = z.object({
@@ -181,6 +321,7 @@ export const instructorApplicationDetailSchema = z.object({
     })).optional(),
   }),
   candidateProfile: candidateProfileResponseSchema,
+  candidateEditScope: instructorApplicationCandidateEditScopeSchema,
   requirements: z.array(requirementRowResponseSchema),
   attachments: z.array(attachmentResponseSchema),
 });

@@ -156,7 +156,7 @@ export const meetingListItemSchema = z
     date: isoDateSchema,
     slotMode: slotModeSchema,
     status: meetingStatusSchema,
-    commissionType: commissionTypeSchema.nullable(),
+    commissionType: commissionTypeSchema,
     commissionName: z.string().max(128).nullable(),
     totalSlots: z.number().int().min(0),
     availableSlots: z.number().int().min(0),
@@ -189,7 +189,7 @@ export const myMeetingRegistrationListItemSchema = z
     date: isoDateSchema,
     slotMode: slotModeSchema,
     status: meetingStatusSchema,
-    commissionType: commissionTypeSchema.nullable(),
+    commissionType: commissionTypeSchema,
     commissionName: z.string().max(128).nullable(),
     notes: z.string().nullable(),
     assignedTime: isoDateTimeSchema.nullable(),
@@ -233,6 +233,7 @@ export const meetingRegistrationCreateResponseSchema = z
 
 export const createMeetingBodySchema = z
   .object({
+    commissionUuid: uuidSchema,
     date: isoDateSchema,
     slotMode: slotModeSchema,
     notes: z.string().max(5000).nullable().optional(),
