@@ -9,9 +9,18 @@ type Props = {
   attachments: AttachmentResponse[];
   readOnly?: boolean;
   isHufcowyPresence?: boolean;
+  onAttachmentsChange?: (attachments: AttachmentResponse[]) => void;
+  onBeforeUpload?: () => Promise<void>;
 };
 
-export function AttachmentUpload({ applicationId, attachments: initialAttachments, readOnly, isHufcowyPresence }: Props) {
+export function AttachmentUpload({
+  applicationId,
+  attachments: initialAttachments,
+  readOnly,
+  isHufcowyPresence,
+  onAttachmentsChange,
+  onBeforeUpload,
+}: Props) {
   return (
     <AttachmentUploadShared
       applicationId={applicationId}
@@ -19,6 +28,8 @@ export function AttachmentUpload({ applicationId, attachments: initialAttachment
       readOnly={readOnly}
       isHufcowyPresence={isHufcowyPresence}
       variant="detailed"
+      onAttachmentsChange={onAttachmentsChange}
+      onBeforeUpload={onBeforeUpload}
     />
   );
 }

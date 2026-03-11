@@ -5,6 +5,7 @@
     "dashboard": "Panel",
     "applications": "Moje wnioski",
     "meetings": "Posiedzenia",
+    "commission": "Komisja",
     "profile": "Profil"
   },
   "auth": {

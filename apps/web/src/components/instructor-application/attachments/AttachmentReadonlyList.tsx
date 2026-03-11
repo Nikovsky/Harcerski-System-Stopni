@@ -30,7 +30,9 @@ export function AttachmentReadonlyList({
         {attachments.map((attachment) => (
           <li
             key={attachment.uuid}
-            className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2 text-sm"
+            data-fix-target={`attachment:${attachment.uuid}`}
+            tabIndex={-1}
+            className="scroll-mt-32 flex items-center justify-between rounded-md border border-border/50 px-3 py-2 text-sm outline-none"
           >
             <div className="min-w-0">
               <p className="truncate font-medium">{attachment.originalFilename}</p>
@@ -57,7 +59,12 @@ export function AttachmentReadonlyList({
   return (
     <ul className="text-xs text-foreground/60 space-y-0.5">
       {attachments.map((attachment) => (
-        <li key={attachment.uuid}>
+        <li
+          key={attachment.uuid}
+          data-fix-target={`attachment:${attachment.uuid}`}
+          tabIndex={-1}
+          className="scroll-mt-32 outline-none"
+        >
           <AttachmentDownloadLink
             applicationId={applicationId}
             attachment={attachment}

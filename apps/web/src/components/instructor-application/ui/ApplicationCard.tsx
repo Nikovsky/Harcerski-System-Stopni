@@ -22,6 +22,8 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
 
   const isEditable = isInstructorApplicationEditable(app.status);
   const isDraft = app.status === "DRAFT";
+  const primaryActionLabel =
+    app.status === "TO_FIX" ? t("actions.fixNow") : t("actions.edit");
 
   return (
     <div className="rounded-lg border border-border bg-background p-4 shadow-sm transition hover:shadow-md">
@@ -44,7 +46,7 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
                 href={`/${locale}/applications/${app.uuid}/edit`}
                 className={IA_BUTTON_PRIMARY_SM}
               >
-                {t("actions.edit")}
+                {primaryActionLabel}
               </Link>
               {isDraft && (
                 <DeleteDraftButton

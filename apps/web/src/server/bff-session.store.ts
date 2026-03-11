@@ -60,6 +60,8 @@ export type SessionTouchResult = {
   absoluteExpiresAt: Date | null;
 };
 
+type SessionRecord = z.infer<typeof sessionRecordSchema>;
+
 function sessionKey(sid: string): string {
   return `${envServer.HSS_SESSION_KEY_PREFIX}${sid}`;
 }
@@ -106,7 +108,7 @@ function parseTokenFromCiphertext(ciphertext: string): SessionJwt | null {
   }
 }
 
-function toSessionJwtWithMeta(token: SessionJwt, record: z.infer<typeof sessionRecordSchema>): SessionJwt {
+function toSessionJwtWithMeta(token: SessionJwt, record: SessionRecord): SessionJwt {
   return {
     ...token,
     hssSid: record.sid,
@@ -115,12 +117,12 @@ function toSessionJwtWithMeta(token: SessionJwt, record: z.infer<typeof sessionR
   };
 }
 
-function parseRecord(raw: string): z.infer<typeof sessionRecordSchema> | null {
+function parseRecord(raw: string): SessionRecord | null {
   const parsed = sessionRecordSchema.safeParse(JSON.parse(raw) as unknown);
   return parsed.success ? parsed.data : null;
 }
 
-async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSchema> | null> {
+async function readRecord(sid: string): Promise<SessionRecord | null> {
   const raw = await runRedisCommand((redis) => redis.get(sessionKey(sid)));
   if (!raw) return null;
 
@@ -137,7 +139,7 @@ async function readRecord(sid: string): Promise<z.infer<typeof sessionRecordSche
   }
 }
 
-async function writeRecord(record: z.infer<typeof sessionRecordSchema>): Promise<void> {
+async function writeRecord(record: SessionRecord): Promise<void> {
   const now = Date.now();
   const ttlMs = ttlFromExpirations(now, record.idleExpiresAtMs, record.absoluteExpiresAtMs);
 
@@ -151,7 +153,7 @@ async function writeRecord(record: z.infer<typeof sessionRecordSchema>): Promise
   );
 }
 
-function resolveAbsoluteExpiresAtMs(token: SessionJwt, existing: z.infer<typeof sessionRecordSchema> | null, nowMs: number): number {
+function resolveAbsoluteExpiresAtMs(token: SessionJwt, existing: SessionRecord | null, nowMs: number): number {
   const byToken = toPositiveNumber(token.hssSessionAbsoluteExpiresAtMs);
   if (byToken) {
     return byToken;
@@ -164,15 +166,37 @@ function resolveAbsoluteExpiresAtMs(token: SessionJwt, existing: z.infer<typeof 
   return nowMs + envServer.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS * 1_000;
 }
 
-function resolveCreatedAtMs(token: SessionJwt, existing: z.infer<typeof sessionRecordSchema> | null, nowMs: number): number {
+function resolveCreatedAtMs(token: SessionJwt, existing: SessionRecord | null, nowMs: number): number {
   const byToken = toPositiveNumber(token.hssSessionCreatedAtMs);
   if (byToken) return byToken;
   if (existing) return existing.createdAtMs;
   return nowMs;
 }
 
-function isRecordExpired(record: z.infer<typeof sessionRecordSchema>, nowMs: number): boolean {
+function isRecordExpired(record: SessionRecord, nowMs: number): boolean {
   return record.idleExpiresAtMs <= nowMs || record.absoluteExpiresAtMs <= nowMs;
+}
+
+function applyTokenToRecord(record: SessionRecord, token: SessionJwt): SessionRecord {
+  const tokenWithMeta = toSessionJwtWithMeta(token, record);
+
+  return {
+    ...record,
+    userId: toStringOrNull(tokenWithMeta.sub),
+    userEmail: toStringOrNull(tokenWithMeta.email),
+    tokenCiphertext: encryptSessionPayload(JSON.stringify(tokenWithMeta)),
+  };
+}
+
+function toStoredSession(record: SessionRecord, token: SessionJwt): StoredSession {
+  return {
+    sid: record.sid,
+    token: toSessionJwtWithMeta(token, record),
+    createdAt: new Date(record.createdAtMs),
+    lastSeenAt: new Date(record.lastSeenAtMs),
+    idleExpiresAt: new Date(record.idleExpiresAtMs),
+    absoluteExpiresAt: new Date(record.absoluteExpiresAtMs),
+  };
 }
 
 export async function encodeOpaqueSessionToken(params: JWTEncodeParams): Promise<string> {
@@ -196,17 +220,18 @@ export async function encodeOpaqueSessionToken(params: JWTEncodeParams): Promise
     hssSessionAbsoluteExpiresAtMs: absoluteExpiresAtMs,
   };
 
-  const record: z.infer<typeof sessionRecordSchema> = {
+  const baseRecord: SessionRecord = {
     version: SESSION_RECORD_VERSION,
     sid,
     createdAtMs,
     lastSeenAtMs: existing?.lastSeenAtMs ?? now,
     idleExpiresAtMs,
     absoluteExpiresAtMs,
-    userId: toStringOrNull(tokenWithMeta.sub),
-    userEmail: toStringOrNull(tokenWithMeta.email),
-    tokenCiphertext: encryptSessionPayload(JSON.stringify(tokenWithMeta)),
+    userId: null,
+    userEmail: null,
+    tokenCiphertext: "",
   };
+  const record = applyTokenToRecord(baseRecord, tokenWithMeta);
 
   await writeRecord(record);
   return sid;
@@ -239,14 +264,26 @@ export async function readSessionBySid(rawSid: string): Promise<StoredSession | 
     return null;
   }
 
-  return {
-    sid: record.sid,
-    token: toSessionJwtWithMeta(token, record),
-    createdAt: new Date(record.createdAtMs),
-    lastSeenAt: new Date(record.lastSeenAtMs),
-    idleExpiresAt: new Date(record.idleExpiresAtMs),
-    absoluteExpiresAt: new Date(record.absoluteExpiresAtMs),
-  };
+  return toStoredSession(record, token);
+}
+
+export async function persistSessionTokenBySid(rawSid: string, token: SessionJwt): Promise<StoredSession | null> {
+  const sid = normalizeSessionSid(rawSid);
+  if (!sid) return null;
+
+  const record = await readRecord(sid);
+  if (!record) return null;
+
+  const now = Date.now();
+  if (isRecordExpired(record, now)) {
+    await destroySessionBySid(sid);
+    return null;
+  }
+
+  const nextRecord = applyTokenToRecord(record, token);
+  await writeRecord(nextRecord);
+
+  return toStoredSession(nextRecord, token);
 }
 
 export async function touchSessionBySid(rawSid: string, extendSeconds?: number): Promise<SessionTouchResult> {
@@ -318,19 +355,18 @@ export async function touchSessionBySid(rawSid: string, extendSeconds?: number):
     record.absoluteExpiresAtMs,
   );
 
-  const nextRecord: z.infer<typeof sessionRecordSchema> = {
+  const baseRecord: SessionRecord = {
     ...record,
     lastSeenAtMs: now,
     idleExpiresAtMs: nextIdleExpiresAtMs,
-    userId: toStringOrNull(token.sub),
-    userEmail: toStringOrNull(token.email),
   };
+  const nextRecord = applyTokenToRecord(baseRecord, token);
 
   await writeRecord(nextRecord);
 
   return {
     touched: true,
-    token: toSessionJwtWithMeta(token, nextRecord),
+    token: toStoredSession(nextRecord, token).token,
     idleExpiresAt: new Date(nextRecord.idleExpiresAtMs),
     absoluteExpiresAt: new Date(nextRecord.absoluteExpiresAtMs),
   };

@@ -20,6 +20,7 @@ export async function Navbar({ locale, session }: NavbarProps) {
   const canSeeApplications = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeMeetings = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
+  const canSeeCommission = canAccess(principal, ROLE_RANK.COMMISSION_MEMBER);
   const NAV_BASE: NavItem[] = [
     { label: t("home"), href: "/" },
     { label: t("about"), href: "/about" },
@@ -32,6 +33,7 @@ export async function Navbar({ locale, session }: NavbarProps) {
           : []),
         ...(canSeeMeetings ? [{ label: t("meetings"), href: "/meetings" }] : []),
         ...(canSeeDashboard ? [{ label: t("dashboard"), href: "/dashboard" }] : []),
+        ...(canSeeCommission ? [{ label: t("commission"), href: "/commission" }] : []),
         { label: t("profile"), href: "/profile" },
       ]
     : NAV_BASE;

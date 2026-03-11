@@ -8,6 +8,10 @@ import { degreeKey, statusKey } from "@/lib/applications-i18n";
 import { ApplicationStatusBadge } from "@/components/instructor-application/ui/ApplicationStatusBadge";
 import { RequirementForm } from "@/components/instructor-application/requirements/RequirementForm";
 import {
+  buildCandidateFixTargets,
+  countCandidateFixSteps,
+} from "@/components/instructor-application/revision/candidate-fix-targets";
+import {
   ApplicationDetailTabsNav,
   type ApplicationDetailTab,
   applicationDetailPanelId,
@@ -41,6 +45,10 @@ export function ApplicationDetailClient({ app, id }: Props) {
   const statusLabel = translatedStatusKey ? t(translatedStatusKey) : app.status;
   const panelId = applicationDetailPanelId(tab);
   const tabId = applicationDetailTabId(tab);
+  const fixTargets = buildCandidateFixTargets(app, app, t);
+  const stepsWithFixes = countCandidateFixSteps(fixTargets);
+  const editActionLabel =
+    app.status === "TO_FIX" ? t("actions.openFixes") : t("actions.edit");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -75,7 +83,7 @@ export function ApplicationDetailClient({ app, id }: Props) {
               href={`/${locale}/applications/${id}/edit`}
               className={IA_BUTTON_PRIMARY_MD}
             >
-              {t("actions.edit")}
+              {editActionLabel}
             </Link>
           )}
         </div>
@@ -83,6 +91,89 @@ export function ApplicationDetailClient({ app, id }: Props) {
 
       {pdfError && (
         <p className="mb-4 text-sm text-red-600 dark:text-red-400">{pdfError}</p>
+      )}
+
+      {app.status === "TO_FIX" && app.candidateEditScope.requestUuid && (
+        <section className="mb-6 rounded-2xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-900 dark:text-amber-200">
+                {t("candidateEditScope.title")}
+              </p>
+              <p className="mt-2 text-sm text-foreground/75">
+                {t("candidateEditScope.summaryDescription", {
+                  count: fixTargets.length,
+                  steps: stepsWithFixes,
+                })}
+              </p>
+            </div>
+            <Link
+              href={`/${locale}/applications/${id}/edit`}
+              className={IA_BUTTON_PRIMARY_MD}
+            >
+              {t("actions.openFixes")}
+            </Link>
+          </div>
+          <p className="mt-2 text-sm text-foreground/70">
+            {t("candidateEditScope.detailNotice")}
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-amber-300/70 bg-background/70 p-4 dark:border-amber-900/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                {t("candidateEditScope.allAnnotationsCount")}
+              </p>
+              <p className="mt-2 text-sm text-foreground/80">
+                {fixTargets.length}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-amber-300/70 bg-background/70 p-4 dark:border-amber-900/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                {t("candidateEditScope.stepsWithAnnotationsCount")}
+              </p>
+              <p className="mt-2 text-sm text-foreground/80">
+                {stepsWithFixes}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-amber-300/70 bg-background/70 p-4 dark:border-amber-900/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                {t("candidateEditScope.roundPublishedAtLabel")}
+              </p>
+              <p className="mt-2 text-sm text-foreground/80">
+                {app.candidateEditScope.publishedAt
+                  ? new Date(app.candidateEditScope.publishedAt).toLocaleString(locale)
+                  : "—"}
+              </p>
+            </div>
+          </div>
+
+          <details className="mt-4 rounded-2xl border border-amber-300/70 bg-background/70 p-4 dark:border-amber-900/70">
+            <summary className="cursor-pointer text-sm font-medium text-foreground/80">
+              {t("candidateEditScope.telemetryDetailsLabel")}
+            </summary>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-amber-300/70 bg-background/80 p-4 dark:border-amber-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                  {t("candidateEditScope.firstViewedAtLabel")}
+                </p>
+                <p className="mt-2 text-sm text-foreground/80">
+                  {app.candidateEditScope.candidateFirstViewedAt
+                    ? new Date(app.candidateEditScope.candidateFirstViewedAt).toLocaleString(locale)
+                    : "—"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-amber-300/70 bg-background/80 p-4 dark:border-amber-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                  {t("candidateEditScope.lastActivityAtLabel")}
+                </p>
+                <p className="mt-2 text-sm text-foreground/80">
+                  {app.candidateEditScope.candidateLastActivityAt
+                    ? new Date(app.candidateEditScope.candidateLastActivityAt).toLocaleString(locale)
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </details>
+        </section>
       )}
 
       <ApplicationDetailTabsNav tab={tab} onChange={setTab} />

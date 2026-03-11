@@ -2,11 +2,17 @@
 import type { ApiError } from "@/lib/api";
 
 export type UploadMessagesTranslator = (
-  key: "messages.uploadInvalidType" | "messages.uploadTooLarge" | "messages.uploadError",
+  key:
+    | "messages.uploadInvalidType"
+    | "messages.uploadTooLarge"
+    | "messages.uploadError"
+    | "messages.attachmentLockedError",
 ) => string;
 
 export type RequirementMessagesTranslator = (
-  key: "messages.requirementSaveError",
+  key:
+    | "messages.requirementSaveError"
+    | "messages.requirementTextLockedError",
 ) => string;
 
 type UnknownErrorMapper = {
@@ -85,6 +91,10 @@ export function toUserFriendlyUploadError(
     return t("messages.uploadInvalidType");
   }
 
+  if (err.code === "ATTACHMENT_UPDATE_NOT_ALLOWED") {
+    return t("messages.attachmentLockedError");
+  }
+
   return t("messages.uploadError");
 }
 
@@ -104,8 +114,17 @@ export function toUserFriendlyRequirementSaveErrorFromUnknown(
 ): string {
   return resolveUnknownErrorMessage(err, {
     fallbackMessage: t("messages.requirementSaveError"),
-    mapApiError: (apiErr) =>
-      apiErr.code === "VALIDATION_ERROR" ? t("messages.requirementSaveError") : null,
+    mapApiError: (apiErr) => {
+      if (apiErr.code === "VALIDATION_ERROR") {
+        return t("messages.requirementSaveError");
+      }
+
+      if (apiErr.code === "REQUIREMENT_UPDATE_NOT_ALLOWED") {
+        return t("messages.requirementTextLockedError");
+      }
+
+      return null;
+    },
   });
 }
 

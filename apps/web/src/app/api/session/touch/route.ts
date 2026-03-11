@@ -49,6 +49,12 @@ function serviceUnavailableResponse(requestId: string): NextResponse {
   );
 }
 
+function hasUsableSessionToken(token: Awaited<ReturnType<typeof touchSessionBySid>>["token"]): boolean {
+  if (!token) return false;
+  if (token.error === "RefreshTokenExpired") return false;
+  return typeof token.accessToken === "string" && token.accessToken.length > 0;
+}
+
 function parseOriginFromReferer(referer: string | null): string | null {
   if (!referer) return null;
   try {
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const touched = await touchSessionBySid(sid, body.extendSeconds);
-  if (!touched.token) {
+  if (!hasUsableSessionToken(touched.token)) {
     return errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId);
   }
 

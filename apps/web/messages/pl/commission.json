@@ -1,0 +1,306 @@
+{
+  "types": {
+    "INSTRUCTOR": "Komisja instruktorska",
+    "SCOUT": "Komisja harcerska",
+    "UNKNOWN": "Komisja"
+  },
+  "roles": {
+    "CHAIRMAN": "Przewodniczący",
+    "SECRETARY": "Sekretarz",
+    "MEMBER": "Członek komisji"
+  },
+  "permissions": {
+    "manageWorkflow": "Zarządzanie workflow",
+    "fixRequests": "Prośby o poprawki",
+    "readReview": "Podgląd i komentarze"
+  },
+  "actions": {
+    "openApplication": "Otwórz wniosek",
+    "previousPage": "Poprzednia strona",
+    "nextPage": "Następna strona",
+    "view": "Podgląd",
+    "download": "Pobierz"
+  },
+  "membership": {
+    "eyebrow": "Panel komisji",
+    "title": "Wybierz komisję",
+    "description": "Każdy kontekst komisji działa niezależnie. Wchodzisz tylko do tych komisji, w których masz aktywne członkostwo i prawa wynikające z roli.",
+    "emptyTitle": "Brak aktywnych członkostw komisji",
+    "emptyDescription": "Konto ma globalną rolę komisji, ale nie znaleziono aktywnego przypisania do konkretnej komisji.",
+    "fallbackName": "{type} bez nazwy",
+    "fallbackNameShort": "Komisja bez nazwy",
+    "roleLabel": "Rola",
+    "openPanel": "Otwórz panel",
+    "switchCommission": "Zmień komisję"
+  },
+  "accessDenied": {
+    "membershipMessage": "Nie masz aktywnego członkostwa w wybranej komisji albo URL wskazuje nieprawidłowy kontekst komisji.",
+    "applicationMessage": "Nie możesz otworzyć tego wniosku w kontekście wybranej komisji."
+  },
+  "unsupported": {
+    "title": "Panel tej komisji jest jeszcze w przygotowaniu",
+    "inboxDescription": "Masz aktywne członkostwo w komisji harcerskiej, ale ten panel nie obsługuje jeszcze inboxu dla ścieżki harcerskiej.",
+    "detailDescription": "Masz aktywne członkostwo w komisji harcerskiej, ale ten panel nie obsługuje jeszcze szczegółu wniosku dla ścieżki harcerskiej.",
+    "backToChooser": "Wróć do wyboru komisji"
+  },
+  "inbox": {
+    "stats": {
+      "total": "Łącznie w inboxie",
+      "onPage": "Na tej stronie",
+      "openFixRequests": "Aktywne poprawki"
+    },
+    "filtersTitle": "Filtry i sortowanie",
+    "filtersDescription": "Zawężaj listę po statusie, kandydacie i czasie ostatniej aktywności.",
+    "clearFilters": "Wyczyść filtry",
+    "searchLabel": "Szukaj",
+    "searchPlaceholder": "Nazwisko, e-mail, stopień",
+    "sortLabel": "Sortowanie",
+    "sort": {
+      "updatedAt": "Ostatnia aktualizacja",
+      "lastSubmittedAt": "Ostatnie złożenie",
+      "candidateSurname": "Nazwisko kandydata"
+    },
+    "directionLabel": "Kierunek",
+    "direction": {
+      "desc": "Malejąco",
+      "asc": "Rosnąco"
+    },
+    "statusFilterLabel": "Statusy",
+    "applyFilters": "Zastosuj",
+    "emptyTitle": "Brak wniosków dla wybranych filtrów",
+    "emptyDescription": "Spróbuj poszerzyć zakres statusów albo wyczyścić wyszukiwanie.",
+    "unknownCandidate": "Kandydat bez danych",
+    "noCandidateEmail": "Brak adresu e-mail",
+    "badges": {
+      "openFixRequest": "Aktywna prośba o poprawki",
+      "workflow": "Dostęp do workflow"
+    },
+    "meta": {
+      "updatedAt": "Aktualizacja",
+      "lastSubmittedAt": "Ostatnio złożono"
+    },
+    "pagination": "Strona {page} z {total}",
+    "sidebar": {
+      "title": "Zakres uprawnień",
+      "description": "Dostęp do danych i akcji zależy od roli w aktywnej komisji. Egzekwowanie uprawnień pozostaje po stronie API."
+    },
+    "quickLinksTitle": "Szybkie skróty"
+  },
+  "detail": {
+    "unknownCandidate": "Kandydat",
+    "noEmail": "Brak adresu e-mail",
+    "lastSubmittedAt": "Ostatnio złożono",
+    "updatedAt": "Zaktualizowano",
+    "feedbackStatus": "Status uwag dla kandydata",
+    "noteCount": "Notatki komisji",
+    "sectionNavLabel": "Nawigacja po szczegółach wniosku",
+    "backToInbox": "Wróć do inboxu",
+    "generalAttachmentsTitle": "Załączniki ogólne",
+    "noGeneralAttachments": "Brak załączników ogólnych"
+  },
+  "workspace": {
+    "tabs": {
+      "application": "Wniosek",
+      "requirements": "Zadania",
+      "candidateFeedback": "Propozycje uwag",
+      "internalNotes": "Notatki komisji",
+      "history": "Historia"
+    },
+    "application": {
+      "candidateTitle": "Dane i kontekst kandydata",
+      "candidateDescription": "Najważniejsze informacje profilowe do oceny sprawy. Dane profilu pozostają tylko do odczytu z poziomu wniosku.",
+      "profileReadonly": "Dane profilowe",
+      "profileReadonlyDescription": "Jeśli komisja chce odnieść się do profilu kandydata, użyj uwagi ogólnej do wniosku albo notatki wewnętrznej.",
+      "applicationDescription": "Pola formalne wniosku, które kandydat może poprawiać po publikacji uwag komisji.",
+      "supervisorDescription": "Dane opiekuna próby z możliwością dodania uwag do konkretnych pól.",
+      "serviceTitle": "Historia służby",
+      "serviceDescription": "Opis przebiegu służby, kursów, sukcesów i trudności. To główny materiał merytoryczny do pracy komisji.",
+      "attachmentsTitle": "Załączniki",
+      "attachmentsDescription": "Pliki do wglądu komisji. Uwagę można przypiąć do konkretnego załącznika.",
+      "hufcowyDescription": "Opinia pisemna hufcowego, jeśli została załączona do wniosku.",
+      "hufcowyEmpty": "Brak załączonej opinii pisemnej hufcowego.",
+      "generalAttachmentsDescription": "Pozostałe załączniki ogólne dołączone przez kandydata.",
+      "fileMeta": "{sizeKb} KB · dodano {uploadedAt}"
+    },
+    "requirements": {
+      "title": "Przegląd zadań",
+      "description": "Każde zadanie ma własny kontekst, dowody i osobne akcje review. Komisja pracuje na konkretnym wymaganiu, a nie na ścianie tekstu.",
+      "ungroupedTitle": "Pozostałe zadania",
+      "groupCount": "{count, plural, one {# zadanie} few {# zadania} many {# zadań} other {# zadania}}",
+      "actionLabel": "Opis realizacji",
+      "verificationLabel": "Dowód i weryfikacja",
+      "attachmentsLabel": "Załączniki do zadania",
+      "noAttachments": "Do tego zadania nie dodano jeszcze załączników.",
+      "empty": "Brak zadań do wyświetlenia."
+    },
+    "candidateFeedback": {
+      "title": "Propozycje uwag dla kandydata",
+      "publishedTitle": "Wysłane uwagi dla kandydata",
+      "description": "Tu komisja przygotowuje propozycje uwag przypięte do pól, zadań i załączników. Kandydat zobaczy je dopiero po publikacji zestawu uwag.",
+      "publishedDescription": "To zamknięty zestaw uwag wysłanych kandydatowi razem ze statusem „Do poprawy”.",
+      "requestLabel": "Status uwag",
+      "annotationCount": "{count, plural, one {# uwaga} few {# uwagi} many {# uwag} other {# uwagi}}",
+      "noSummary": "Brak wiadomości zbiorczej. Kandydat zobaczy wyłącznie uwagi przypięte do konkretnych elementów.",
+      "empty": "Brak aktywnych uwag dla kandydata.",
+      "noActiveRequest": "Komisja nie przygotowała jeszcze aktywnego zestawu uwag dla tego wniosku.",
+      "editDraft": "Edytuj propozycję",
+      "draftPublishHint": "Kandydat jeszcze nie widzi tych propozycji. Publikacja wyśle cały zestaw i ustawi status „Do poprawy”.",
+      "draftMemberHint": "Kandydat jeszcze nie widzi tych propozycji. Zostaną wysłane dopiero po publikacji przez sekretarza lub przewodniczącego.",
+      "publishedHint": "Ten zestaw uwag został już wysłany do kandydata i pozostaje zamknięty do czasu ponownego złożenia wniosku.",
+      "publishedAtLabel": "Wysłano",
+      "firstViewedAtLabel": "Pierwsze otwarcie",
+      "lastActivityAtLabel": "Ostatnia aktywność",
+      "authorLabel": "Autor: {author}",
+      "createdAtLabel": "Dodano: {date}",
+      "updatedAtLabel": "Ostatnia zmiana: {date}"
+    }
+  },
+  "anchors": {
+    "application": "Cały wniosek",
+    "unknownRequirement": "Nieznane zadanie",
+    "unknownAttachment": "Nieznany załącznik",
+    "sections": {
+      "BASIC_INFO": "Dane wniosku",
+      "SERVICE_HISTORY": "Historia służby",
+      "SUPERVISOR": "Opiekun próby",
+      "GENERAL_ATTACHMENTS": "Załączniki ogólne"
+    }
+  },
+  "notes": {
+    "title": "Notatki komisji",
+    "description": "Wewnętrzne notatki robocze widoczne wyłącznie dla członków komisji.",
+    "count": "{count, plural, one {# notatka} few {# notatki} many {# notatek} other {# notatki}}",
+    "addInline": "Dodaj notatkę",
+    "addApplicationNote": "Dodaj notatkę do wniosku",
+    "edit": "Edytuj",
+    "authorLabel": "Autor: {author}",
+    "createdAtLabel": "Dodano: {date}",
+    "updatedAtLabel": "Ostatnia zmiana: {date}",
+    "createdMeta": "Dodano",
+    "updatedMeta": "Zmieniono",
+    "empty": "Nie ma jeszcze notatek komisji."
+  },
+  "annotations": {
+    "addCandidateButton": "Zaproponuj uwagę",
+    "editCandidateButton": "Edytuj propozycję",
+    "drawerEyebrow": "Tryb redaktora komisji",
+    "drawerTitle": "Dodaj adnotację",
+    "editDraftTitle": "Edytuj propozycję uwagi",
+    "editInternalTitle": "Edytuj notatkę komisji",
+    "closeDrawer": "Zamknij",
+    "anchorLabel": "Adnotacja będzie przypięta do: {anchor}",
+    "candidateLabel": "Propozycja uwagi",
+    "internalLabel": "Notatka wewnętrzna",
+    "candidateDescription": "Kandydat jeszcze tego nie widzi. Propozycja trafi do niego dopiero po publikacji zestawu uwag.",
+    "internalDescription": "Ta notatka pozostaje wewnętrzna i nigdy nie trafia do widoku kandydata.",
+    "bodyLabel": "Treść adnotacji",
+    "bodyPlaceholder": "Opisz problem, oczekiwaną poprawkę albo decyzję roboczą komisji.",
+    "cancelDraft": "Usuń propozycję",
+    "deleteInternal": "Usuń notatkę",
+    "saving": "Zapisywanie...",
+    "saveInternalChanges": "Zapisz notatkę",
+    "saveDraftChanges": "Zapisz zmiany",
+    "save": "Zapisz",
+    "validation": {
+      "bodyRequired": "Treść adnotacji jest wymagana."
+    }
+  },
+  "feedback": {
+    "title": "Uwagi dla kandydata",
+    "description": "Uwagi dla kandydata powstają inline przy polach, zadaniach i załącznikach. Ustawienie statusu „Do poprawy” publikuje aktywny szkic uwag.",
+    "draftCountLabel": "Szkice uwag",
+    "publishedCountLabel": "Opublikowane uwagi",
+    "cancelDraft": "Usuń szkic uwag",
+    "status": {
+      "NONE": "Brak uwag",
+      "DRAFT": "Szkic uwag",
+      "PUBLISHED": "Wysłane uwagi",
+      "RESOLVED": "Uwagi zamknięte",
+      "CANCELLED": "Uwagi anulowane"
+    }
+  },
+  "comments": {
+    "title": "Komentarze wewnętrzne",
+    "description": "Uwagi członków komisji widoczne tylko w panelu komisji.",
+    "count": "{count, plural, one {# komentarz} few {# komentarze} many {# komentarzy} other {# komentarza}}",
+    "composerTitle": "Nowy komentarz",
+    "feedTitle": "Historia komentarzy",
+    "targetLabel": "Zakres komentarza",
+    "targets": {
+      "APPLICATION": "Cały wniosek",
+      "REQUIREMENT": "Wybrane zadanie"
+    },
+    "requirementLabel": "Zadanie",
+    "selectedRequirementLabel": "Wybrane zadanie",
+    "bodyLabel": "Treść komentarza",
+    "bodyPlaceholder": "Dodaj notatkę dla komisji, pytanie lub decyzję roboczą.",
+    "submit": "Dodaj komentarz",
+    "saving": "Zapisywanie...",
+    "empty": "Nie ma jeszcze komentarzy wewnętrznych.",
+    "targetRequirement": "Zadanie: {requirement}",
+    "readOnlyNotice": "Nie masz uprawnień do dodawania komentarzy, ale możesz przeglądać historię komisji."
+  },
+  "workflow": {
+    "title": "Status i publikacja",
+    "description": "Komisja pracuje na propozycjach uwag, a sekretarz lub przewodniczący publikuje gotowy zestaw i podejmuje decyzje statusowe.",
+    "controlTitle": "Pozostałe decyzje",
+    "controlDescription": "Te akcje nie publikują nowych uwag dla kandydata.",
+    "statusLabel": "Nowy status",
+    "applyStatus": "Ustaw: {status}",
+    "publishDraft": "Wyślij uwagi i ustaw „Do poprawy”",
+    "saving": "Trwa zapis...",
+    "otherTransitions": "Pozostałe przejścia",
+    "noActions": "Ta rola ma podgląd procesu, ale bez akcji publikacji i zmiany statusu.",
+    "fixRequestMessageRequired": "Przejście do statusu „Do poprawy” wymaga wiadomości dla kandydata.",
+    "fixRequestScopeRequired": "Wskaż co najmniej jedno pole, zadanie albo odblokowanie załączników ogólnych.",
+    "feedback": {
+      "title": "Uwagi dla kandydata",
+      "none": "Nie ma aktywnego zestawu uwag dla tego wniosku.",
+      "draftReady": "{count, plural, one {# propozycja czeka na wysłanie} few {# propozycje czekają na wysłanie} many {# propozycji czeka na wysłanie} other {# propozycje czekają na wysłanie}}",
+      "publishedAt": "Uwagi wysłano: {publishedAt}",
+      "memberHint": "Członkowie komisji mogą dalej dopracowywać propozycje, ale nie publikują ich samodzielnie.",
+      "publishHint": "Po publikacji kandydat zobaczy dokładnie ten zestaw uwag, a zostanie on zamknięty do czasu ponownego złożenia.",
+      "publishedHint": "Aktywny zestaw uwag jest już wysłany. Dalsze nowe uwagi można przygotować dopiero po ponownym złożeniu wniosku."
+    }
+  },
+  "fixRequest": {
+    "currentTitle": "Aktualna prośba o poprawki",
+    "editorTitle": "Szkic poprawki dla kandydata",
+    "editorDescription": "Zapisz szkic albo od razu opublikuj poprawkę razem ze zmianą statusu na „Do poprawy”.",
+    "messageLabel": "Wiadomość dla kandydata",
+    "messagePlaceholder": "Opisz, co kandydat ma poprawić i czego komisja oczekuje przy ponownym złożeniu.",
+    "fieldsLabel": "Pola formularza do odblokowania",
+    "requirementsLabel": "Zadania do odblokowania",
+    "topLevelAttachmentsLabel": "Zezwól na zmianę załączników ogólnych",
+    "saveDraft": "Zapisz szkic",
+    "status": {
+      "DRAFT": "Szkic",
+      "PUBLISHED": "Opublikowana",
+      "RESOLVED": "Rozwiązana",
+      "CANCELLED": "Anulowana"
+    }
+  },
+  "timeline": {
+    "title": "Oś czasu komisji",
+    "description": "Audit trail dla komisji: zmiany statusu, publikacje uwag dla kandydata i kluczowe zdarzenia systemowe.",
+    "count": "{count, plural, one {# zdarzenie} few {# zdarzenia} many {# zdarzeń} other {# zdarzenia}}",
+    "empty": "Brak zdarzeń do wyświetlenia.",
+    "noPreviousStatus": "brak poprzedniego statusu",
+    "statusChangeTitle": "Zmiana statusu: {from} -> {to}",
+    "revisionRequest": {
+      "PUBLISHED": "Opublikowano uwagi dla kandydata",
+      "RESOLVED": "Zamknięto uwagi dla kandydata",
+      "CANCELLED": "Anulowano uwagi dla kandydata"
+    },
+    "system": {
+      "INSTRUCTOR_APPLICATION_SUBMITTED": "Wniosek został złożony do recenzji komisji."
+    }
+  },
+  "messages": {
+    "downloadError": "Nie udało się pobrać załącznika. Spróbuj ponownie.",
+    "annotationSaveError": "Nie udało się zapisać adnotacji. Spróbuj ponownie.",
+    "commentSaveError": "Nie udało się zapisać komentarza. Spróbuj ponownie.",
+    "fixRequestSaveError": "Nie udało się zapisać szkicu poprawki. Spróbuj ponownie.",
+    "statusChangeError": "Nie udało się zmienić statusu. Spróbuj ponownie."
+  }
+}

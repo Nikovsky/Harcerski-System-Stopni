@@ -1,0 +1,306 @@
+{
+  "types": {
+    "INSTRUCTOR": "Instructor commission",
+    "SCOUT": "Scout commission",
+    "UNKNOWN": "Commission"
+  },
+  "roles": {
+    "CHAIRMAN": "Chairman",
+    "SECRETARY": "Secretary",
+    "MEMBER": "Commission member"
+  },
+  "permissions": {
+    "manageWorkflow": "Workflow management",
+    "fixRequests": "Fix requests",
+    "readReview": "Review access"
+  },
+  "actions": {
+    "openApplication": "Open application",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "view": "View",
+    "download": "Download"
+  },
+  "membership": {
+    "eyebrow": "Commission panel",
+    "title": "Choose a commission",
+    "description": "Each commission context is isolated. You can only enter commissions where you have an active membership and permissions derived from your role.",
+    "emptyTitle": "No active commission memberships",
+    "emptyDescription": "The account has a global commission role, but there is no active assignment to a specific commission.",
+    "fallbackName": "{type} without a name",
+    "fallbackNameShort": "Unnamed commission",
+    "roleLabel": "Role",
+    "openPanel": "Open panel",
+    "switchCommission": "Switch commission"
+  },
+  "accessDenied": {
+    "membershipMessage": "You do not have an active membership in the selected commission or the URL points to an invalid commission context.",
+    "applicationMessage": "You cannot open this application in the selected commission context."
+  },
+  "unsupported": {
+    "title": "This commission panel is not available yet",
+    "inboxDescription": "You have an active scout commission membership, but this panel does not yet support the scout application inbox.",
+    "detailDescription": "You have an active scout commission membership, but this panel does not yet support the scout application detail view.",
+    "backToChooser": "Back to commission chooser"
+  },
+  "inbox": {
+    "stats": {
+      "total": "Total in inbox",
+      "onPage": "On this page",
+      "openFixRequests": "Open fix requests"
+    },
+    "filtersTitle": "Filters and sorting",
+    "filtersDescription": "Narrow the queue by status, candidate, and recent activity.",
+    "clearFilters": "Clear filters",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Surname, email, degree",
+    "sortLabel": "Sort by",
+    "sort": {
+      "updatedAt": "Last update",
+      "lastSubmittedAt": "Last submission",
+      "candidateSurname": "Candidate surname"
+    },
+    "directionLabel": "Direction",
+    "direction": {
+      "desc": "Descending",
+      "asc": "Ascending"
+    },
+    "statusFilterLabel": "Statuses",
+    "applyFilters": "Apply",
+    "emptyTitle": "No applications match the selected filters",
+    "emptyDescription": "Try broadening the status scope or clearing the search.",
+    "unknownCandidate": "Candidate without profile data",
+    "noCandidateEmail": "No email address",
+    "badges": {
+      "openFixRequest": "Open fix request",
+      "workflow": "Workflow access"
+    },
+    "meta": {
+      "updatedAt": "Updated",
+      "lastSubmittedAt": "Last submitted"
+    },
+    "pagination": "Page {page} of {total}",
+    "sidebar": {
+      "title": "Permission scope",
+      "description": "Data visibility and workflow actions depend on the active commission role. API remains the source of truth for authorization."
+    },
+    "quickLinksTitle": "Quick links"
+  },
+  "detail": {
+    "unknownCandidate": "Candidate",
+    "noEmail": "No email address",
+    "lastSubmittedAt": "Last submitted",
+    "updatedAt": "Updated",
+    "feedbackStatus": "Candidate feedback status",
+    "noteCount": "Commission notes",
+    "sectionNavLabel": "Application detail navigation",
+    "backToInbox": "Back to inbox",
+    "generalAttachmentsTitle": "General attachments",
+    "noGeneralAttachments": "No general attachments"
+  },
+  "workspace": {
+    "tabs": {
+      "application": "Application",
+      "requirements": "Requirements",
+      "candidateFeedback": "Feedback proposals",
+      "internalNotes": "Commission notes",
+      "history": "History"
+    },
+    "application": {
+      "candidateTitle": "Candidate data and context",
+      "candidateDescription": "Key profile information for reviewing the case. Profile data remains read-only from the application workspace.",
+      "profileReadonly": "Profile data",
+      "profileReadonlyDescription": "If the commission wants to refer to the candidate profile, use a general application note or an internal note.",
+      "applicationDescription": "Formal application fields that can be reopened for the candidate after feedback is published.",
+      "supervisorDescription": "Trial supervisor details with inline review actions for specific fields.",
+      "serviceTitle": "Service history",
+      "serviceDescription": "Service record, courses, successes, and setbacks. This is the main narrative material for the commission review.",
+      "attachmentsTitle": "Attachments",
+      "attachmentsDescription": "Files available to the commission. Feedback can be attached to a specific file.",
+      "hufcowyDescription": "District leader written opinion, if it was attached to the application.",
+      "hufcowyEmpty": "No district leader written opinion was attached.",
+      "generalAttachmentsDescription": "Other general attachments added by the candidate.",
+      "fileMeta": "{sizeKb} KB · uploaded {uploadedAt}"
+    },
+    "requirements": {
+      "title": "Requirement review",
+      "description": "Each requirement has its own context, evidence, and review actions. The commission works on a specific item, not on a wall of text.",
+      "ungroupedTitle": "Other requirements",
+      "groupCount": "{count, plural, one {# requirement} other {# requirements}}",
+      "actionLabel": "Implementation summary",
+      "verificationLabel": "Evidence and verification",
+      "attachmentsLabel": "Requirement attachments",
+      "noAttachments": "No attachments were added to this requirement yet.",
+      "empty": "No requirements to display."
+    },
+    "candidateFeedback": {
+      "title": "Candidate feedback proposals",
+      "publishedTitle": "Published candidate feedback",
+      "description": "This workspace is for draft feedback proposals attached to fields, requirements, and attachments. The candidate only sees them after the feedback set is published.",
+      "publishedDescription": "This is the locked feedback set already sent to the candidate together with the \"Needs Fixing\" status.",
+      "requestLabel": "Feedback status",
+      "annotationCount": "{count, plural, one {# annotation} other {# annotations}}",
+      "noSummary": "No summary message. The candidate will only see annotations attached to specific elements.",
+      "empty": "There is no active candidate feedback.",
+      "noActiveRequest": "There is no active feedback set for this application yet.",
+      "editDraft": "Edit proposal",
+      "draftPublishHint": "The candidate cannot see these proposals yet. Publishing sends the full set and switches the application to \"Needs Fixing\".",
+      "draftMemberHint": "The candidate cannot see these proposals yet. They are sent only after the secretary or chairman publishes them.",
+      "publishedHint": "This feedback set has already been sent to the candidate and stays locked until the application is resubmitted.",
+      "publishedAtLabel": "Sent",
+      "firstViewedAtLabel": "First opened",
+      "lastActivityAtLabel": "Last activity",
+      "authorLabel": "Author: {author}",
+      "createdAtLabel": "Created: {date}",
+      "updatedAtLabel": "Last change: {date}"
+    }
+  },
+  "anchors": {
+    "application": "Whole application",
+    "unknownRequirement": "Unknown requirement",
+    "unknownAttachment": "Unknown attachment",
+    "sections": {
+      "BASIC_INFO": "Application data",
+      "SERVICE_HISTORY": "Service history",
+      "SUPERVISOR": "Trial supervisor",
+      "GENERAL_ATTACHMENTS": "General attachments"
+    }
+  },
+  "notes": {
+    "title": "Commission notes",
+    "description": "Internal working notes visible only to commission members.",
+    "count": "{count, plural, one {# note} other {# notes}}",
+    "addInline": "Add note",
+    "addApplicationNote": "Add application note",
+    "edit": "Edit",
+    "authorLabel": "Author: {author}",
+    "createdAtLabel": "Created: {date}",
+    "updatedAtLabel": "Last change: {date}",
+    "createdMeta": "Created",
+    "updatedMeta": "Updated",
+    "empty": "There are no commission notes yet."
+  },
+  "annotations": {
+    "addCandidateButton": "Propose feedback",
+    "editCandidateButton": "Edit proposal",
+    "drawerEyebrow": "Commission editor mode",
+    "drawerTitle": "Add annotation",
+    "editDraftTitle": "Edit feedback proposal",
+    "editInternalTitle": "Edit commission note",
+    "closeDrawer": "Close",
+    "anchorLabel": "The annotation will be attached to: {anchor}",
+    "candidateLabel": "Feedback proposal",
+    "internalLabel": "Internal note",
+    "candidateDescription": "The candidate cannot see this yet. It becomes visible only after the feedback set is published.",
+    "internalDescription": "This note stays internal and never appears in the candidate view.",
+    "bodyLabel": "Annotation body",
+    "bodyPlaceholder": "Describe the issue, the requested change, or the commission's working decision.",
+    "cancelDraft": "Delete proposal",
+    "deleteInternal": "Delete note",
+    "saving": "Saving...",
+    "saveInternalChanges": "Save note",
+    "saveDraftChanges": "Save changes",
+    "save": "Save",
+    "validation": {
+      "bodyRequired": "Annotation body is required."
+    }
+  },
+  "feedback": {
+    "title": "Candidate feedback",
+    "description": "Candidate feedback is created inline on fields, requirements, and attachments. Setting the status to \"Needs Fixing\" publishes the active feedback draft.",
+    "draftCountLabel": "Draft annotations",
+    "publishedCountLabel": "Published annotations",
+    "cancelDraft": "Delete feedback draft",
+    "status": {
+      "NONE": "No feedback",
+      "DRAFT": "Draft feedback",
+      "PUBLISHED": "Sent feedback",
+      "RESOLVED": "Closed feedback",
+      "CANCELLED": "Cancelled feedback"
+    }
+  },
+  "comments": {
+    "title": "Internal comments",
+    "description": "Commission notes visible only inside the commission panel.",
+    "count": "{count, plural, one {# comment} other {# comments}}",
+    "composerTitle": "New comment",
+    "feedTitle": "Comment history",
+    "targetLabel": "Comment target",
+    "targets": {
+      "APPLICATION": "Whole application",
+      "REQUIREMENT": "Selected requirement"
+    },
+    "requirementLabel": "Requirement",
+    "selectedRequirementLabel": "Selected requirement",
+    "bodyLabel": "Comment body",
+    "bodyPlaceholder": "Add an internal note, question, or working decision for the commission.",
+    "submit": "Add comment",
+    "saving": "Saving...",
+    "empty": "There are no internal comments yet.",
+    "targetRequirement": "Requirement: {requirement}",
+    "readOnlyNotice": "You do not have permission to add comments, but you can review the commission history."
+  },
+  "workflow": {
+    "title": "Status and publishing",
+    "description": "The commission works on feedback proposals, while the secretary or chairman publishes the final set and makes status decisions.",
+    "controlTitle": "Other decisions",
+    "controlDescription": "These actions do not publish new feedback for the candidate.",
+    "statusLabel": "New status",
+    "applyStatus": "Set to: {status}",
+    "publishDraft": "Send feedback and set \"Needs Fixing\"",
+    "saving": "Saving...",
+    "otherTransitions": "Other transitions",
+    "noActions": "This role can review the process, but cannot publish feedback or change statuses.",
+    "fixRequestMessageRequired": "Moving to \"Needs Fixing\" requires a message for the candidate.",
+    "fixRequestScopeRequired": "Select at least one field, requirement, or general attachment permission.",
+    "feedback": {
+      "title": "Candidate feedback",
+      "none": "There is no active feedback set for this application.",
+      "draftReady": "{count, plural, one {# proposal is waiting to be sent} other {# proposals are waiting to be sent}}",
+      "publishedAt": "Feedback sent: {publishedAt}",
+      "memberHint": "Commission members can still refine proposals, but they do not publish them on their own.",
+      "publishHint": "After publishing, the candidate sees exactly this set of feedback and it stays locked until resubmission.",
+      "publishedHint": "The active feedback set has already been sent. New candidate feedback can be prepared only after resubmission."
+    }
+  },
+  "fixRequest": {
+    "currentTitle": "Current fix request",
+    "editorTitle": "Candidate fix request draft",
+    "editorDescription": "Save a draft or publish the fix request together with the status change to \"Needs Fixing\".",
+    "messageLabel": "Message for candidate",
+    "messagePlaceholder": "Describe what the candidate must update and what the commission expects on resubmission.",
+    "fieldsLabel": "Unlocked form fields",
+    "requirementsLabel": "Unlocked requirements",
+    "topLevelAttachmentsLabel": "Allow changes to general attachments",
+    "saveDraft": "Save draft",
+    "status": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "RESOLVED": "Resolved",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "timeline": {
+    "title": "Commission timeline",
+    "description": "Audit trail for the commission: status changes, published candidate feedback, and key system events.",
+    "count": "{count, plural, one {# event} other {# events}}",
+    "empty": "No events to display.",
+    "noPreviousStatus": "no previous status",
+    "statusChangeTitle": "Status change: {from} -> {to}",
+    "revisionRequest": {
+      "PUBLISHED": "Candidate feedback published",
+      "RESOLVED": "Candidate feedback closed",
+      "CANCELLED": "Candidate feedback cancelled"
+    },
+    "system": {
+      "INSTRUCTOR_APPLICATION_SUBMITTED": "The application was submitted for commission review."
+    }
+  },
+  "messages": {
+    "downloadError": "Attachment download failed. Please try again.",
+    "annotationSaveError": "The annotation could not be saved. Please try again.",
+    "commentSaveError": "Comment could not be saved. Please try again.",
+    "fixRequestSaveError": "Fix request draft could not be saved. Please try again.",
+    "statusChangeError": "Status change failed. Please try again."
+  }
+}

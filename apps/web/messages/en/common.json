@@ -5,6 +5,7 @@
     "dashboard": "Dashboard",
     "applications": "My applications",
     "meetings": "Meetings",
+    "commission": "Commission",
     "profile": "Profile"
   },
   "auth": {

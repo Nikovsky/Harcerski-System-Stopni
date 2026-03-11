@@ -13,6 +13,7 @@ import {
   decodeOpaqueSessionToken,
   encodeOpaqueSessionToken,
   extractSessionSid,
+  persistSessionTokenBySid,
   readSessionBySid,
   releaseSessionRefreshLock,
   type SessionJwt,
@@ -39,7 +40,7 @@ declare module "next-auth" {
     accessToken?: string;
     realmRoles?: string[];
     clientRoles?: string[];
-    user: {
+    user?: {
       id?: string;
       name?: string | null;
       email?: string | null;
@@ -75,6 +76,85 @@ function asString(value: unknown): string | undefined {
 
 function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+type KeycloakTokenClaims = {
+  realm_access?: { roles?: unknown };
+  resource_access?: Record<string, { roles?: unknown }>;
+};
+
+function normalizeRoleValues(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const roles: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+
+    const normalized = entry.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    roles.push(normalized);
+  }
+
+  return roles;
+}
+
+function decodeJwtClaims(token: string | undefined): KeycloakTokenClaims | null {
+  if (!token) {
+    return null;
+  }
+
+  const parts = token.split(".");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(parts[1] ?? "", "base64url").toString("utf8"),
+    ) as unknown;
+
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+
+    return payload as KeycloakTokenClaims;
+  } catch {
+    return null;
+  }
+}
+
+function extractKeycloakRoles(params: {
+  accessToken?: string;
+  idToken?: string;
+  clientId: string;
+  fallbackRealmRoles?: string[];
+  fallbackClientRoles?: string[];
+}): { realmRoles: string[]; clientRoles: string[] } {
+  const claims =
+    decodeJwtClaims(params.accessToken) ?? decodeJwtClaims(params.idToken);
+
+  if (!claims) {
+    return {
+      realmRoles: params.fallbackRealmRoles ?? [],
+      clientRoles: params.fallbackClientRoles ?? [],
+    };
+  }
+
+  return {
+    realmRoles: normalizeRoleValues(claims.realm_access?.roles),
+    clientRoles: normalizeRoleValues(
+      claims.resource_access?.[params.clientId]?.roles,
+    ),
+  };
 }
 
 function expireSessionToken(token: SessionJwt): SessionJwt {
@@ -191,18 +271,43 @@ async function refreshAccessToken(
       return expireSessionToken(token);
     }
 
+    const roles = extractKeycloakRoles({
+      accessToken,
+      idToken: idToken ?? token.idToken,
+      clientId: envServer.AUTH_KEYCLOAK_ID,
+      fallbackRealmRoles: token.realmRoles,
+      fallbackClientRoles: token.clientRoles,
+    });
+
     return {
       ...token,
       accessToken,
       idToken: idToken ?? token.idToken,
       refreshToken: refreshToken ?? token.refreshToken,
       accessTokenExpiresAt: Date.now() + expiresIn * 1000,
+      realmRoles: roles.realmRoles,
+      clientRoles: roles.clientRoles,
       error: undefined,
     };
   } catch (e) {
     console.error("[auth] token refresh error:", e);
     return expireSessionToken(token);
   }
+}
+
+async function refreshAndPersistSessionToken(
+  token: SessionJwt,
+  sid: string,
+): Promise<SessionJwt> {
+  const refreshedToken = await refreshAccessToken(token);
+  const persisted = await persistSessionTokenBySid(sid, refreshedToken);
+
+  if (!persisted) {
+    console.error("[auth] refreshed session token could not be persisted");
+    return expireSessionToken(refreshedToken);
+  }
+
+  return persisted.token;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -251,14 +356,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // First login — persist all tokens from Keycloak
       if (account) {
         const accessToken = account.access_token as string | undefined;
+        const idToken = account.id_token as string | undefined;
+        const roles = extractKeycloakRoles({
+          accessToken,
+          idToken,
+          clientId: envServer.AUTH_KEYCLOAK_ID,
+        });
 
         return {
           ...sessionToken,
           accessToken,
-          idToken: account.id_token as string | undefined,
+          idToken,
           refreshToken: account.refresh_token as string | undefined,
           accessTokenExpiresAt:
             typeof account.expires_at === "number" ? account.expires_at * 1000 : undefined,
+          realmRoles: roles.realmRoles,
+          clientRoles: roles.clientRoles,
           error: undefined,
         };
       }
@@ -283,7 +396,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const lockValue = await acquireSessionRefreshLock(sid);
       if (lockValue) {
         try {
-          return await refreshAccessToken(sessionToken);
+          return await refreshAndPersistSessionToken(sessionToken, sid);
         } finally {
           await releaseSessionRefreshLock(sid, lockValue);
         }
@@ -294,16 +407,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return refreshedByPeer;
       }
 
-      return refreshAccessToken(sessionToken);
+      const retryLockValue = await acquireSessionRefreshLock(sid);
+      if (retryLockValue) {
+        try {
+          return await refreshAndPersistSessionToken(sessionToken, sid);
+        } finally {
+          await releaseSessionRefreshLock(sid, retryLockValue);
+        }
+      }
+
+      return refreshAndPersistSessionToken(sessionToken, sid);
     },
 
     async session({ session, token }) {
-      if (token.error) session.error = token.error;
-      session.accessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
+      const accessToken = typeof token.accessToken === "string" ? token.accessToken : undefined;
+
+      if (token.error === "RefreshTokenExpired" || !accessToken) {
+        session.error = token.error;
+        session.accessToken = undefined;
+        session.realmRoles = [];
+        session.clientRoles = [];
+        session.user = undefined as never;
+        return session;
+      }
+
+      session.error = undefined;
+      session.accessToken = accessToken;
       session.realmRoles = Array.isArray(token.realmRoles) ? token.realmRoles : [];
       session.clientRoles = Array.isArray(token.clientRoles) ? token.clientRoles : [];
-
-      // Ensure shape exists (avoids TS edge cases)
       session.user = session.user ?? { name: null, email: null, image: null };
 
       if (token.sub) {

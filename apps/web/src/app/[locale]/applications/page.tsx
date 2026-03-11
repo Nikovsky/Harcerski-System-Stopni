@@ -1,8 +1,12 @@
 // @file: apps/web/src/app/[locale]/applications/page.tsx
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { redirect } from "next/navigation";
 import { z } from "zod";
-import { bffServerFetchValidated } from "@/app/[locale]/applications/_server/bff-fetch";
+import {
+  bffServerFetchValidated,
+  BffServerFetchError,
+} from "@/app/[locale]/applications/_server/bff-fetch";
 import { ApplicationCard } from "@/components/instructor-application/ui/ApplicationCard";
 import { IA_BUTTON_PRIMARY_MD } from "@/components/instructor-application/ui/button-classnames";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
@@ -13,20 +17,38 @@ import {
 
 type Props = { params: Promise<{ locale: string }> };
 
+function clearInvalidSessionHref(locale: string): string {
+  const returnTo = `/${locale}/applications`;
+  return `/api/auth/clear-invalid-session?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+function isBffAuthFailure(error: unknown): error is BffServerFetchError {
+  return error instanceof BffServerFetchError && error.status === 401;
+}
+
 export default async function ApplicationsPage({ params }: Props) {
   const { locale } = await params;
   const t = await getTranslations("applications");
 
-  const [applications, profile] = await Promise.all([
-    bffServerFetchValidated(
-      z.array(instructorApplicationListItemSchema),
-      "instructor-applications",
-    ),
-    bffServerFetchValidated(
-      instructorApplicationProfileCheckResponseSchema,
-      "instructor-applications/profile-check",
-    ),
-  ]);
+  let applications: z.infer<typeof instructorApplicationListItemSchema>[];
+  let profile: z.infer<typeof instructorApplicationProfileCheckResponseSchema>;
+  try {
+    [applications, profile] = await Promise.all([
+      bffServerFetchValidated(
+        z.array(instructorApplicationListItemSchema),
+        "instructor-applications",
+      ),
+      bffServerFetchValidated(
+        instructorApplicationProfileCheckResponseSchema,
+        "instructor-applications/profile-check",
+      ),
+    ]);
+  } catch (error) {
+    if (isBffAuthFailure(error)) {
+      redirect(clearInvalidSessionHref(locale));
+    }
+    throw error;
+  }
 
   const profileComplete = profile.complete;
   const missingFields = profile.missingFields;

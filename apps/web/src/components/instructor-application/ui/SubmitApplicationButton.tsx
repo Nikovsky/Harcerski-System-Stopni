@@ -11,9 +11,11 @@ import type { RequirementRowResponse } from "@hss/schemas";
 export function SubmitApplicationButton({
   applicationId,
   requirements,
+  pendingFixLabels = [],
 }: {
   applicationId: string;
   requirements: RequirementRowResponse[];
+  pendingFixLabels?: string[];
 }) {
   const t = useTranslations("applications");
   const locale = useLocale();
@@ -28,6 +30,7 @@ export function SubmitApplicationButton({
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
   const titleId = `submit-application-title-${applicationId}`;
   const descriptionId = `submit-application-description-${applicationId}`;
+  const hasPendingFixes = pendingFixLabels.length > 0;
 
   useEffect(() => {
     if (!showConfirm) return;
@@ -96,11 +99,35 @@ export function SubmitApplicationButton({
     <>
       <button
         type="button"
-        onClick={() => { setMissingFields(null); setGenericError(null); setShowConfirm(true); }}
-        className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+        onClick={() => {
+          if (hasPendingFixes) {
+            return;
+          }
+          setMissingFields(null);
+          setGenericError(null);
+          setShowConfirm(true);
+        }}
+        disabled={hasPendingFixes}
+        className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {t("actions.submit")}
       </button>
+
+      {hasPendingFixes && (
+        <div
+          role="alert"
+          className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30"
+        >
+          <p className="mb-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+            {t("messages.pendingFixesBeforeSubmit")}
+          </p>
+          <ul className="ml-4 list-disc text-sm text-amber-700 dark:text-amber-400">
+            {pendingFixLabels.map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Generic error */}
       {genericError && (

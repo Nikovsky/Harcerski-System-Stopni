@@ -96,6 +96,16 @@ export async function bffServerFetch<T = unknown>(
   const requestId = normalizeRequestId(incomingHeaders.get("x-request-id"));
   const session = await auth();
   const accessToken = getSessionAccessToken(session?.accessToken);
+  if (!accessToken) {
+    throw new BffServerFetchError(
+      401,
+      session?.error === "RefreshTokenExpired"
+        ? "Session expired. Please log in again."
+        : "Authentication required.",
+      session?.error === "RefreshTokenExpired" ? "SESSION_EXPIRED" : "AUTHENTICATION_REQUIRED",
+      requestId ?? undefined,
+    );
+  }
   const upstreamHeaders = buildUpstreamHeaders(
     init?.headers,
     requestId,

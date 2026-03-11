@@ -8,6 +8,11 @@ import { toUserFriendlyRequirementSaveErrorFromUnknown } from "@/lib/upload-util
 import { RequirementAttachments } from "@/components/instructor-application/requirements/RequirementAttachments";
 import { AttachmentReadonlyList } from "@/components/instructor-application/attachments/AttachmentReadonlyList";
 import {
+  ChangeStatusBadge,
+  InlineChangeSummary,
+  type ChangeSummary,
+} from "@/components/instructor-application/ui/ChangeSummary";
+import {
   isOptionalInstructorRequirement,
   type RequirementRowResponse,
 } from "@hss/schemas";
@@ -32,12 +37,47 @@ function getVerificationFieldName(code: string): string {
   return `requirement_${code}_verificationText`;
 }
 
+function combineChangeSummaries(
+  ...summaries: Array<ChangeSummary | undefined>
+): ChangeSummary | undefined {
+  const definedSummaries = summaries.filter(
+    (summary): summary is ChangeSummary => !!summary,
+  );
+
+  if (definedSummaries.length === 0) {
+    return undefined;
+  }
+
+  if (definedSummaries.length === 1) {
+    return definedSummaries[0];
+  }
+
+  return {
+    isChanged: definedSummaries.every((summary) => summary.isChanged),
+  };
+}
+
 type Props = {
   applicationId: string;
   degreeCode: string;
   req: RequirementRowResponse;
   readOnly?: boolean;
+  attachmentsReadOnly?: boolean;
   flushRegistry: FlushRegistry;
+  onDraftChange?: (
+    requirementUuid: string,
+    requirementDraft: {
+      state: string;
+      actionDescription: string;
+      verificationText: string;
+    },
+  ) => void;
+  changeSummary?: ChangeSummary;
+  attachmentChangeSummary?: ChangeSummary;
+  onAttachmentsChange?: (
+    requirementUuid: string,
+    attachments: NonNullable<RequirementRowResponse["attachments"]>,
+  ) => void;
 };
 
 export function RequirementRow({
@@ -45,7 +85,12 @@ export function RequirementRow({
   degreeCode,
   req,
   readOnly,
+  attachmentsReadOnly,
   flushRegistry,
+  onDraftChange,
+  changeSummary,
+  attachmentChangeSummary,
+  onAttachmentsChange,
 }: Props) {
   const t = useTranslations("applications");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -64,6 +109,14 @@ export function RequirementRow({
     degreeCode,
     req.definition.code,
   );
+  const attachments = req.attachments ?? [];
+  const combinedChangeSummary = combineChangeSummaries(
+    changeSummary,
+    attachmentChangeSummary,
+  );
+  const canEditRequirementText = !readOnly;
+  const canEditRequirementAttachments = !attachmentsReadOnly;
+  const canEditAnyPart = canEditRequirementText || canEditRequirementAttachments;
 
   const persistPayload = useCallback(
     async (
@@ -97,6 +150,14 @@ export function RequirementRow({
     setActionDescriptionError(null);
     setVerificationError(null);
   }, [req.actionDescription, req.state, req.verificationText]);
+
+  useEffect(() => {
+    onDraftChange?.(req.uuid, {
+      state,
+      actionDescription,
+      verificationText,
+    });
+  }, [actionDescription, onDraftChange, req.uuid, state, verificationText]);
 
   useEffect(() => {
     return () => {
@@ -150,6 +211,10 @@ export function RequirementRow({
 
   const flush = useCallback(
     async (options: RequirementFlushOptions = {}) => {
+      if (!canEditRequirementText) {
+        return;
+      }
+
       const mode = options.mode ?? "strict";
       clearTimeout(debounceRef.current);
 
@@ -194,6 +259,7 @@ export function RequirementRow({
       req.verificationText,
       state,
       isOptionalRequirement,
+      canEditRequirementText,
       verificationText,
     ],
   );
@@ -203,15 +269,15 @@ export function RequirementRow({
     registryMap.set(req.uuid, flush);
     return () => {
       registryMap.delete(req.uuid);
-      if (!readOnly) {
+      if (canEditRequirementText) {
         void flush({ mode: "lenient" }).catch(() => undefined);
       }
     };
-  }, [flush, flushRegistry, readOnly, req.uuid]);
+  }, [canEditRequirementText, flush, flushRegistry, req.uuid]);
 
   const save = useCallback(
     (newState: string, nextActionDescription: string, nextVerificationText: string) => {
-      if (readOnly) return;
+      if (!canEditRequirementText) return;
       setSaveError(null);
       const payload = {
         state: newState,
@@ -225,27 +291,34 @@ export function RequirementRow({
         void persistPayload(payload).catch(() => undefined);
       }, REQUIREMENT_SAVE_DEBOUNCE_MS);
     },
-    [readOnly, persistPayload],
+    [canEditRequirementText, persistPayload],
   );
 
-  const attachments = req.attachments ?? [];
-
   return (
-    <div className="rounded border border-border/50 p-3">
-      <p className="mb-2 text-sm">
-        <span className="font-medium">{req.definition.code}.</span>{" "}
-        {req.definition.description}
-      </p>
-      {!readOnly ? (
+    <div
+      data-fix-target={`requirement:${req.uuid}`}
+      tabIndex={-1}
+      className="scroll-mt-32 rounded border border-border/50 p-3 outline-none"
+    >
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <p className="text-sm">
+          <span className="font-medium">{req.definition.code}.</span>{" "}
+          {req.definition.description}
+        </p>
+        <ChangeStatusBadge changeSummary={combinedChangeSummary} />
+      </div>
+      <InlineChangeSummary changeSummary={changeSummary} />
+      {canEditAnyPart ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <select
               value={state}
               onChange={(event) => {
-                const newState = event.target.value;
-                setState(newState);
-                save(newState, actionDescription, verificationText);
-              }}
+                  const newState = event.target.value;
+                  setState(newState);
+                  save(newState, actionDescription, verificationText);
+                }}
+              disabled={!canEditRequirementText}
               className="rounded border border-border bg-background px-2 py-1 text-sm"
             >
               <option value="PLANNED">{t("requirementState.PLANNED")}</option>
@@ -269,7 +342,8 @@ export function RequirementRow({
             onBlur={() => save(state, actionDescription, verificationText)}
             rows={2}
             maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-            className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+            disabled={!canEditRequirementText}
+            className={`w-full rounded border bg-background px-2 py-1 text-sm disabled:cursor-not-allowed disabled:border-border/70 disabled:bg-muted/40 disabled:text-foreground/70 disabled:opacity-100 ${
               actionDescriptionError ? "border-red-500" : "border-border"
             }`}
           />
@@ -297,7 +371,8 @@ export function RequirementRow({
                 onBlur={() => save(state, actionDescription, verificationText)}
                 rows={1}
                 maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-                className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                disabled={!canEditRequirementText}
+                className={`w-full rounded border bg-background px-2 py-1 text-sm disabled:cursor-not-allowed disabled:border-border/70 disabled:bg-muted/40 disabled:text-foreground/70 disabled:opacity-100 ${
                   verificationError ? "border-red-500" : "border-border"
                 }`}
               />
@@ -327,7 +402,8 @@ export function RequirementRow({
                   onBlur={() => save(state, actionDescription, verificationText)}
                   rows={1}
                   maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
-                  className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                  disabled={!canEditRequirementText}
+                  className={`w-full rounded border bg-background px-2 py-1 text-sm disabled:cursor-not-allowed disabled:border-border/70 disabled:bg-muted/40 disabled:text-foreground/70 disabled:opacity-100 ${
                     verificationError ? "border-red-500" : "border-border"
                   }`}
                 />
@@ -335,11 +411,22 @@ export function RequirementRow({
                   <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{verificationError}</p>
                 )}
               </div>
-              <RequirementAttachments
-                applicationId={applicationId}
-                requirementUuid={req.uuid}
-                initialAttachments={attachments}
-              />
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/60">
+                    {t("candidateEditScope.requirementAttachmentsLabel")}
+                  </p>
+                  <ChangeStatusBadge changeSummary={attachmentChangeSummary} />
+                </div>
+                <InlineChangeSummary changeSummary={attachmentChangeSummary} />
+                <RequirementAttachments
+                  applicationId={applicationId}
+                  requirementUuid={req.uuid}
+                  initialAttachments={attachments}
+                  readOnly={!canEditRequirementAttachments}
+                  onAttachmentsChange={onAttachmentsChange}
+                />
+              </div>
             </div>
           )}
         </div>

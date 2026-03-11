@@ -12,14 +12,15 @@ export default getRequestConfig(async ({ requestLocale }) => {
   const resolvedLocale = await requestLocale;
   const locale: Locale = isLocale(resolvedLocale) ? resolvedLocale : 'pl';
 
-  const [common, applications, meetings] = await Promise.all([
+  const [common, applications, meetings, commission] = await Promise.all([
     import(`../../messages/${locale}/common.json`).then((m) => m.default),
     import(`../../messages/${locale}/applications.json`).then((m) => m.default),
     import(`../../messages/${locale}/meetings.json`).then((m) => m.default),
+    import(`../../messages/${locale}/commission.json`).then((m) => m.default),
   ]);
 
   return {
     locale,
-    messages: { common, applications, meetings },
+    messages: { common, applications, meetings, commission },
   };
 });

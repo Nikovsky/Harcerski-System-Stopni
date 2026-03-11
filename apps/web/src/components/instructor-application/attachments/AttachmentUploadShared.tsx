@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { AttachmentUploadButton } from "@/components/instructor-application/attachments/AttachmentUploadButton";
 import { useAttachmentUpload } from "@/components/instructor-application/hooks/useAttachmentUpload";
 import type { AttachmentResponse } from "@hss/schemas";
@@ -17,6 +17,8 @@ type Props = {
   requirementUuid?: string;
   isHufcowyPresence?: boolean;
   variant: UploadVariant;
+  onAttachmentsChange?: (attachments: AttachmentResponse[]) => void;
+  onBeforeUpload?: () => Promise<void>;
 };
 
 export function AttachmentUploadShared({
@@ -26,11 +28,15 @@ export function AttachmentUploadShared({
   requirementUuid,
   isHufcowyPresence,
   variant,
+  onAttachmentsChange,
+  onBeforeUpload,
 }: Props) {
   const t = useTranslations("applications");
   const fileRef = useRef<HTMLInputElement>(null);
+  const attachmentsRef = useRef(initialAttachments);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [preparationError, setPreparationError] = useState<string | null>(null);
   const {
     uploading,
     uploadError,
@@ -39,19 +45,31 @@ export function AttachmentUploadShared({
   } = useAttachmentUpload(applicationId, { requirementUuid, isHufcowyPresence });
 
   useEffect(() => {
+    attachmentsRef.current = initialAttachments;
     setAttachments(initialAttachments);
   }, [initialAttachments]);
+
+  function clearErrors() {
+    setPreparationError(null);
+    clearUploadError();
+  }
 
   async function handleDelete(attachmentId: string) {
     if (readOnly) {
       return;
     }
+    clearErrors();
     setDeletingId(attachmentId);
     try {
       await apiFetch(`instructor-applications/${applicationId}/attachments/${attachmentId}`, {
         method: "DELETE",
       });
-      setAttachments((prev) => prev.filter((a) => a.uuid !== attachmentId));
+      const nextAttachments = attachmentsRef.current.filter(
+        (attachment) => attachment.uuid !== attachmentId,
+      );
+      attachmentsRef.current = nextAttachments;
+      setAttachments(nextAttachments);
+      onAttachmentsChange?.(nextAttachments);
     } finally {
       setDeletingId(null);
     }
@@ -59,16 +77,37 @@ export function AttachmentUploadShared({
 
   async function handleUpload(file: File) {
     try {
+      clearErrors();
+      if (onBeforeUpload) {
+        await onBeforeUpload();
+      }
       const confirmed = await uploadAttachment(file);
       if (confirmed) {
-        setAttachments((prev) => [...prev, confirmed]);
+        const nextAttachments = isHufcowyPresence
+          ? [confirmed]
+          : [
+              ...attachmentsRef.current.filter(
+                (attachment) => attachment.uuid !== confirmed.uuid,
+              ),
+              confirmed,
+            ];
+        attachmentsRef.current = nextAttachments;
+        setAttachments(nextAttachments);
+        onAttachmentsChange?.(nextAttachments);
       }
+    } catch (error: unknown) {
+      setPreparationError(
+        error instanceof ApiError && error.message
+          ? error.message
+          : t("messages.saveChangesError"),
+      );
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   const isDetailed = variant === "detailed";
+  const effectiveError = preparationError ?? uploadError;
 
   return (
     <div className={isDetailed ? "space-y-3" : undefined}>
@@ -90,13 +129,13 @@ export function AttachmentUploadShared({
             onClick={() => fileRef.current?.click()}
           />
 
-          {uploadError && (
+          {effectiveError && (
             <div className="mt-1 flex items-start gap-1.5 rounded bg-red-50 px-2 py-1.5 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-400">
               <span className="shrink-0 mt-0.5">!</span>
-              <span>{uploadError}</span>
+              <span>{effectiveError}</span>
               <button
                 type="button"
-                onClick={clearUploadError}
+                onClick={clearErrors}
                 className="ml-auto shrink-0 text-red-500 hover:text-red-700 dark:hover:text-red-300"
               >
                 &times;
@@ -111,10 +150,12 @@ export function AttachmentUploadShared({
           {attachments.map((att) => (
             <li
               key={att.uuid}
+              data-fix-target={`attachment:${att.uuid}`}
+              tabIndex={-1}
               className={
                 isDetailed
-                  ? "flex items-center justify-between rounded border border-border/50 p-2 text-sm"
-                  : "flex items-center justify-between text-xs"
+                  ? "scroll-mt-32 flex items-center justify-between rounded border border-border/50 p-2 text-sm outline-none"
+                  : "scroll-mt-32 flex items-center justify-between text-xs outline-none"
               }
             >
               <span className="truncate">{att.originalFilename}</span>

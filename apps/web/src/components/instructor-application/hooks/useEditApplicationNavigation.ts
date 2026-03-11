@@ -15,7 +15,13 @@ import {
   SCOUT_RANK_VALUES,
 } from "@/components/instructor-application/instructor-application.constants";
 import {
+  EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
+  canEditInstructorApplicationField,
+  canEditInstructorHufcowyPresenceAttachment,
+  canEditInstructorRequirement,
   isOptionalInstructorRequirement,
+  type AttachmentResponse,
+  type EditableInstructorApplicationField,
   type InstructorApplicationDetail,
   type RequirementRowResponse,
   type UpdateInstructorApplication,
@@ -25,6 +31,17 @@ type Params = {
   initialApp: InstructorApplicationDetail;
   id: string;
 };
+
+type NavigateToOptions = {
+  focusTargetId?: string | null;
+  skipCompletionValidation?: boolean;
+};
+
+function isEditableInstructorApplicationFieldKey(
+  value: string,
+): value is EditableInstructorApplicationField {
+  return (EDITABLE_INSTRUCTOR_APPLICATION_FIELDS as readonly string[]).includes(value);
+}
 
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -57,10 +74,15 @@ function getNullableEnumValue<const T extends string>(
 function collectRequirementMissingFields(
   degreeCode: string,
   requirements: RequirementRowResponse[],
+  draft: InstructorApplicationDetail,
 ): string[] {
   const missing: string[] = [];
 
   for (const req of requirements) {
+    if (!canEditInstructorRequirement(draft.candidateEditScope, req.uuid)) {
+      continue;
+    }
+
     const isOptionalRequirement = isOptionalInstructorRequirement(
       degreeCode,
       req.definition.code,
@@ -84,25 +106,50 @@ function getMissingFieldsForStep(
   if (currentStep === 0) {
     const missing: string[] = [];
 
-    if (isBlank(draft.plannedFinishAt)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "plannedFinishAt") &&
+      isBlank(draft.plannedFinishAt)
+    ) {
       missing.push("plannedFinishAt");
     }
-    if (isBlank(draft.hufcowyPresence)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "hufcowyPresence") &&
+      isBlank(draft.hufcowyPresence)
+    ) {
       missing.push("hufcowyPresence");
     }
 
-    if (draft.hufcowyPresence === "ATTACHMENT_OPINION" && !draft.hufcowyPresenceAttachmentUuid) {
+    if (
+      draft.hufcowyPresence === "ATTACHMENT_OPINION" &&
+      (
+        canEditInstructorApplicationField(draft.candidateEditScope, "hufcowyPresence")
+        || canEditInstructorHufcowyPresenceAttachment(draft.candidateEditScope)
+      ) &&
+      !draft.hufcowyPresenceAttachmentUuid
+    ) {
       missing.push("hufcowyPresenceAttachment");
     }
 
     if (!BASIC_DEGREES.has(draft.template.degreeCode)) {
-      if (isBlank(draft.teamFunction)) {
+      if (
+        canEditInstructorApplicationField(draft.candidateEditScope, "teamFunction") &&
+        isBlank(draft.teamFunction)
+      ) {
         missing.push("teamFunction");
       }
-      if (isBlank(draft.hufiecFunction)) {
+      if (
+        canEditInstructorApplicationField(draft.candidateEditScope, "hufiecFunction") &&
+        isBlank(draft.hufiecFunction)
+      ) {
         missing.push("hufiecFunction");
       }
-      if (isBlank(draft.openTrialForRank)) {
+      if (
+        canEditInstructorApplicationField(
+          draft.candidateEditScope,
+          "openTrialForRank",
+        ) &&
+        isBlank(draft.openTrialForRank)
+      ) {
         missing.push("openTrialForRank");
       }
     }
@@ -113,19 +160,34 @@ function getMissingFieldsForStep(
   if (currentStep === 1) {
     const missing: string[] = [];
 
-    if (isBlank(draft.functionsHistory)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "functionsHistory") &&
+      isBlank(draft.functionsHistory)
+    ) {
       missing.push("functionsHistory");
     }
-    if (isBlank(draft.coursesHistory)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "coursesHistory") &&
+      isBlank(draft.coursesHistory)
+    ) {
       missing.push("coursesHistory");
     }
-    if (isBlank(draft.campsHistory)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "campsHistory") &&
+      isBlank(draft.campsHistory)
+    ) {
       missing.push("campsHistory");
     }
-    if (isBlank(draft.successes)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "successes") &&
+      isBlank(draft.successes)
+    ) {
       missing.push("successes");
     }
-    if (isBlank(draft.failures)) {
+    if (
+      canEditInstructorApplicationField(draft.candidateEditScope, "failures") &&
+      isBlank(draft.failures)
+    ) {
       missing.push("failures");
     }
 
@@ -135,16 +197,40 @@ function getMissingFieldsForStep(
   if (currentStep === 2) {
     const missing: string[] = [];
 
-    if (isBlank(draft.supervisorFirstName)) {
+    if (
+      canEditInstructorApplicationField(
+        draft.candidateEditScope,
+        "supervisorFirstName",
+      ) &&
+      isBlank(draft.supervisorFirstName)
+    ) {
       missing.push("supervisorFirstName");
     }
-    if (isBlank(draft.supervisorSurname)) {
+    if (
+      canEditInstructorApplicationField(
+        draft.candidateEditScope,
+        "supervisorSurname",
+      ) &&
+      isBlank(draft.supervisorSurname)
+    ) {
       missing.push("supervisorSurname");
     }
-    if (isBlank(draft.supervisorInstructorRank)) {
+    if (
+      canEditInstructorApplicationField(
+        draft.candidateEditScope,
+        "supervisorInstructorRank",
+      ) &&
+      isBlank(draft.supervisorInstructorRank)
+    ) {
       missing.push("supervisorInstructorRank");
     }
-    if (isBlank(draft.supervisorInstructorFunction)) {
+    if (
+      canEditInstructorApplicationField(
+        draft.candidateEditScope,
+        "supervisorInstructorFunction",
+      ) &&
+      isBlank(draft.supervisorInstructorFunction)
+    ) {
       missing.push("supervisorInstructorFunction");
     }
 
@@ -155,6 +241,7 @@ function getMissingFieldsForStep(
     return collectRequirementMissingFields(
       draft.template.degreeCode,
       draft.requirements,
+      draft,
     );
   }
 
@@ -211,38 +298,82 @@ function focusFirstMissingField(missingFields: string[]): void {
   scrollToTop();
 }
 
+function focusFixTarget(targetId: string | null | undefined): boolean {
+  if (typeof window === "undefined" || !targetId) {
+    return false;
+  }
+
+  const targetElement = document.querySelector<HTMLElement>(
+    `[data-fix-target="${targetId}"]`,
+  );
+
+  if (!targetElement) {
+    return false;
+  }
+
+  targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+  targetElement.focus({ preventScroll: true });
+
+  const highlightClasses = [
+    "ring-2",
+    "ring-sky-500",
+    "ring-offset-2",
+    "ring-offset-background",
+  ];
+
+  targetElement.classList.add(...highlightClasses);
+  window.setTimeout(() => {
+    targetElement.classList.remove(...highlightClasses);
+  }, 1800);
+
+  return true;
+}
+
 function extractStepDataFromDraft(
   currentStep: number,
   draft: InstructorApplicationDetail,
 ): Partial<UpdateInstructorApplication> | null {
+  const filterPatchByEditableFields = (
+    patch: Partial<UpdateInstructorApplication>,
+  ): Partial<UpdateInstructorApplication> =>
+    Object.fromEntries(
+      Object.entries(patch).filter(([key]) => {
+        if (!isEditableInstructorApplicationFieldKey(key)) {
+          return false;
+        }
+
+        return canEditInstructorApplicationField(draft.candidateEditScope, key);
+      }),
+    ) as Partial<UpdateInstructorApplication>;
+
   if (currentStep > 2) return null;
 
   if (currentStep === 0) {
     const openTrialForRank = getOptionalString(draft.openTrialForRank ?? undefined);
     const hufcowyPresence = getOptionalString(draft.hufcowyPresence ?? undefined);
 
-    return {
+    return filterPatchByEditableFields({
       teamFunction: getNullableOptionalString(draft.teamFunction ?? undefined),
       hufiecFunction: getNullableOptionalString(draft.hufiecFunction ?? undefined),
       plannedFinishAt: getNullableOptionalString(draft.plannedFinishAt ?? undefined),
       openTrialForRank: getNullableEnumValue(SCOUT_RANK_VALUES, openTrialForRank),
       openTrialDeadline: getNullableOptionalString(draft.openTrialDeadline ?? undefined),
       hufcowyPresence: getNullableEnumValue(PRESENCE_VALUES, hufcowyPresence),
-    };
+    });
   }
   if (currentStep === 1) {
-    return {
+    return filterPatchByEditableFields({
       functionsHistory: getNullableOptionalString(draft.functionsHistory ?? undefined),
       coursesHistory: getNullableOptionalString(draft.coursesHistory ?? undefined),
       campsHistory: getNullableOptionalString(draft.campsHistory ?? undefined),
       successes: getNullableOptionalString(draft.successes ?? undefined),
       failures: getNullableOptionalString(draft.failures ?? undefined),
-    };
+    });
   }
   if (currentStep === 2) {
     const supervisorInstructorRank = getOptionalString(draft.supervisorInstructorRank ?? undefined);
 
-    return {
+    return filterPatchByEditableFields({
       supervisorFirstName: getNullableOptionalString(draft.supervisorFirstName ?? undefined),
       supervisorSurname: getNullableOptionalString(draft.supervisorSurname ?? undefined),
       supervisorInstructorRank: getNullableEnumValue(
@@ -252,7 +383,7 @@ function extractStepDataFromDraft(
       supervisorInstructorFunction: getNullableOptionalString(
         draft.supervisorInstructorFunction ?? undefined,
       ),
-    };
+    });
   }
   return null;
 }
@@ -272,6 +403,9 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
   const appRef = useRef(app);
   const persistedAppRef = useRef(initialApp);
   const isSavingRef = useRef(isSaving);
+  const pendingFocusTargetRef = useRef<string | null>(null);
+  const pendingFocusAttemptRef = useRef(0);
+  const focusRetryTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     stepRef.current = step;
@@ -285,15 +419,167 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     isSavingRef.current = isSaving;
   }, [isSaving]);
 
+  const clearPendingFocusTarget = useCallback(() => {
+    if (focusRetryTimeoutRef.current) {
+      window.clearTimeout(focusRetryTimeoutRef.current);
+      focusRetryTimeoutRef.current = null;
+    }
+
+    pendingFocusTargetRef.current = null;
+    pendingFocusAttemptRef.current = 0;
+  }, []);
+
+  const scheduleFixTargetFocus = useCallback(
+    (targetId: string | null | undefined) => {
+      if (typeof window === "undefined" || !targetId) {
+        clearPendingFocusTarget();
+        return;
+      }
+
+      clearPendingFocusTarget();
+      pendingFocusTargetRef.current = targetId;
+
+      const tryFocusTarget = () => {
+        const pendingTargetId = pendingFocusTargetRef.current;
+        if (!pendingTargetId) {
+          focusRetryTimeoutRef.current = null;
+          return;
+        }
+
+        const didFocus = focusFixTarget(pendingTargetId);
+        if (didFocus) {
+          clearPendingFocusTarget();
+          return;
+        }
+
+        pendingFocusAttemptRef.current += 1;
+        if (pendingFocusAttemptRef.current >= 20) {
+          clearPendingFocusTarget();
+          scrollToTop();
+          return;
+        }
+
+        const nextDelay = pendingFocusAttemptRef.current < 4 ? 40 : 120;
+        focusRetryTimeoutRef.current = window.setTimeout(tryFocusTarget, nextDelay);
+      };
+
+      focusRetryTimeoutRef.current = window.setTimeout(tryFocusTarget, 0);
+    },
+    [clearPendingFocusTarget],
+  );
+
+  useEffect(() => {
+    return () => {
+      clearPendingFocusTarget();
+    };
+  }, [clearPendingFocusTarget]);
+
   const updateDraft = useCallback((patch: Partial<UpdateInstructorApplication>) => {
     setApp((prev) => {
-      const next = { ...prev, ...patch };
+      const editablePatch = Object.fromEntries(
+        Object.entries(patch).filter(([key]) => {
+          if (!isEditableInstructorApplicationFieldKey(key)) {
+            return false;
+          }
+
+          return canEditInstructorApplicationField(prev.candidateEditScope, key);
+        }),
+      ) as Partial<UpdateInstructorApplication>;
+
+      if (Object.keys(editablePatch).length === 0) {
+        return prev;
+      }
+
+      const next = { ...prev, ...editablePatch };
       appRef.current = next;
       return next;
     });
     setNavigationMissingFields([]);
     setNavigationError(null);
   }, []);
+
+  const replaceHufcowyPresenceAttachments = useCallback(
+    (attachments: AttachmentResponse[]) => {
+      setApp((prev) => {
+        const nextHufcowyAttachment =
+          attachments.length > 0 ? attachments[attachments.length - 1] : null;
+        const previousHufcowyAttachmentUuid = prev.hufcowyPresenceAttachmentUuid;
+        const preservedAttachments = prev.attachments.filter(
+          (attachment) => attachment.uuid !== previousHufcowyAttachmentUuid,
+        );
+        const nextAttachments = nextHufcowyAttachment
+          ? [
+              ...preservedAttachments.filter(
+                (attachment) => attachment.uuid !== nextHufcowyAttachment.uuid,
+              ),
+              nextHufcowyAttachment,
+            ]
+          : preservedAttachments;
+        const next = {
+          ...prev,
+          attachments: nextAttachments,
+          hufcowyPresenceAttachmentUuid: nextHufcowyAttachment?.uuid ?? null,
+        };
+
+        appRef.current = next;
+        persistedAppRef.current = next;
+        return next;
+      });
+      setNavigationMissingFields([]);
+      setNavigationError(null);
+    },
+    [],
+  );
+
+  const replaceTopLevelAttachments = useCallback(
+    (attachments: AttachmentResponse[]) => {
+      setApp((prev) => {
+        const currentHufcowyAttachment = prev.hufcowyPresenceAttachmentUuid
+          ? prev.attachments.find(
+              (attachment) => attachment.uuid === prev.hufcowyPresenceAttachmentUuid,
+            ) ?? null
+          : null;
+        const next = {
+          ...prev,
+          attachments: currentHufcowyAttachment
+            ? [...attachments, currentHufcowyAttachment]
+            : attachments,
+        };
+
+        appRef.current = next;
+        persistedAppRef.current = next;
+        return next;
+      });
+      setNavigationMissingFields([]);
+      setNavigationError(null);
+    },
+    [],
+  );
+
+  const replaceRequirementAttachments = useCallback(
+    (requirementUuid: string, attachments: AttachmentResponse[]) => {
+      setApp((prev) => {
+        const next = {
+          ...prev,
+          requirements: prev.requirements.map((requirement) =>
+            requirement.uuid === requirementUuid
+              ? {
+                  ...requirement,
+                  attachments,
+                }
+              : requirement,
+          ),
+        };
+
+        appRef.current = next;
+        persistedAppRef.current = next;
+        return next;
+      });
+      setNavigationMissingFields([]);
+      setNavigationError(null);
+    },
+    [],
+  );
 
   const getChangedPatchData = useCallback(
     (
@@ -314,10 +600,53 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     [],
   );
 
+  const persistDraftPatch = useCallback(
+    async (patch: Partial<UpdateInstructorApplication>) => {
+      const editablePatch = Object.fromEntries(
+        Object.entries(patch).filter(([key, value]) => {
+          if (value === undefined || !isEditableInstructorApplicationFieldKey(key)) {
+            return false;
+          }
+
+          return canEditInstructorApplicationField(appRef.current.candidateEditScope, key);
+        }),
+      ) as Partial<UpdateInstructorApplication>;
+
+      if (Object.keys(editablePatch).length === 0) {
+        return;
+      }
+
+      const changed = getChangedPatchData(editablePatch, persistedAppRef.current);
+      if (Object.keys(changed).length === 0) {
+        return;
+      }
+
+      await apiFetch(`instructor-applications/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(changed),
+      });
+
+      persistedAppRef.current = { ...persistedAppRef.current, ...changed };
+      setNavigationError(null);
+    },
+    [getChangedPatchData, id],
+  );
+
   const navigateTo = useCallback(
-    async (targetStep: number) => {
+    async (targetStep: number, options: NavigateToOptions = {}) => {
       const currentStep = stepRef.current;
-      if (targetStep === currentStep || isSavingRef.current) return;
+      clearPendingFocusTarget();
+
+      if (targetStep === currentStep) {
+        if (options.focusTargetId) {
+          scheduleFixTargetFocus(options.focusTargetId);
+        }
+        return;
+      }
+
+      if (isSavingRef.current) return;
+
+      const skipCompletionValidation = options.skipCompletionValidation ?? false;
       const movingForward = targetStep > currentStep;
 
       const moveToStepWithValidationError = (
@@ -363,10 +692,12 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
             shouldRefetch = true;
           }
         } else if (currentStep === 3 && requirementFlushRef.current) {
-          await requirementFlushRef.current({
-            mode: movingForward ? "strict" : "lenient",
-          });
-          shouldRefetch = true;
+          if (!skipCompletionValidation) {
+            await requirementFlushRef.current({
+              mode: movingForward ? "strict" : "lenient",
+            });
+            shouldRefetch = true;
+          }
         }
 
         if (shouldRefetch) {
@@ -377,7 +708,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           appRef.current = fresh;
           setApp(fresh);
         }
-        if (movingForward) {
+        if (movingForward && !skipCompletionValidation) {
           const firstInvalid = findFirstInvalidStepInRange(
             currentStep,
             targetStep,
@@ -414,8 +745,11 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
 
       stepRef.current = targetStep;
       setStep(targetStep);
+      if (options.focusTargetId) {
+        scheduleFixTargetFocus(options.focusTargetId);
+      }
     },
-    [getChangedPatchData, id, t],
+    [clearPendingFocusTarget, getChangedPatchData, id, scheduleFixTargetFocus, t],
   );
 
   return {
@@ -426,6 +760,10 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     step,
     setStep,
     updateDraft,
+    persistDraftPatch,
+    replaceHufcowyPresenceAttachments,
+    replaceTopLevelAttachments,
+    replaceRequirementAttachments,
     requirementFlushRef,
     navigateTo,
   };

@@ -1,5 +1,6 @@
 // @file: apps/web/src/components/instructor-application/requirements/requirement-form.types.ts
 
+// @file: apps/web/src/components/instructor-application/requirements/requirement-form.types.ts
 import type { MutableRefObject } from "react";
 import type { RequirementRowResponse } from "@hss/schemas";
 
@@ -45,6 +46,7 @@ export type RequirementFormProps = {
   requirements: RequirementRowResponse[];
   groupDefinitions?: GroupDefinition[];
   readOnly?: boolean;
+  isRequirementReadOnly?: (requirementUuid: string) => boolean;
   flushRef?: MutableRefObject<RequirementFlushHandler | null>;
 };
 
