@@ -1,3 +1,4 @@
+// @file: packages/database/prisma/schema.prisma
 // =================================================================================================
 // HSS - Harcerska System Stopni (Scout Degree Management System)
 // =================================================================================================
@@ -113,6 +114,35 @@ enum DegreeType {
   SCOUT
 }
 
+enum InstructorFixRequestStatus {
+  DRAFT
+  PUBLISHED
+  RESOLVED
+  CANCELLED
+}
+
+enum InstructorReviewAnchorType {
+  APPLICATION
+  SECTION
+  FIELD
+  REQUIREMENT
+  ATTACHMENT
+}
+
+enum InstructorReviewRevisionRequestStatus {
+  DRAFT
+  PUBLISHED
+  RESOLVED
+  CANCELLED
+}
+
+enum InstructorReviewCandidateAnnotationStatus {
+  DRAFT
+  PUBLISHED
+  RESOLVED
+  CANCELLED
+}
+
 enum Status {
   ACTIVE
   INACTIVE
@@ -177,6 +207,19 @@ model User {
   uploadedDocuments       CommissionDocument[]
   comments                ApplicationComment[]
   meetingRegistrations    MeetingRegistration[]
+  createdInstructorFixRequests   InstructorApplicationFixRequest[] @relation("InstructorFixRequestCreatedBy")
+  updatedInstructorFixRequests   InstructorApplicationFixRequest[] @relation("InstructorFixRequestUpdatedBy")
+  publishedInstructorFixRequests InstructorApplicationFixRequest[] @relation("InstructorFixRequestPublishedBy")
+  resolvedInstructorFixRequests  InstructorApplicationFixRequest[] @relation("InstructorFixRequestResolvedBy")
+  createdInstructorReviewInternalNotes        InstructorReviewInternalNote[]        @relation("InstructorReviewInternalNoteCreatedBy")
+  createdInstructorReviewRevisionRequests     InstructorReviewRevisionRequest[]     @relation("InstructorReviewRevisionRequestCreatedBy")
+  updatedInstructorReviewRevisionRequests     InstructorReviewRevisionRequest[]     @relation("InstructorReviewRevisionRequestUpdatedBy")
+  publishedInstructorReviewRevisionRequests   InstructorReviewRevisionRequest[]     @relation("InstructorReviewRevisionRequestPublishedBy")
+  resolvedInstructorReviewRevisionRequests    InstructorReviewRevisionRequest[]     @relation("InstructorReviewRevisionRequestResolvedBy")
+  createdInstructorReviewCandidateAnnotations InstructorReviewCandidateAnnotation[] @relation("InstructorReviewCandidateAnnotationCreatedBy")
+  updatedInstructorReviewCandidateAnnotations InstructorReviewCandidateAnnotation[] @relation("InstructorReviewCandidateAnnotationUpdatedBy")
+  publishedInstructorReviewCandidateAnnotations InstructorReviewCandidateAnnotation[] @relation("InstructorReviewCandidateAnnotationPublishedBy")
+  resolvedInstructorReviewCandidateAnnotations  InstructorReviewCandidateAnnotation[] @relation("InstructorReviewCandidateAnnotationResolvedBy")
 
   @@index([hufiecCode])
   @@index([druzynaCode])
@@ -218,7 +261,7 @@ model ScoutUnit {
 model Commission {
   uuid      String              @id @default(uuid()) @db.Uuid
   name      String?             @db.VarChar(128)
-  type      CommissionType?
+  type      CommissionType      @unique
   status    Status              @default(ACTIVE)
   //-[Timestamps and status]------------------------------------------------------------------------
   createdAt DateTime            @default(now()) @db.Timestamptz
@@ -227,10 +270,10 @@ model Commission {
   members   CommissionMember[]
   meetings  CommissionMeeting[]
 
-  @@index([type, status])
+  @@index([status])
 }
 
-/// @brief: Membership link between a user and a commission with role and status.
+/// @brief: Temporal membership link between a user and a commission with role and status.
 model CommissionMember {
   //-[Membership identity and linked entities]------------------------------------------------------
   uuid           String         @id @default(uuid()) @db.Uuid
@@ -243,9 +286,9 @@ model CommissionMember {
   leftAt         DateTime?      @db.Timestamptz
   status         Status         @default(ACTIVE)
 
-  @@unique([commissionUuid, userUuid])
-  @@index([userUuid])
-  @@index([commissionUuid])
+  @@index([commissionUuid, status, leftAt])
+  @@index([userUuid, status, leftAt])
+  @@index([commissionUuid, userUuid, joinedAt(sort: Desc)])
 }
 
 // =================================================================================================
@@ -346,6 +389,9 @@ model InstructorApplication {
   requirements                  InstructorApplicationRequirement[]
   attachments                   Attachment[]                       @relation("InstructorAppAttachment")
   comments                      ApplicationComment[]               @relation("InstructorAppComment")
+  fixRequests                   InstructorApplicationFixRequest[]
+  reviewInternalNotes           InstructorReviewInternalNote[]
+  reviewRevisionRequests        InstructorReviewRevisionRequest[]
   registrations                 MeetingRegistration[]              @relation("InstructorAppRegistration")
 
   @@index([candidateUuid, status, updatedAt(sort: Desc)])
@@ -586,6 +632,111 @@ model ApplicationComment {
   @@index([instructorRequirementUuid])
   @@index([scoutRequirementUuid])
   @@index([authorUuid])
+}
+
+/// @brief: Candidate-visible fix request draft/published state for instructor application review.
+model InstructorApplicationFixRequest {
+  uuid                      String                     @id @default(uuid()) @db.Uuid
+  applicationUuid           String                     @db.Uuid
+  application               InstructorApplication      @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+  status                    InstructorFixRequestStatus @default(DRAFT)
+  message                   String?                    @db.Text
+  editableApplicationFields String[]                   @default([])
+  editableRequirementUuids  String[]                   @default([])
+  allowTopLevelAttachments  Boolean                    @default(false)
+  createdByUuid             String                     @db.Uuid
+  createdBy                 User                       @relation("InstructorFixRequestCreatedBy", fields: [createdByUuid], references: [uuid], onDelete: Restrict)
+  updatedByUuid             String?                    @db.Uuid
+  updatedBy                 User?                      @relation("InstructorFixRequestUpdatedBy", fields: [updatedByUuid], references: [uuid], onDelete: SetNull)
+  publishedByUuid           String?                    @db.Uuid
+  publishedBy               User?                      @relation("InstructorFixRequestPublishedBy", fields: [publishedByUuid], references: [uuid], onDelete: SetNull)
+  resolvedByUuid            String?                    @db.Uuid
+  resolvedBy                User?                      @relation("InstructorFixRequestResolvedBy", fields: [resolvedByUuid], references: [uuid], onDelete: SetNull)
+  createdAt                 DateTime                   @default(now()) @db.Timestamptz
+  updatedAt                 DateTime                   @updatedAt @db.Timestamptz
+  publishedAt               DateTime?                  @db.Timestamptz
+  resolvedAt                DateTime?                  @db.Timestamptz
+
+  @@index([applicationUuid, status, updatedAt(sort: Desc)])
+  @@index([createdByUuid, createdAt(sort: Desc)])
+  @@index([publishedByUuid, publishedAt(sort: Desc)])
+}
+
+/// @brief: Commission-only internal review note anchored to a specific instructor application element.
+model InstructorReviewInternalNote {
+  uuid          String                      @id @default(uuid()) @db.Uuid
+  applicationUuid String                    @db.Uuid
+  application   InstructorApplication       @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+  anchorType    InstructorReviewAnchorType
+  anchorKey     String                      @db.VarChar(128)
+  body          String                      @db.Text
+  createdByUuid String                      @db.Uuid
+  createdBy     User                        @relation("InstructorReviewInternalNoteCreatedBy", fields: [createdByUuid], references: [uuid], onDelete: Restrict)
+  createdAt     DateTime                    @default(now()) @db.Timestamptz
+  updatedAt     DateTime                    @updatedAt @db.Timestamptz
+
+  @@index([applicationUuid, createdAt(sort: Desc)])
+  @@index([applicationUuid, anchorType, anchorKey, createdAt(sort: Desc)])
+  @@index([createdByUuid, createdAt(sort: Desc)])
+}
+
+/// @brief: Candidate-facing revision request lifecycle grouping anchored annotations for an instructor application.
+model InstructorReviewRevisionRequest {
+  uuid           String                               @id @default(uuid()) @db.Uuid
+  applicationUuid String                             @db.Uuid
+  application    InstructorApplication                @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+  status         InstructorReviewRevisionRequestStatus @default(DRAFT)
+  summaryMessage String?                             @db.Text
+  createdByUuid  String                              @db.Uuid
+  createdBy      User                                @relation("InstructorReviewRevisionRequestCreatedBy", fields: [createdByUuid], references: [uuid], onDelete: Restrict)
+  updatedByUuid  String?                             @db.Uuid
+  updatedBy      User?                               @relation("InstructorReviewRevisionRequestUpdatedBy", fields: [updatedByUuid], references: [uuid], onDelete: SetNull)
+  publishedByUuid String?                            @db.Uuid
+  publishedBy    User?                               @relation("InstructorReviewRevisionRequestPublishedBy", fields: [publishedByUuid], references: [uuid], onDelete: SetNull)
+  resolvedByUuid String?                             @db.Uuid
+  resolvedBy     User?                               @relation("InstructorReviewRevisionRequestResolvedBy", fields: [resolvedByUuid], references: [uuid], onDelete: SetNull)
+  createdAt      DateTime                            @default(now()) @db.Timestamptz
+  updatedAt      DateTime                            @updatedAt @db.Timestamptz
+  publishedAt    DateTime?                           @db.Timestamptz
+  candidateFirstViewedAt DateTime?                   @db.Timestamptz
+  candidateFirstEditedAt DateTime?                   @db.Timestamptz
+  candidateLastActivityAt DateTime?                  @db.Timestamptz
+  resolvedAt     DateTime?                           @db.Timestamptz
+  annotations    InstructorReviewCandidateAnnotation[]
+
+  @@index([applicationUuid, status, updatedAt(sort: Desc)])
+  @@index([createdByUuid, createdAt(sort: Desc)])
+  @@index([publishedByUuid, publishedAt(sort: Desc)])
+  @@index([resolvedByUuid, resolvedAt(sort: Desc)])
+}
+
+/// @brief: Candidate-visible review annotation anchored semantically to a field, section, requirement or attachment.
+model InstructorReviewCandidateAnnotation {
+  uuid             String                                   @id @default(uuid()) @db.Uuid
+  revisionRequestUuid String                               @db.Uuid
+  revisionRequest  InstructorReviewRevisionRequest         @relation(fields: [revisionRequestUuid], references: [uuid], onDelete: Cascade)
+  anchorType       InstructorReviewAnchorType
+  anchorKey        String                                  @db.VarChar(128)
+  body             String                                  @db.Text
+  status           InstructorReviewCandidateAnnotationStatus @default(DRAFT)
+  createdByUuid    String                                  @db.Uuid
+  createdBy        User                                    @relation("InstructorReviewCandidateAnnotationCreatedBy", fields: [createdByUuid], references: [uuid], onDelete: Restrict)
+  updatedByUuid    String?                                 @db.Uuid
+  updatedBy        User?                                   @relation("InstructorReviewCandidateAnnotationUpdatedBy", fields: [updatedByUuid], references: [uuid], onDelete: SetNull)
+  publishedByUuid  String?                                 @db.Uuid
+  publishedBy      User?                                   @relation("InstructorReviewCandidateAnnotationPublishedBy", fields: [publishedByUuid], references: [uuid], onDelete: SetNull)
+  resolvedByUuid   String?                                 @db.Uuid
+  resolvedBy       User?                                   @relation("InstructorReviewCandidateAnnotationResolvedBy", fields: [resolvedByUuid], references: [uuid], onDelete: SetNull)
+  createdAt        DateTime                                @default(now()) @db.Timestamptz
+  updatedAt        DateTime                                @updatedAt @db.Timestamptz
+  publishedAt      DateTime?                               @db.Timestamptz
+  resolvedAt       DateTime?                               @db.Timestamptz
+
+  @@index([revisionRequestUuid, status, createdAt(sort: Desc)])
+  @@index([revisionRequestUuid, anchorType, anchorKey, status])
+  @@index([createdByUuid, createdAt(sort: Desc)])
+  @@index([publishedByUuid, publishedAt(sort: Desc)])
+  @@index([resolvedByUuid, resolvedAt(sort: Desc)])
 }
 
 // =================================================================================================

@@ -33,6 +33,55 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  async function ensureActiveCommissionMembership(data: {
+    commissionUuid: string;
+    userUuid: string;
+    role: CommissionRole;
+  }) {
+    const activeMembership = await prisma.commissionMember.findFirst({
+      where: {
+        commissionUuid: data.commissionUuid,
+        userUuid: data.userUuid,
+        status: Status.ACTIVE,
+        leftAt: null,
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    if (activeMembership) {
+      if (activeMembership.role === data.role) {
+        return activeMembership;
+      }
+
+      const [, createdMembership] = await prisma.$transaction([
+        prisma.commissionMember.update({
+          where: { uuid: activeMembership.uuid },
+          data: {
+            status: Status.INACTIVE,
+            leftAt: new Date(),
+          },
+        }),
+        prisma.commissionMember.create({
+          data: {
+            commissionUuid: data.commissionUuid,
+            userUuid: data.userUuid,
+            role: data.role,
+          },
+        }),
+      ]);
+
+      return createdMembership;
+    }
+
+    return prisma.commissionMember.create({
+      data: {
+        commissionUuid: data.commissionUuid,
+        userUuid: data.userUuid,
+        role: data.role,
+      },
+    });
+  }
+
   // =========================================================
   // 1. ORGANIZATIONAL STRUCTURE
   // =========================================================
@@ -216,110 +265,59 @@ async function main() {
   // =========================================================
   console.log('📋 Seeding commissions...');
 
-  // Check if instructor commission exists
-  let instructorCommission = await prisma.commission.findFirst({
+  const instructorCommission = await prisma.commission.upsert({
     where: {
+      type: CommissionType.INSTRUCTOR,
+    },
+    update: {
+      name: 'Komisja Instruktorska',
+      status: Status.ACTIVE,
+    },
+    create: {
       name: 'Komisja Instruktorska',
       type: CommissionType.INSTRUCTOR,
-    }
+      status: Status.ACTIVE,
+    },
   });
 
-  if (!instructorCommission) {
-    instructorCommission = await prisma.commission.create({
-      data: {
-        name: 'Komisja Instruktorska',
-        type: CommissionType.INSTRUCTOR,
-        status: Status.ACTIVE,
-      }
-    });
-  }
-
-  // Add commission members if they don't exist
-  const instructorMember1 = await prisma.commissionMember.findFirst({
-    where: {
-      commissionUuid: instructorCommission.uuid,
-      userUuid: piotrKrajewski.uuid,
-    }
+  await ensureActiveCommissionMembership({
+    commissionUuid: instructorCommission.uuid,
+    userUuid: piotrKrajewski.uuid,
+    role: CommissionRole.CHAIRMAN,
   });
 
-  if (!instructorMember1) {
-    await prisma.commissionMember.create({
-      data: {
-        commissionUuid: instructorCommission.uuid,
-        userUuid: piotrKrajewski.uuid,
-        role: CommissionRole.CHAIRMAN,
-      }
-    });
-  }
-
-  const instructorMember2 = await prisma.commissionMember.findFirst({
-    where: {
-      commissionUuid: instructorCommission.uuid,
-      userUuid: adamNowakowski.uuid,
-    }
+  await ensureActiveCommissionMembership({
+    commissionUuid: instructorCommission.uuid,
+    userUuid: adamNowakowski.uuid,
+    role: CommissionRole.MEMBER,
   });
 
-  if (!instructorMember2) {
-    await prisma.commissionMember.create({
-      data: {
-        commissionUuid: instructorCommission.uuid,
-        userUuid: adamNowakowski.uuid,
-        role: CommissionRole.MEMBER,
-      }
-    });
-  }
-
-  // Scout commission
-  let scoutCommission = await prisma.commission.findFirst({
+  const scoutCommission = await prisma.commission.upsert({
     where: {
+      type: CommissionType.SCOUT,
+    },
+    update: {
+      name: 'Kapituła Stopni Harcerskich',
+      status: Status.ACTIVE,
+    },
+    create: {
       name: 'Kapituła Stopni Harcerskich',
       type: CommissionType.SCOUT,
-    }
+      status: Status.ACTIVE,
+    },
   });
 
-  if (!scoutCommission) {
-    scoutCommission = await prisma.commission.create({
-      data: {
-        name: 'Kapituła Stopni Harcerskich',
-        type: CommissionType.SCOUT,
-        status: Status.ACTIVE,
-      }
-    });
-  }
-
-  const scoutMember1 = await prisma.commissionMember.findFirst({
-    where: {
-      commissionUuid: scoutCommission.uuid,
-      userUuid: krzysztofKier.uuid,
-    }
+  await ensureActiveCommissionMembership({
+    commissionUuid: scoutCommission.uuid,
+    userUuid: krzysztofKier.uuid,
+    role: CommissionRole.CHAIRMAN,
   });
 
-  if (!scoutMember1) {
-    await prisma.commissionMember.create({
-      data: {
-        commissionUuid: scoutCommission.uuid,
-        userUuid: krzysztofKier.uuid,
-        role: CommissionRole.CHAIRMAN,
-      }
-    });
-  }
-
-  const scoutMember2 = await prisma.commissionMember.findFirst({
-    where: {
-      commissionUuid: scoutCommission.uuid,
-      userUuid: michalRenke.uuid,
-    }
+  await ensureActiveCommissionMembership({
+    commissionUuid: scoutCommission.uuid,
+    userUuid: michalRenke.uuid,
+    role: CommissionRole.MEMBER,
   });
-
-  if (!scoutMember2) {
-    await prisma.commissionMember.create({
-      data: {
-        commissionUuid: scoutCommission.uuid,
-        userUuid: michalRenke.uuid,
-        role: CommissionRole.MEMBER,
-      }
-    });
-  }
 
   // =========================================================
   // 4. COMMISSION MEETINGS
