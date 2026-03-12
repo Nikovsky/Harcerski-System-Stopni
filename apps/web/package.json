@@ -6,8 +6,13 @@
     "dev": "cross-env NODE_EXTRA_CA_CERTS=..\\..\\docker\\certs\\rootCA.pem next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . --ignore-pattern generated --ignore-pattern .next",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test --config=playwright.config.ts --project=chromium-smoke",
+    "test:a11y": "playwright test --config=playwright.config.ts --project=chromium-a11y",
+    "test:perf": "node ./scripts/run-lighthouse.mjs",
+    "test:browser:install": "playwright install chromium",
+    "test:browser:all": "pnpm test:e2e && pnpm test:a11y && pnpm test:perf"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -25,12 +30,16 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "lighthouse": "^13.0.3",
+    "playwright-lighthouse": "^4.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
