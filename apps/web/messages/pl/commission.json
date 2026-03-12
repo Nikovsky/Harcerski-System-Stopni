@@ -33,6 +33,14 @@
     "openPanel": "Otwórz panel",
     "switchCommission": "Zmień komisję"
   },
+  "seo": {
+    "landingTitle": "Panel komisji",
+    "landingDescription": "Wybierz aktywną komisję i przejdź do właściwego kontekstu pracy z inboxem oraz workflow wniosków.",
+    "inboxTitle": "Inbox komisji",
+    "inboxDescription": "Przeglądaj kolejkę wniosków komisji, filtruj sprawy i przechodź do szczegółów oceny kandydata.",
+    "detailTitle": "Szczegóły wniosku komisji",
+    "detailDescription": "Pracuj na szczegółach wniosku, uwagach dla kandydata, historii zmian i workflow komisji."
+  },
   "accessDenied": {
     "membershipMessage": "Nie masz aktywnego członkostwa w wybranej komisji albo URL wskazuje nieprawidłowy kontekst komisji.",
     "applicationMessage": "Nie możesz otworzyć tego wniosku w kontekście wybranej komisji."

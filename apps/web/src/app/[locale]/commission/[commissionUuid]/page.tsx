@@ -20,10 +20,11 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
-  const tCommon = await getTranslations({ locale, namespace: "common" });
+  const tCommission = await getTranslations({ locale, namespace: "commission" });
 
   return {
-    title: tCommon("nav.commission"),
+    title: tCommission("seo.inboxTitle"),
+    description: tCommission("seo.inboxDescription"),
   };
 }
 
