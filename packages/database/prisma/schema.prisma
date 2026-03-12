@@ -425,6 +425,8 @@ model InstructorApplicationSnapshot {
   //-[Timestamps]-----------------------------------------------------------------------------------
   createdAt               DateTime              @default(now()) @db.Timestamptz
   updatedAt               DateTime              @updatedAt @db.Timestamptz
+  baselineForRevisionRequests InstructorReviewRevisionRequest[] @relation("InstructorReviewBaselineSnapshot")
+  responseForRevisionRequests InstructorReviewRevisionRequest[] @relation("InstructorReviewResponseSnapshot")
 
   @@unique([applicationUuid, revision])
   @@index([applicationUuid, submittedAt(sort: Desc)])
@@ -685,6 +687,10 @@ model InstructorReviewRevisionRequest {
   uuid           String                               @id @default(uuid()) @db.Uuid
   applicationUuid String                             @db.Uuid
   application    InstructorApplication                @relation(fields: [applicationUuid], references: [uuid], onDelete: Cascade)
+  baselineSnapshotUuid String?                        @db.Uuid
+  baselineSnapshot InstructorApplicationSnapshot?     @relation("InstructorReviewBaselineSnapshot", fields: [baselineSnapshotUuid], references: [uuid], onDelete: SetNull)
+  responseSnapshotUuid String?                        @db.Uuid
+  responseSnapshot InstructorApplicationSnapshot?     @relation("InstructorReviewResponseSnapshot", fields: [responseSnapshotUuid], references: [uuid], onDelete: SetNull)
   status         InstructorReviewRevisionRequestStatus @default(DRAFT)
   summaryMessage String?                             @db.Text
   createdByUuid  String                              @db.Uuid
@@ -705,8 +711,10 @@ model InstructorReviewRevisionRequest {
   annotations    InstructorReviewCandidateAnnotation[]
 
   @@index([applicationUuid, status, updatedAt(sort: Desc)])
+  @@index([baselineSnapshotUuid])
   @@index([createdByUuid, createdAt(sort: Desc)])
   @@index([publishedByUuid, publishedAt(sort: Desc)])
+  @@index([responseSnapshotUuid])
   @@index([resolvedByUuid, resolvedAt(sort: Desc)])
 }
 
