@@ -68,7 +68,7 @@ test.describe("commission accessibility", () => {
     const applicationPath = await getFirstApplicationPath(page);
     await page.goto(applicationPath, { waitUntil: "networkidle" });
     await expect(
-      page.getByRole("button", { name: /Historia|History/i }),
+      page.getByRole("link", { name: /Historia|History/i }),
     ).toBeVisible();
 
     await expectNoSeriousA11yViolations(page);

@@ -172,7 +172,7 @@ async function assertCommissionInboxReady(page, locale) {
 }
 
 async function assertCommissionDetailReady(page) {
-  const historyTab = page.getByRole("button", { name: /Historia|History/i });
+  const historyTab = page.getByRole("link", { name: /Historia|History/i });
 
   try {
     await historyTab.waitFor({ state: "visible", timeout: 10_000 });

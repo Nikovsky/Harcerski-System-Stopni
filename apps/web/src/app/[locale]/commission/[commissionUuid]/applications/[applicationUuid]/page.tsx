@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import type { CommissionWorkspaceTabId } from "@/components/commission-review/CommissionWorkspaceTabs";
 import { AccessDenied } from "@/components/ui/AccessDenied";
 import { CommissionApplicationDetail } from "@/components/commission-review/CommissionApplicationDetail";
 import {
@@ -19,7 +20,26 @@ type Props = {
     commissionUuid: string;
     applicationUuid: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const COMMISSION_WORKSPACE_TAB_IDS: readonly CommissionWorkspaceTabId[] = [
+  "application",
+  "requirements",
+  "candidateFeedback",
+  "internalNotes",
+  "history",
+];
+
+function parseActiveTab(
+  rawValue: string | string[] | undefined,
+): CommissionWorkspaceTabId {
+  const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+
+  return COMMISSION_WORKSPACE_TAB_IDS.includes(value as CommissionWorkspaceTabId)
+    ? (value as CommissionWorkspaceTabId)
+    : "application";
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
@@ -54,10 +74,13 @@ function renderServiceUnavailable(
 
 export default async function CommissionApplicationDetailPage({
   params,
+  searchParams,
 }: Props) {
   const { locale, commissionUuid, applicationUuid } = await params;
+  const rawSearchParams = await searchParams;
   const tCommon = await getTranslations("common");
   const tCommission = await getTranslations("commission");
+  const activeTab = parseActiveTab(rawSearchParams.tab);
   const membership = await (async () => {
     try {
       const membershipsResponse = await bffServerFetchValidated(
@@ -187,6 +210,7 @@ export default async function CommissionApplicationDetailPage({
       locale={locale}
       commissionUuid={commissionUuid}
       applicationUuid={applicationUuid}
+      activeTab={activeTab}
       detail={detail}
     />
   );

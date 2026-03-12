@@ -38,7 +38,7 @@ test.describe("commission workspace smoke", () => {
       ),
     );
     await expect(
-      page.getByRole("button", { name: /Historia|History/i }),
+      page.getByRole("link", { name: /Historia|History/i }),
     ).toBeVisible();
   });
 });

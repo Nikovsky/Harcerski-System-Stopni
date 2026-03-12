@@ -4,7 +4,6 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
@@ -26,6 +25,7 @@ type Props = {
   locale: string;
   commissionUuid: string;
   applicationUuid: string;
+  activeTab: CommissionWorkspaceTabId;
   detail: CommissionReviewApplicationDetailResponse;
 };
 
@@ -49,14 +49,6 @@ type AnchorReference = {
   anchorKey: string;
   label?: string;
 };
-
-const TAB_IDS: readonly CommissionWorkspaceTabId[] = [
-  "application",
-  "requirements",
-  "candidateFeedback",
-  "internalNotes",
-  "history",
-];
 
 const LazyCommissionAnnotationDrawer = dynamic(
   () =>
@@ -128,10 +120,6 @@ const LazyCommissionWorkflowAside = dynamic(
   },
 );
 
-function isTabId(value: string | null): value is CommissionWorkspaceTabId {
-  return TAB_IDS.includes(value as CommissionWorkspaceTabId);
-}
-
 function formatDateTime(
   locale: string,
   value: string | null | undefined,
@@ -194,16 +182,12 @@ export function CommissionApplicationDetail({
   locale,
   commissionUuid,
   applicationUuid,
+  activeTab,
   detail,
 }: Props) {
   const tCommission = useTranslations("commission");
   const tApplications = useTranslations("applications");
-  const searchParams = useSearchParams();
   const app = detail.application;
-  const requestedTab = searchParams.get("tab");
-  const activeTab: CommissionWorkspaceTabId = isTabId(requestedTab)
-    ? requestedTab
-    : "application";
   const activeRevisionRequest = detail.activeRevisionRequest;
   const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
 
@@ -490,6 +474,7 @@ export function CommissionApplicationDetail({
           <CommissionWorkspaceTabs
             tabs={tabs}
             activeTab={activeTab}
+            basePath={`/${locale}/commission/${commissionUuid}/applications/${applicationUuid}`}
             ariaLabel={tCommission("detail.sectionNavLabel")}
           />
 
