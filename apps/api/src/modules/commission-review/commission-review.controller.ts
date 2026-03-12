@@ -20,6 +20,7 @@ import {
   commissionReviewCandidateAnnotationUpdateBodySchema,
   commissionReviewInternalNoteCreateBodySchema,
   commissionReviewInternalNoteUpdateBodySchema,
+  commissionReviewResolvedRevisionRequestListQuerySchema,
   commissionReviewRevisionRequestCancelBodySchema,
   commissionReviewRevisionRequestDraftBodySchema,
   commissionReviewRevisionRequestPublishBodySchema,
@@ -30,6 +31,7 @@ import {
   type CommissionReviewCandidateAnnotationUpdateBody,
   type CommissionReviewInternalNoteCreateBody,
   type CommissionReviewInternalNoteUpdateBody,
+  type CommissionReviewResolvedRevisionRequestListQuery,
   type CommissionReviewRevisionRequestCancelBody,
   type CommissionReviewRevisionRequestDraftBody,
   type CommissionReviewRevisionRequestPublishBody,
@@ -78,6 +80,45 @@ export class CommissionReviewController {
       principal,
       commissionUuid,
       applicationUuid,
+    );
+  }
+
+  @Get(
+    'commissions/:commissionUuid/instructor-applications/:applicationUuid/revision-request-audits',
+  )
+  async listResolvedRevisionRequestAudits(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Param('commissionUuid', ParseUUIDPipe) commissionUuid: string,
+    @Param('applicationUuid', ParseUUIDPipe) applicationUuid: string,
+    @Query(
+      new ZodValidationPipe(
+        commissionReviewResolvedRevisionRequestListQuerySchema,
+      ),
+    )
+    query: CommissionReviewResolvedRevisionRequestListQuery,
+  ) {
+    return this.service.listResolvedRevisionRequestAudits(
+      principal,
+      commissionUuid,
+      applicationUuid,
+      query,
+    );
+  }
+
+  @Get(
+    'commissions/:commissionUuid/instructor-applications/:applicationUuid/revision-request-audits/:revisionRequestUuid',
+  )
+  async getResolvedRevisionRequestAudit(
+    @CurrentUser(AuthPrincipalPipe) principal: AuthPrincipal,
+    @Param('commissionUuid', ParseUUIDPipe) commissionUuid: string,
+    @Param('applicationUuid', ParseUUIDPipe) applicationUuid: string,
+    @Param('revisionRequestUuid', ParseUUIDPipe) revisionRequestUuid: string,
+  ) {
+    return this.service.getResolvedRevisionRequestAudit(
+      principal,
+      commissionUuid,
+      applicationUuid,
+      revisionRequestUuid,
     );
   }
 
@@ -150,7 +191,9 @@ export class CommissionReviewController {
     @Param('commissionUuid', ParseUUIDPipe) commissionUuid: string,
     @Param('applicationUuid', ParseUUIDPipe) applicationUuid: string,
     @Body(
-      new ZodValidationPipe(commissionReviewCandidateAnnotationCreateBodySchema),
+      new ZodValidationPipe(
+        commissionReviewCandidateAnnotationCreateBodySchema,
+      ),
     )
     dto: CommissionReviewCandidateAnnotationCreateBody,
     @Req() req: Request,
@@ -173,7 +216,9 @@ export class CommissionReviewController {
     @Param('applicationUuid', ParseUUIDPipe) applicationUuid: string,
     @Param('annotationUuid', ParseUUIDPipe) annotationUuid: string,
     @Body(
-      new ZodValidationPipe(commissionReviewCandidateAnnotationUpdateBodySchema),
+      new ZodValidationPipe(
+        commissionReviewCandidateAnnotationUpdateBodySchema,
+      ),
     )
     dto: CommissionReviewCandidateAnnotationUpdateBody,
     @Req() req: Request,

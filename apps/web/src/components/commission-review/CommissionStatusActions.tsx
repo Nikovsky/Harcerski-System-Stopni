@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/commission-review/CommissionStatusActions.tsx
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { statusKey } from "@/lib/applications-i18n";
@@ -27,6 +27,12 @@ type Props = {
   activeRevisionRequest: CommissionReviewApplicationDetail["activeRevisionRequest"];
 };
 
+type WorkflowUiState = {
+  refreshKey: string;
+  selectedStatus: ApplicationStatus | null;
+  actionError: string | null;
+};
+
 export function CommissionStatusActions({
   commissionUuid,
   applicationUuid,
@@ -39,13 +45,25 @@ export function CommissionStatusActions({
   const tApplications = useTranslations("applications");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const nonFixTransitions: ApplicationStatus[] = availableTransitions.filter(
-    (status) => status !== "TO_FIX",
+  const nonFixTransitions: ApplicationStatus[] = useMemo(
+    () => availableTransitions.filter((status) => status !== "TO_FIX"),
+    [availableTransitions],
   );
-  const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus | null>(
-    nonFixTransitions[0] ?? null,
+  const workflowRefreshKey = [
+    currentStatus,
+    activeRevisionRequest?.uuid ?? "",
+    activeRevisionRequest?.status ?? "",
+    activeRevisionRequest?.updatedAt ?? "",
+    nonFixTransitions.join("|"),
+  ].join(":");
+  const defaultSelectedStatus = nonFixTransitions[0] ?? null;
+  const [workflowUiState, setWorkflowUiState] = useState<WorkflowUiState>(
+    () => ({
+      refreshKey: workflowRefreshKey,
+      selectedStatus: defaultSelectedStatus,
+      actionError: null,
+    }),
   );
-  const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canDraftCandidateFeedback =
@@ -58,13 +76,16 @@ export function CommissionStatusActions({
       ? activeRevisionRequest.annotations.length
       : 0;
 
-  useEffect(() => {
-    if (selectedStatus && nonFixTransitions.includes(selectedStatus)) {
-      return;
-    }
-
-    setSelectedStatus(nonFixTransitions[0] ?? null);
-  }, [nonFixTransitions, selectedStatus]);
+  const selectedStatus =
+    workflowUiState.refreshKey === workflowRefreshKey &&
+    workflowUiState.selectedStatus &&
+    nonFixTransitions.includes(workflowUiState.selectedStatus)
+      ? workflowUiState.selectedStatus
+      : defaultSelectedStatus;
+  const actionError =
+    workflowUiState.refreshKey === workflowRefreshKey
+      ? workflowUiState.actionError
+      : null;
 
   function getStatusLabel(status: ApplicationStatus): string {
     const translatedStatusKey = statusKey(status);
@@ -79,7 +100,11 @@ export function CommissionStatusActions({
       return;
     }
 
-    setActionError(null);
+    setWorkflowUiState((previous) => ({
+      refreshKey: workflowRefreshKey,
+      selectedStatus: selectedStatus ?? previous.selectedStatus,
+      actionError: null,
+    }));
     setIsSubmitting(true);
 
     try {
@@ -95,11 +120,14 @@ export function CommissionStatusActions({
         router.refresh();
       });
     } catch (error: unknown) {
-      setActionError(
-        error instanceof ApiError
-          ? error.message
-          : tCommission("messages.statusChangeError"),
-      );
+      setWorkflowUiState({
+        refreshKey: workflowRefreshKey,
+        selectedStatus,
+        actionError:
+          error instanceof ApiError
+            ? error.message
+            : tCommission("messages.statusChangeError"),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -113,7 +141,11 @@ export function CommissionStatusActions({
       return;
     }
 
-    setActionError(null);
+    setWorkflowUiState((previous) => ({
+      refreshKey: workflowRefreshKey,
+      selectedStatus: selectedStatus ?? previous.selectedStatus,
+      actionError: null,
+    }));
     setIsSubmitting(true);
 
     try {
@@ -129,11 +161,14 @@ export function CommissionStatusActions({
         router.refresh();
       });
     } catch (error: unknown) {
-      setActionError(
-        error instanceof ApiError
-          ? error.message
-          : tCommission("messages.statusChangeError"),
-      );
+      setWorkflowUiState({
+        refreshKey: workflowRefreshKey,
+        selectedStatus,
+        actionError:
+          error instanceof ApiError
+            ? error.message
+            : tCommission("messages.statusChangeError"),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -144,7 +179,11 @@ export function CommissionStatusActions({
       return;
     }
 
-    setActionError(null);
+    setWorkflowUiState((previous) => ({
+      refreshKey: workflowRefreshKey,
+      selectedStatus: selectedStatus ?? previous.selectedStatus,
+      actionError: null,
+    }));
     setIsSubmitting(true);
 
     try {
@@ -162,11 +201,14 @@ export function CommissionStatusActions({
         router.refresh();
       });
     } catch (error: unknown) {
-      setActionError(
-        error instanceof ApiError
-          ? error.message
-          : tCommission("messages.statusChangeError"),
-      );
+      setWorkflowUiState({
+        refreshKey: workflowRefreshKey,
+        selectedStatus,
+        actionError:
+          error instanceof ApiError
+            ? error.message
+            : tCommission("messages.statusChangeError"),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -239,7 +281,9 @@ export function CommissionStatusActions({
               <button
                 type="button"
                 onClick={() => void handlePublishDraft()}
-                disabled={isSubmitting || isPending || draftAnnotationCount === 0}
+                disabled={
+                  isSubmitting || isPending || draftAnnotationCount === 0
+                }
                 className={`${IA_BUTTON_PRIMARY_SM} disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {isSubmitting || isPending
@@ -267,7 +311,11 @@ export function CommissionStatusActions({
             <select
               value={selectedStatus ?? ""}
               onChange={(event) =>
-                setSelectedStatus(event.target.value as ApplicationStatus)
+                setWorkflowUiState({
+                  refreshKey: workflowRefreshKey,
+                  selectedStatus: event.target.value as ApplicationStatus,
+                  actionError: null,
+                })
               }
               disabled={isSubmitting || isPending}
               className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-sm"
@@ -283,7 +331,9 @@ export function CommissionStatusActions({
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={() => selectedStatus && void handleTransition(selectedStatus)}
+              onClick={() =>
+                selectedStatus && void handleTransition(selectedStatus)
+              }
               disabled={isSubmitting || isPending || !selectedStatus}
               className={`${IA_BUTTON_PRIMARY_SM} disabled:cursor-not-allowed disabled:opacity-60`}
             >

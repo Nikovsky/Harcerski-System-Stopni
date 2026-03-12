@@ -139,22 +139,15 @@ export default async function CommissionInboxPage({
     );
   }
 
-  const query = commissionReviewApplicationListQuerySchema.parse(rawSearchParams);
+  const query =
+    commissionReviewApplicationListQuerySchema.parse(rawSearchParams);
+
+  let response!: Parameters<typeof CommissionApplicationInbox>[0]["response"];
 
   try {
-    const response = await bffServerFetchValidated(
+    response = await bffServerFetchValidated(
       commissionReviewApplicationListResponseSchema,
       buildListPath(commissionUuid, rawSearchParams),
-    );
-
-    return (
-      <CommissionApplicationInbox
-        locale={locale}
-        commissionUuid={commissionUuid}
-        membership={membership}
-        query={query}
-        response={response}
-      />
     );
   } catch (error: unknown) {
     if (
@@ -167,14 +160,19 @@ export default async function CommissionInboxPage({
     if (error instanceof BffServerFetchError && error.status === 403) {
       return (
         <main className="mx-auto max-w-4xl px-6 py-10">
-          <h1 className="text-2xl font-semibold">{tCommon("nav.commission")}</h1>
+          <h1 className="text-2xl font-semibold">
+            {tCommon("nav.commission")}
+          </h1>
           <AccessDenied
             code="403"
             codeLabel={tCommon("accessDenied.codeLabel", { code: "403" })}
             title={tCommon("accessDenied.title")}
             message={tCommission("accessDenied.membershipMessage")}
             actions={[
-              { label: tCommon("nav.commission"), href: `/${locale}/commission` },
+              {
+                label: tCommon("nav.commission"),
+                href: `/${locale}/commission`,
+              },
               { label: tCommon("nav.home"), href: `/${locale}/` },
             ]}
           />
@@ -184,4 +182,14 @@ export default async function CommissionInboxPage({
 
     throw error;
   }
+
+  return (
+    <CommissionApplicationInbox
+      locale={locale}
+      commissionUuid={commissionUuid}
+      membership={membership}
+      query={query}
+      response={response}
+    />
+  );
 }

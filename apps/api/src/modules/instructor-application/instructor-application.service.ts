@@ -85,9 +85,10 @@ type InstructorApplicationAuditSnapshot =
     select: typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
   }>;
 
-type RevisionRequestActivityRow = Prisma.InstructorReviewRevisionRequestGetPayload<{
-  select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
-}>;
+type RevisionRequestActivityRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
+  }>;
 
 type InstructorApplicationAuditField =
   keyof typeof INSTRUCTOR_APPLICATION_AUDIT_SELECT;
@@ -504,8 +505,9 @@ export class InstructorApplicationService {
   async markActiveRevisionRequestViewed(
     principal: AuthPrincipal,
     applicationId: string,
-    _requestId?: string | null,
+    requestId?: string | null,
   ): Promise<InstructorApplicationCandidateRevisionActivityResponse> {
+    void requestId;
     return this.prisma.$transaction(async (tx) => {
       await this.lockApplicationRow(tx, applicationId);
 
@@ -846,21 +848,20 @@ export class InstructorApplicationService {
         resolvedRevisionRequestCount = 1;
       }
 
-      await tx.instructorReviewCandidateAnnotation.updateMany({
-        where: {
-          revisionRequest: {
-            applicationUuid: fullApp.uuid,
-            status: InstructorReviewRevisionRequestStatus.RESOLVED,
+      if (publishedRevisionRequest) {
+        await tx.instructorReviewCandidateAnnotation.updateMany({
+          where: {
+            revisionRequestUuid: publishedRevisionRequest.uuid,
+            status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
           },
-          status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
-        },
-        data: {
-          status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
-          resolvedAt: submittedAt,
-          resolvedByUuid: fullApp.candidate.uuid,
-          updatedByUuid: fullApp.candidate.uuid,
-        },
-      });
+          data: {
+            status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+            resolvedAt: submittedAt,
+            resolvedByUuid: fullApp.candidate.uuid,
+            updatedByUuid: fullApp.candidate.uuid,
+          },
+        });
+      }
 
       // Update application status
       const updatedApplication = await tx.instructorApplication.update({
@@ -1349,10 +1350,8 @@ export class InstructorApplicationService {
     tx: Prisma.TransactionClient,
     applicationId: string,
   ): Promise<InstructorApplicationCandidateRevisionActivityResponse> {
-    const publishedRevisionRequest = await this.findPublishedRevisionRequestActivity(
-      tx,
-      applicationId,
-    );
+    const publishedRevisionRequest =
+      await this.findPublishedRevisionRequestActivity(tx, applicationId);
 
     if (!publishedRevisionRequest) {
       return this.toCandidateRevisionActivityDto(null);
@@ -1363,14 +1362,15 @@ export class InstructorApplicationService {
     }
 
     const now = new Date();
-    const updatedRevisionRequest = await tx.instructorReviewRevisionRequest.update({
-      where: { uuid: publishedRevisionRequest.uuid },
-      data: {
-        candidateFirstViewedAt: now,
-        candidateLastActivityAt: now,
-      },
-      select: REVISION_REQUEST_ACTIVITY_SELECT,
-    });
+    const updatedRevisionRequest =
+      await tx.instructorReviewRevisionRequest.update({
+        where: { uuid: publishedRevisionRequest.uuid },
+        data: {
+          candidateFirstViewedAt: now,
+          candidateLastActivityAt: now,
+        },
+        select: REVISION_REQUEST_ACTIVITY_SELECT,
+      });
 
     return this.toCandidateRevisionActivityDto(updatedRevisionRequest);
   }

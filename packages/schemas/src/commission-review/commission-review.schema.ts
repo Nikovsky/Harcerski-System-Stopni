@@ -363,7 +363,6 @@ export const commissionReviewResolvedChangeValueSchema = z.discriminatedUnion(
               originalFilename: z.string(),
               contentType: z.string(),
               sizeBytes: z.number(),
-              checksum: z.string().nullable(),
             })
             .strict(),
         ),
@@ -399,9 +398,35 @@ export type CommissionReviewResolvedAnnotationAudit = z.infer<
   typeof commissionReviewResolvedAnnotationAuditSchema
 >;
 
+export const commissionReviewResolvedRevisionRequestMetadataSchema = z
+  .object({
+    uuid: uuidSchema,
+    summaryMessage: z.string().nullable(),
+    publishedAt: isoDateTimeSchema.nullable(),
+    resolvedAt: isoDateTimeSchema.nullable(),
+  })
+  .strict();
+export type CommissionReviewResolvedRevisionRequestMetadata = z.infer<
+  typeof commissionReviewResolvedRevisionRequestMetadataSchema
+>;
+
+export const commissionReviewResolvedRevisionRequestSummarySchema = z
+  .object({
+    revisionRequest: commissionReviewResolvedRevisionRequestMetadataSchema,
+    auditAvailable: z.boolean(),
+    auditMissingReason:
+      commissionReviewResolvedRevisionRequestAuditMissingReasonSchema.nullable(),
+    baselineSnapshotRevision: z.number().int().nullable(),
+    responseSnapshotRevision: z.number().int().nullable(),
+  })
+  .strict();
+export type CommissionReviewResolvedRevisionRequestSummary = z.infer<
+  typeof commissionReviewResolvedRevisionRequestSummarySchema
+>;
+
 export const commissionReviewResolvedRevisionRequestSchema = z
   .object({
-    revisionRequest: commissionReviewRevisionRequestSchema,
+    revisionRequest: commissionReviewResolvedRevisionRequestMetadataSchema,
     auditAvailable: z.boolean(),
     auditMissingReason:
       commissionReviewResolvedRevisionRequestAuditMissingReasonSchema.nullable(),
@@ -415,6 +440,24 @@ export const commissionReviewResolvedRevisionRequestSchema = z
   .strict();
 export type CommissionReviewResolvedRevisionRequest = z.infer<
   typeof commissionReviewResolvedRevisionRequestSchema
+>;
+
+export const commissionReviewResolvedRevisionRequestListQuerySchema =
+  paginationQuerySchema;
+export type CommissionReviewResolvedRevisionRequestListQuery = z.infer<
+  typeof commissionReviewResolvedRevisionRequestListQuerySchema
+>;
+
+export const commissionReviewResolvedRevisionRequestListResponseSchema =
+  createPaginationResponseSchema(commissionReviewResolvedRevisionRequestSummarySchema);
+export type CommissionReviewResolvedRevisionRequestListResponse = z.infer<
+  typeof commissionReviewResolvedRevisionRequestListResponseSchema
+>;
+
+export const commissionReviewResolvedRevisionRequestDetailResponseSchema =
+  commissionReviewResolvedRevisionRequestSchema;
+export type CommissionReviewResolvedRevisionRequestDetailResponse = z.infer<
+  typeof commissionReviewResolvedRevisionRequestDetailResponseSchema
 >;
 
 export const commissionReviewRevisionRequestDraftBodySchema = z
@@ -520,9 +563,6 @@ export const commissionReviewApplicationDetailSchema = z
     permissions: commissionReviewPermissionsSchema,
     internalNotes: z.array(commissionReviewInternalNoteSchema),
     activeRevisionRequest: commissionReviewRevisionRequestSchema.nullable(),
-    resolvedRevisionRequests: z.array(
-      commissionReviewResolvedRevisionRequestSchema,
-    ),
     availableTransitions: z.array(applicationStatusSchema),
     timeline: z.array(commissionReviewTimelineEventSchema),
   })

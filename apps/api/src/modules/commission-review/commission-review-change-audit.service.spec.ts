@@ -1,5 +1,8 @@
 // @file: apps/api/src/modules/commission-review/commission-review-change-audit.service.spec.ts
-import type { CommissionReviewRevisionRequest } from '@hss/schemas';
+import type {
+  CommissionReviewCandidateAnnotation,
+  CommissionReviewResolvedRevisionRequestMetadata,
+} from '@hss/schemas';
 import { CommissionReviewChangeAuditService } from './commission-review-change-audit.service';
 
 const ANNOTATION_AUTHOR = {
@@ -10,24 +13,31 @@ const ANNOTATION_AUTHOR = {
 };
 
 function createRevisionRequest(
-  overrides?: Partial<CommissionReviewRevisionRequest>,
-): CommissionReviewRevisionRequest {
+  overrides?: Partial<CommissionReviewResolvedRevisionRequestMetadata>,
+): CommissionReviewResolvedRevisionRequestMetadata {
   return {
     uuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    status: 'RESOLVED',
     summaryMessage: 'Popraw wskazane elementy.',
-    createdAt: '2026-03-11T10:00:00.000Z',
-    updatedAt: '2026-03-11T10:05:00.000Z',
     publishedAt: '2026-03-11T10:05:00.000Z',
-    candidateFirstViewedAt: '2026-03-11T10:06:00.000Z',
-    candidateFirstEditedAt: '2026-03-11T10:07:00.000Z',
-    candidateLastActivityAt: '2026-03-11T10:10:00.000Z',
     resolvedAt: '2026-03-11T10:15:00.000Z',
-    createdBy: ANNOTATION_AUTHOR,
-    updatedBy: ANNOTATION_AUTHOR,
-    publishedBy: ANNOTATION_AUTHOR,
-    resolvedBy: ANNOTATION_AUTHOR,
-    annotations: [],
+    ...overrides,
+  };
+}
+
+function createAnnotation(
+  overrides?: Partial<CommissionReviewCandidateAnnotation>,
+): CommissionReviewCandidateAnnotation {
+  return {
+    uuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    anchorType: 'FIELD',
+    anchorKey: 'teamFunction',
+    body: 'Doprecyzuj funkcję w drużynie.',
+    status: 'RESOLVED',
+    createdAt: '2026-03-11T10:01:00.000Z',
+    updatedAt: '2026-03-11T10:02:00.000Z',
+    publishedAt: '2026-03-11T10:05:00.000Z',
+    resolvedAt: '2026-03-11T10:15:00.000Z',
+    author: ANNOTATION_AUTHOR,
     ...overrides,
   };
 }
@@ -36,7 +46,6 @@ function createSnapshot(
   overrides?: Partial<{
     uuid: string;
     revision: number;
-    candidateSnapshot: Record<string, unknown>;
     requirementsSnapshot: unknown[];
     attachmentsMetadata: unknown[];
     applicationDataSnapshot: Record<string, unknown>;
@@ -45,7 +54,6 @@ function createSnapshot(
   return {
     uuid: overrides?.uuid ?? 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     revision: overrides?.revision ?? 1,
-    candidateSnapshot: overrides?.candidateSnapshot ?? {},
     requirementsSnapshot: overrides?.requirementsSnapshot ?? [],
     attachmentsMetadata: overrides?.attachmentsMetadata ?? [],
     applicationDataSnapshot: overrides?.applicationDataSnapshot ?? {},
@@ -56,22 +64,6 @@ describe('CommissionReviewChangeAuditService', () => {
   const service = new CommissionReviewChangeAuditService();
 
   it('returns CHANGED for edited field annotation', () => {
-    const revisionRequest = createRevisionRequest({
-      annotations: [
-        {
-          uuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-          anchorType: 'FIELD',
-          anchorKey: 'teamFunction',
-          body: 'Doprecyzuj funkcję w drużynie.',
-          status: 'RESOLVED',
-          createdAt: '2026-03-11T10:01:00.000Z',
-          updatedAt: '2026-03-11T10:02:00.000Z',
-          publishedAt: '2026-03-11T10:05:00.000Z',
-          resolvedAt: '2026-03-11T10:15:00.000Z',
-          author: ANNOTATION_AUTHOR,
-        },
-      ],
-    });
     const baselineSnapshot = createSnapshot({
       applicationDataSnapshot: {
         teamFunction: 'Drużynowy',
@@ -86,7 +78,8 @@ describe('CommissionReviewChangeAuditService', () => {
     });
 
     const result = service.buildResolvedRevisionRequestAudit({
-      revisionRequest,
+      revisionRequest: createRevisionRequest(),
+      annotations: [createAnnotation()],
       baselineSnapshot,
       responseSnapshot,
     });
@@ -107,21 +100,11 @@ describe('CommissionReviewChangeAuditService', () => {
   });
 
   it('compares attachment annotation by owner slot, not by old attachment uuid', () => {
-    const revisionRequest = createRevisionRequest({
-      annotations: [
-        {
-          uuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-          anchorType: 'ATTACHMENT',
-          anchorKey: 'f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1',
-          body: 'Wgraj poprawiony załącznik do zadania.',
-          status: 'RESOLVED',
-          createdAt: '2026-03-11T10:01:00.000Z',
-          updatedAt: '2026-03-11T10:02:00.000Z',
-          publishedAt: '2026-03-11T10:05:00.000Z',
-          resolvedAt: '2026-03-11T10:15:00.000Z',
-          author: ANNOTATION_AUTHOR,
-        },
-      ],
+    const annotation = createAnnotation({
+      uuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      anchorType: 'ATTACHMENT',
+      anchorKey: 'f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1',
+      body: 'Wgraj poprawiony załącznik do zadania.',
     });
     const baselineSnapshot = createSnapshot({
       requirementsSnapshot: [
@@ -166,7 +149,8 @@ describe('CommissionReviewChangeAuditService', () => {
     });
 
     const result = service.buildResolvedRevisionRequestAudit({
-      revisionRequest,
+      revisionRequest: createRevisionRequest(),
+      annotations: [annotation],
       baselineSnapshot,
       responseSnapshot,
     });
@@ -200,25 +184,14 @@ describe('CommissionReviewChangeAuditService', () => {
   });
 
   it('marks audit as unavailable when response snapshot is missing', () => {
-    const revisionRequest = createRevisionRequest({
+    const result = service.buildResolvedRevisionRequestAudit({
+      revisionRequest: createRevisionRequest(),
       annotations: [
-        {
-          uuid: 'ababcccc-cccc-cccc-cccc-cccccccccccc',
-          anchorType: 'FIELD',
+        createAnnotation({
           anchorKey: 'plannedFinishAt',
           body: 'Zaktualizuj termin.',
-          status: 'RESOLVED',
-          createdAt: '2026-03-11T10:01:00.000Z',
-          updatedAt: '2026-03-11T10:02:00.000Z',
-          publishedAt: '2026-03-11T10:05:00.000Z',
-          resolvedAt: '2026-03-11T10:15:00.000Z',
-          author: ANNOTATION_AUTHOR,
-        },
+        }),
       ],
-    });
-
-    const result = service.buildResolvedRevisionRequestAudit({
-      revisionRequest,
       baselineSnapshot: createSnapshot({
         applicationDataSnapshot: {
           plannedFinishAt: '2026-03-11',

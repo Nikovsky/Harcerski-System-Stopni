@@ -33,7 +33,6 @@ import type {
   CommissionReviewTimelineEvent,
   EditableInstructorApplicationField,
   InstructorReviewAnchorType,
-  RequirementRowResponse,
 } from "@hss/schemas";
 
 type Props = {
@@ -108,10 +107,15 @@ function formatDate(locale: string, value: string | null | undefined): string {
     return "—";
   }
 
-  return new Date(value).toLocaleDateString(locale === "en" ? "en-GB" : "pl-PL");
+  return new Date(value).toLocaleDateString(
+    locale === "en" ? "en-GB" : "pl-PL",
+  );
 }
 
-function formatDateTime(locale: string, value: string | null | undefined): string {
+function formatDateTime(
+  locale: string,
+  value: string | null | undefined,
+): string {
   if (!value) {
     return "—";
   }
@@ -119,7 +123,10 @@ function formatDateTime(locale: string, value: string | null | undefined): strin
   return new Date(value).toLocaleString(locale === "en" ? "en-GB" : "pl-PL");
 }
 
-function anchorKey(anchorType: InstructorReviewAnchorType, anchorValue: string): string {
+function anchorKey(
+  anchorType: InstructorReviewAnchorType,
+  anchorValue: string,
+): string {
   return `${anchorType}:${anchorValue}`;
 }
 
@@ -128,7 +135,10 @@ function formatAuthor(
     | CommissionReviewInternalNote["author"]
     | CommissionReviewCandidateAnnotation["author"],
 ): string {
-  const fullName = [author.firstName, author.surname].filter(Boolean).join(" ").trim();
+  const fullName = [author.firstName, author.surname]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   return fullName || author.email || author.userUuid;
 }
 
@@ -149,7 +159,9 @@ function SectionCard({
         <div>
           <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
           {description ? (
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-foreground/60">{description}</p>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-foreground/60">
+              {description}
+            </p>
           ) : null}
         </div>
         {actions}
@@ -205,7 +217,6 @@ export function CommissionApplicationDetail({
     : "application";
   const activeRevisionRequest = detail.activeRevisionRequest;
   const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
-  const [timelinePage, setTimelinePage] = useState(1);
 
   const requirementLabelByUuid = useMemo(
     () =>
@@ -272,7 +283,9 @@ export function CommissionApplicationDetail({
   const groupedRequirements = useMemo(() => {
     const sortedRequirements = [...app.requirements]
       .filter((requirement) => !requirement.definition.isGroup)
-      .sort((left, right) => left.definition.sortOrder - right.definition.sortOrder);
+      .sort(
+        (left, right) => left.definition.sortOrder - right.definition.sortOrder,
+      );
     const groups = [...(app.template.groupDefinitions ?? [])]
       .sort((left, right) => left.sortOrder - right.sortOrder)
       .map((definition) => ({
@@ -286,7 +299,8 @@ export function CommissionApplicationDetail({
     const groupedIds = new Set(groups.map((group) => group.id));
     const ungrouped = sortedRequirements.filter(
       (requirement) =>
-        !requirement.definition.parentId || !groupedIds.has(requirement.definition.parentId),
+        !requirement.definition.parentId ||
+        !groupedIds.has(requirement.definition.parentId),
     );
 
     if (ungrouped.length > 0) {
@@ -304,11 +318,6 @@ export function CommissionApplicationDetail({
     1,
     Math.ceil(detail.timeline.length / TIMELINE_PAGE_SIZE),
   );
-  const currentTimelinePage = Math.min(timelinePage, totalTimelinePages);
-  const visibleTimelineEvents = useMemo(() => {
-    const startIndex = (currentTimelinePage - 1) * TIMELINE_PAGE_SIZE;
-    return detail.timeline.slice(startIndex, startIndex + TIMELINE_PAGE_SIZE);
-  }, [currentTimelinePage, detail.timeline]);
 
   const candidateName =
     [app.candidateProfile.firstName, app.candidateProfile.surname]
@@ -323,17 +332,40 @@ export function CommissionApplicationDetail({
     ? tApplications(translatedDegreeKey)
     : app.template.degreeCode;
   const translatedStatusKey = statusKey(app.status);
-  const statusLabel = translatedStatusKey ? tApplications(translatedStatusKey) : app.status;
+  const statusLabel = translatedStatusKey
+    ? tApplications(translatedStatusKey)
+    : app.status;
   const canMutateInternalNotes = detail.permissions.canComment;
   const canMutateCandidateFeedback =
     (detail.permissions.canDraftCandidateFeedback ??
       detail.permissions.canDraftFixRequest) &&
-    (activeRevisionRequest === null || activeRevisionRequest.status === "DRAFT");
+    (activeRevisionRequest === null ||
+      activeRevisionRequest.status === "DRAFT");
   const canManageWorkflow =
     detail.permissions.canManageWorkflow ||
     detail.permissions.canPublishCandidateFeedback ||
     detail.permissions.canChangeStatus;
-  const canModerateCandidateFeedback = detail.permissions.canModerateCandidateFeedback;
+  const canModerateCandidateFeedback =
+    detail.permissions.canModerateCandidateFeedback;
+  const historyRefreshKey = [
+    app.updatedAt,
+    app.lastSubmittedAt ?? "",
+    activeRevisionRequest?.uuid ?? "",
+    activeRevisionRequest?.updatedAt ?? "",
+    activeRevisionRequest?.status ?? "",
+  ].join(":");
+  const [timelineUiState, setTimelineUiState] = useState(() => ({
+    refreshKey: historyRefreshKey,
+    page: 1,
+  }));
+  const timelinePage =
+    timelineUiState.refreshKey === historyRefreshKey ? timelineUiState.page : 1;
+  const currentTimelinePage = Math.min(timelinePage, totalTimelinePages);
+  const visibleTimelineEvents = useMemo(() => {
+    const startIndex = (currentTimelinePage - 1) * TIMELINE_PAGE_SIZE;
+    return detail.timeline.slice(startIndex, startIndex + TIMELINE_PAGE_SIZE);
+  }, [currentTimelinePage, detail.timeline]);
+
   const summaryItems = [
     {
       label: tCommission("detail.lastSubmittedAt"),
@@ -364,9 +396,15 @@ export function CommissionApplicationDetail({
       case "SECTION":
         return tCommission(`anchors.sections.${anchor.anchorKey}`);
       case "REQUIREMENT":
-        return requirementLabelByUuid.get(anchor.anchorKey) ?? tCommission("anchors.unknownRequirement");
+        return (
+          requirementLabelByUuid.get(anchor.anchorKey) ??
+          tCommission("anchors.unknownRequirement")
+        );
       case "ATTACHMENT":
-        return attachmentLabelByUuid.get(anchor.anchorKey) ?? tCommission("anchors.unknownAttachment");
+        return (
+          attachmentLabelByUuid.get(anchor.anchorKey) ??
+          tCommission("anchors.unknownAttachment")
+        );
       default:
         return anchor.anchorKey;
     }
@@ -386,7 +424,9 @@ export function CommissionApplicationDetail({
       draftAnnotation:
         options?.draftAnnotation ??
         (defaultMode === "candidate"
-          ? draftAnnotationByAnchor.get(anchorKey(anchor.anchorType, anchor.anchorKey)) ?? null
+          ? (draftAnnotationByAnchor.get(
+              anchorKey(anchor.anchorType, anchor.anchorKey),
+            ) ?? null)
           : null),
       internalNote: options?.internalNote ?? null,
     });
@@ -404,8 +444,7 @@ export function CommissionApplicationDetail({
 
     const countKey = anchorKey(anchor.anchorType, anchor.anchorKey);
     const draftAnnotation = draftAnnotationByAnchor.get(countKey);
-    const allowCandidateFeedback =
-      options?.allowCandidateFeedback ?? true;
+    const allowCandidateFeedback = options?.allowCandidateFeedback ?? true;
 
     return (
       <div className="flex shrink-0 items-center gap-2">
@@ -438,11 +477,15 @@ export function CommissionApplicationDetail({
     meta: string;
   } {
     if (event.kind === "STATUS_CHANGE") {
-      const fromStatusKey = event.fromStatus ? statusKey(event.fromStatus) : null;
+      const fromStatusKey = event.fromStatus
+        ? statusKey(event.fromStatus)
+        : null;
       const toStatusKey = statusKey(event.toStatus);
       return {
         title: tCommission("timeline.statusChangeTitle", {
-          from: fromStatusKey ? tApplications(fromStatusKey) : tCommission("timeline.noPreviousStatus"),
+          from: fromStatusKey
+            ? tApplications(fromStatusKey)
+            : tCommission("timeline.noPreviousStatus"),
           to: toStatusKey ? tApplications(toStatusKey) : event.toStatus,
         }),
         body: event.note,
@@ -462,12 +505,15 @@ export function CommissionApplicationDetail({
       title:
         event.action === "INSTRUCTOR_APPLICATION_SUBMITTED"
           ? tCommission("timeline.system.INSTRUCTOR_APPLICATION_SUBMITTED")
-          : event.summary ?? event.action,
+          : (event.summary ?? event.action),
       meta: `${event.actorDisplayName} · ${formatDateTime(locale, event.createdAt)}`,
     };
   }
 
-  function renderAttachmentCard(attachment: AttachmentResponse, scopeLabel: string): React.ReactNode {
+  function renderAttachmentCard(
+    attachment: AttachmentResponse,
+    scopeLabel: string,
+  ): React.ReactNode {
     return (
       <article
         key={attachment.uuid}
@@ -475,7 +521,9 @@ export function CommissionApplicationDetail({
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="break-words text-sm font-medium">{attachment.originalFilename}</p>
+            <p className="break-words text-sm font-medium">
+              {attachment.originalFilename}
+            </p>
             <p className="mt-1 text-xs text-foreground/45">
               {tCommission("workspace.application.fileMeta", {
                 sizeKb: Math.max(1, Math.round(attachment.sizeBytes / 1024)),
@@ -503,15 +551,21 @@ export function CommissionApplicationDetail({
     );
   }
 
-  const hufcowyPresenceKey = app.hufcowyPresence ? presenceKey(app.hufcowyPresence) : null;
+  const hufcowyPresenceKey = app.hufcowyPresence
+    ? presenceKey(app.hufcowyPresence)
+    : null;
   const hufcowyAttachments = app.hufcowyPresenceAttachmentUuid
-    ? app.attachments.filter((attachment) => attachment.uuid === app.hufcowyPresenceAttachmentUuid)
+    ? app.attachments.filter(
+        (attachment) => attachment.uuid === app.hufcowyPresenceAttachmentUuid,
+      )
     : [];
   const generalAttachments = app.attachments.filter(
     (attachment) => attachment.uuid !== app.hufcowyPresenceAttachmentUuid,
   );
   const visibleAnnotations =
-    activeRevisionRequest?.annotations.filter((annotation) => annotation.status !== "CANCELLED") ?? [];
+    activeRevisionRequest?.annotations.filter(
+      (annotation) => annotation.status !== "CANCELLED",
+    ) ?? [];
   const candidateFeedbackTitle =
     activeRevisionRequest?.status === "PUBLISHED"
       ? tCommission("workspace.candidateFeedback.publishedTitle")
@@ -521,11 +575,16 @@ export function CommissionApplicationDetail({
       ? tCommission("workspace.candidateFeedback.publishedDescription")
       : tCommission("workspace.candidateFeedback.description");
   const tabs = [
-    { id: "application" as const, label: tCommission("workspace.tabs.application") },
+    {
+      id: "application" as const,
+      label: tCommission("workspace.tabs.application"),
+    },
     {
       id: "requirements" as const,
       label: tCommission("workspace.tabs.requirements"),
-      badge: app.requirements.filter((requirement) => !requirement.definition.isGroup).length,
+      badge: app.requirements.filter(
+        (requirement) => !requirement.definition.isGroup,
+      ).length,
     },
     {
       id: "candidateFeedback" as const,
@@ -557,9 +616,12 @@ export function CommissionApplicationDetail({
                 {tCommission(`roles.${detail.membership.commissionRole}`)}
               </span>
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight">{candidateName}</h1>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+              {candidateName}
+            </h1>
             <p className="mt-2 break-words text-sm text-foreground/60">
-              {degreeLabel} · {app.candidateProfile.email ?? tCommission("detail.noEmail")}
+              {degreeLabel} ·{" "}
+              {app.candidateProfile.email ?? tCommission("detail.noEmail")}
             </p>
             <div className="mt-4">
               <ApplicationStatusBadge status={app.status} label={statusLabel} />
@@ -603,44 +665,70 @@ export function CommissionApplicationDetail({
             <div className="space-y-5">
               <SectionCard
                 title={tCommission("workspace.application.candidateTitle")}
-                description={tCommission("workspace.application.candidateDescription")}
-                actions={renderInlineActions({
-                  anchorType: "APPLICATION",
-                  anchorKey: applicationUuid,
-                  label: tCommission("anchors.application"),
-                }, { allowCandidateFeedback: false })}
+                description={tCommission(
+                  "workspace.application.candidateDescription",
+                )}
+                actions={renderInlineActions(
+                  {
+                    anchorType: "APPLICATION",
+                    anchorKey: applicationUuid,
+                    label: tCommission("anchors.application"),
+                  },
+                  { allowCandidateFeedback: false },
+                )}
               >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <ValueCard
                     label={tApplications("fields.profileFullName")}
                     value={
-                      [app.candidateProfile.firstName, app.candidateProfile.surname]
+                      [
+                        app.candidateProfile.firstName,
+                        app.candidateProfile.surname,
+                      ]
                         .filter(Boolean)
                         .join(" ")
                         .trim() || null
                     }
                   />
-                  <ValueCard label={tApplications("fields.email")} value={app.candidateProfile.email} />
-                  <ValueCard label={tApplications("fields.phone")} value={app.candidateProfile.phone} />
+                  <ValueCard
+                    label={tApplications("fields.email")}
+                    value={app.candidateProfile.email}
+                  />
+                  <ValueCard
+                    label={tApplications("fields.phone")}
+                    value={app.candidateProfile.phone}
+                  />
                   <ValueCard
                     label={tApplications("fields.birthDate")}
                     value={formatDate(locale, app.candidateProfile.birthDate)}
                   />
                   <ValueCard
                     label={tApplications("fields.hufiecCode")}
-                    value={app.candidateProfile.hufiecName ?? app.candidateProfile.hufiecCode ?? null}
+                    value={
+                      app.candidateProfile.hufiecName ??
+                      app.candidateProfile.hufiecCode ??
+                      null
+                    }
                   />
                   <ValueCard
                     label={tApplications("fields.druzynaCode")}
-                    value={app.candidateProfile.druzynaName ?? app.candidateProfile.druzynaCode ?? null}
+                    value={
+                      app.candidateProfile.druzynaName ??
+                      app.candidateProfile.druzynaCode ??
+                      null
+                    }
                   />
                   <ValueCard
                     label={tApplications("fields.scoutRank")}
                     value={
                       app.candidateProfile.scoutRank
                         ? (() => {
-                            const key = scoutRankKey(app.candidateProfile.scoutRank);
-                            return key ? tApplications(key) : app.candidateProfile.scoutRank;
+                            const key = scoutRankKey(
+                              app.candidateProfile.scoutRank,
+                            );
+                            return key
+                              ? tApplications(key)
+                              : app.candidateProfile.scoutRank;
                           })()
                         : null
                     }
@@ -650,22 +738,30 @@ export function CommissionApplicationDetail({
                     value={
                       app.candidateProfile.instructorRank
                         ? (() => {
-                            const key = degreeKey(app.candidateProfile.instructorRank);
-                            return key ? tApplications(key) : app.candidateProfile.instructorRank;
+                            const key = degreeKey(
+                              app.candidateProfile.instructorRank,
+                            );
+                            return key
+                              ? tApplications(key)
+                              : app.candidateProfile.instructorRank;
                           })()
                         : null
                     }
                   />
                   <ValueCard
                     label={tCommission("workspace.application.profileReadonly")}
-                    value={tCommission("workspace.application.profileReadonlyDescription")}
+                    value={tCommission(
+                      "workspace.application.profileReadonlyDescription",
+                    )}
                   />
                 </div>
               </SectionCard>
 
               <SectionCard
                 title={tApplications("sections.applicationData")}
-                description={tCommission("workspace.application.applicationDescription")}
+                description={tCommission(
+                  "workspace.application.applicationDescription",
+                )}
                 actions={renderInlineActions(
                   {
                     anchorType: "SECTION",
@@ -677,7 +773,11 @@ export function CommissionApplicationDetail({
               >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {APPLICATION_FIELDS.map((field) => {
-                    const label = getFieldLabel(field, tApplications, app.requirements);
+                    const label = getFieldLabel(
+                      field,
+                      tApplications,
+                      app.requirements,
+                    );
                     const value =
                       field === "plannedFinishAt"
                         ? formatDate(locale, app.plannedFinishAt)
@@ -686,8 +786,12 @@ export function CommissionApplicationDetail({
                           : field === "openTrialForRank"
                             ? app.openTrialForRank
                               ? (() => {
-                                  const key = scoutRankKey(app.openTrialForRank);
-                                  return key ? tApplications(key) : app.openTrialForRank;
+                                  const key = scoutRankKey(
+                                    app.openTrialForRank,
+                                  );
+                                  return key
+                                    ? tApplications(key)
+                                    : app.openTrialForRank;
                                 })()
                               : null
                             : field === "hufcowyPresence"
@@ -702,7 +806,9 @@ export function CommissionApplicationDetail({
                       <ValueCard
                         key={field}
                         label={label}
-                        value={typeof value === "string" ? value : value ?? null}
+                        value={
+                          typeof value === "string" ? value : (value ?? null)
+                        }
                         actions={renderInlineActions({
                           anchorType: "FIELD",
                           anchorKey: field,
@@ -716,7 +822,9 @@ export function CommissionApplicationDetail({
 
               <SectionCard
                 title={tApplications("steps.supervisor")}
-                description={tCommission("workspace.application.supervisorDescription")}
+                description={tCommission(
+                  "workspace.application.supervisorDescription",
+                )}
                 actions={renderInlineActions(
                   {
                     anchorType: "SECTION",
@@ -728,20 +836,32 @@ export function CommissionApplicationDetail({
               >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {SUPERVISOR_FIELDS.map((field) => {
-                    const label = getFieldLabel(field, tApplications, app.requirements);
+                    const label = getFieldLabel(
+                      field,
+                      tApplications,
+                      app.requirements,
+                    );
                     const value =
                       field === "supervisorInstructorRank"
                         ? app.supervisorInstructorRank
                           ? (() => {
-                              const key = degreeKey(app.supervisorInstructorRank);
-                              return key ? tApplications(key) : app.supervisorInstructorRank;
+                              const key = degreeKey(
+                                app.supervisorInstructorRank,
+                              );
+                              return key
+                                ? tApplications(key)
+                                : app.supervisorInstructorRank;
                             })()
                           : null
                         : field === "supervisorInstructorFunction"
                           ? app.supervisorInstructorFunction
                             ? (() => {
-                                const key = supervisorFunctionKey(app.supervisorInstructorFunction);
-                                return key ? tApplications(key) : app.supervisorInstructorFunction;
+                                const key = supervisorFunctionKey(
+                                  app.supervisorInstructorFunction,
+                                );
+                                return key
+                                  ? tApplications(key)
+                                  : app.supervisorInstructorFunction;
                               })()
                             : null
                           : app[field];
@@ -750,7 +870,9 @@ export function CommissionApplicationDetail({
                       <ValueCard
                         key={field}
                         label={label}
-                        value={typeof value === "string" ? value : value ?? null}
+                        value={
+                          typeof value === "string" ? value : (value ?? null)
+                        }
                         actions={renderInlineActions({
                           anchorType: "FIELD",
                           anchorKey: field,
@@ -764,7 +886,9 @@ export function CommissionApplicationDetail({
 
               <SectionCard
                 title={tCommission("workspace.application.serviceTitle")}
-                description={tCommission("workspace.application.serviceDescription")}
+                description={tCommission(
+                  "workspace.application.serviceDescription",
+                )}
                 actions={renderInlineActions(
                   {
                     anchorType: "SECTION",
@@ -776,7 +900,11 @@ export function CommissionApplicationDetail({
               >
                 <div className="grid gap-4 xl:grid-cols-2">
                   {SERVICE_HISTORY_FIELDS.map((field) => {
-                    const label = getFieldLabel(field, tApplications, app.requirements);
+                    const label = getFieldLabel(
+                      field,
+                      tApplications,
+                      app.requirements,
+                    );
 
                     return (
                       <ValueCard
@@ -797,7 +925,9 @@ export function CommissionApplicationDetail({
 
               <SectionCard
                 title={tCommission("workspace.application.attachmentsTitle")}
-                description={tCommission("workspace.application.attachmentsDescription")}
+                description={tCommission(
+                  "workspace.application.attachmentsDescription",
+                )}
                 actions={renderInlineActions(
                   {
                     anchorType: "SECTION",
@@ -814,13 +944,18 @@ export function CommissionApplicationDetail({
                         {tApplications("sections.hufcowyWrittenOpinion")}
                       </h3>
                       <p className="mt-1 text-sm text-foreground/60">
-                        {tCommission("workspace.application.hufcowyDescription")}
+                        {tCommission(
+                          "workspace.application.hufcowyDescription",
+                        )}
                       </p>
                     </div>
                     {hufcowyAttachments.length > 0 ? (
                       <div className="space-y-3">
                         {hufcowyAttachments.map((attachment) =>
-                          renderAttachmentCard(attachment, tApplications("sections.hufcowyWrittenOpinion")),
+                          renderAttachmentCard(
+                            attachment,
+                            tApplications("sections.hufcowyWrittenOpinion"),
+                          ),
                         )}
                       </div>
                     ) : (
@@ -836,13 +971,18 @@ export function CommissionApplicationDetail({
                         {tCommission("detail.generalAttachmentsTitle")}
                       </h3>
                       <p className="mt-1 text-sm text-foreground/60">
-                        {tCommission("workspace.application.generalAttachmentsDescription")}
+                        {tCommission(
+                          "workspace.application.generalAttachmentsDescription",
+                        )}
                       </p>
                     </div>
                     {generalAttachments.length > 0 ? (
                       <div className="space-y-3">
                         {generalAttachments.map((attachment) =>
-                          renderAttachmentCard(attachment, tCommission("detail.generalAttachmentsTitle")),
+                          renderAttachmentCard(
+                            attachment,
+                            tCommission("detail.generalAttachmentsTitle"),
+                          ),
                         )}
                       </div>
                     ) : (
@@ -870,7 +1010,9 @@ export function CommissionApplicationDetail({
                   {groupedRequirements.map((group) => (
                     <section key={group.id} className="space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-base font-semibold">{group.title}</h3>
+                        <h3 className="text-base font-semibold">
+                          {group.title}
+                        </h3>
                         <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/55">
                           {tCommission("workspace.requirements.groupCount", {
                             count: group.requirements.length,
@@ -895,7 +1037,9 @@ export function CommissionApplicationDetail({
                                     {requirementLabel}
                                   </h4>
                                   <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/45">
-                                    {tApplications(`requirementState.${requirement.state}`)}
+                                    {tApplications(
+                                      `requirementState.${requirement.state}`,
+                                    )}
                                   </p>
                                 </div>
                                 {renderInlineActions({
@@ -907,12 +1051,16 @@ export function CommissionApplicationDetail({
 
                               <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
                                 <ValueCard
-                                  label={tCommission("workspace.requirements.actionLabel")}
+                                  label={tCommission(
+                                    "workspace.requirements.actionLabel",
+                                  )}
                                   value={requirement.actionDescription}
                                   multiline
                                 />
                                 <ValueCard
-                                  label={tCommission("workspace.requirements.verificationLabel")}
+                                  label={tCommission(
+                                    "workspace.requirements.verificationLabel",
+                                  )}
                                   value={requirement.verificationText}
                                   multiline
                                 />
@@ -920,17 +1068,25 @@ export function CommissionApplicationDetail({
 
                               <div className="mt-4">
                                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                                  {tCommission("workspace.requirements.attachmentsLabel")}
+                                  {tCommission(
+                                    "workspace.requirements.attachmentsLabel",
+                                  )}
                                 </p>
-                                {requirement.attachments && requirement.attachments.length > 0 ? (
+                                {requirement.attachments &&
+                                requirement.attachments.length > 0 ? (
                                   <div className="mt-3 space-y-3">
                                     {requirement.attachments.map((attachment) =>
-                                      renderAttachmentCard(attachment, requirementLabel),
+                                      renderAttachmentCard(
+                                        attachment,
+                                        requirementLabel,
+                                      ),
                                     )}
                                   </div>
                                 ) : (
                                   <p className="mt-2 text-sm text-foreground/55">
-                                    {tCommission("workspace.requirements.noAttachments")}
+                                    {tCommission(
+                                      "workspace.requirements.noAttachments",
+                                    )}
                                   </p>
                                 )}
                               </div>
@@ -965,9 +1121,15 @@ export function CommissionApplicationDetail({
                     <p className="text-sm leading-6 text-foreground/75">
                       {activeRevisionRequest.status === "DRAFT"
                         ? detail.permissions.canPublishCandidateFeedback
-                          ? tCommission("workspace.candidateFeedback.draftPublishHint")
-                          : tCommission("workspace.candidateFeedback.draftMemberHint")
-                        : tCommission("workspace.candidateFeedback.publishedHint")}
+                          ? tCommission(
+                              "workspace.candidateFeedback.draftPublishHint",
+                            )
+                          : tCommission(
+                              "workspace.candidateFeedback.draftMemberHint",
+                            )
+                        : tCommission(
+                            "workspace.candidateFeedback.publishedHint",
+                          )}
                     </p>
                   </article>
 
@@ -975,17 +1137,24 @@ export function CommissionApplicationDetail({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                          {tCommission("workspace.candidateFeedback.requestLabel")}
+                          {tCommission(
+                            "workspace.candidateFeedback.requestLabel",
+                          )}
                         </p>
                         <h3 className="mt-2 text-lg font-semibold">
-                          {tCommission(`feedback.status.${activeRevisionRequest.status}`)}
+                          {tCommission(
+                            `feedback.status.${activeRevisionRequest.status}`,
+                          )}
                         </h3>
                       </div>
-                       <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/55">
-                          {tCommission("workspace.candidateFeedback.annotationCount", {
+                      <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/55">
+                        {tCommission(
+                          "workspace.candidateFeedback.annotationCount",
+                          {
                             count: visibleAnnotations.length,
-                          })}
-                        </span>
+                          },
+                        )}
+                      </span>
                     </div>
                     <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
                       {activeRevisionRequest.summaryMessage ??
@@ -995,15 +1164,22 @@ export function CommissionApplicationDetail({
                       <div className="mt-4 grid gap-3 md:grid-cols-3">
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                            {tCommission("workspace.candidateFeedback.publishedAtLabel")}
+                            {tCommission(
+                              "workspace.candidateFeedback.publishedAtLabel",
+                            )}
                           </p>
                           <p className="mt-2 text-sm text-foreground/80">
-                            {formatDateTime(locale, activeRevisionRequest.publishedAt)}
+                            {formatDateTime(
+                              locale,
+                              activeRevisionRequest.publishedAt,
+                            )}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                            {tCommission("workspace.candidateFeedback.firstViewedAtLabel")}
+                            {tCommission(
+                              "workspace.candidateFeedback.firstViewedAtLabel",
+                            )}
                           </p>
                           <p className="mt-2 text-sm text-foreground/80">
                             {formatDateTime(
@@ -1014,7 +1190,9 @@ export function CommissionApplicationDetail({
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                            {tCommission("workspace.candidateFeedback.lastActivityAtLabel")}
+                            {tCommission(
+                              "workspace.candidateFeedback.lastActivityAtLabel",
+                            )}
                           </p>
                           <p className="mt-2 text-sm text-foreground/80">
                             {formatDateTime(
@@ -1044,54 +1222,68 @@ export function CommissionApplicationDetail({
                                 {resolveAnchorLabel(annotation)}
                               </p>
                               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/45">
-                                {tCommission("workspace.candidateFeedback.authorLabel", {
-                                  author: formatAuthor(annotation.author),
-                                })}
+                                {tCommission(
+                                  "workspace.candidateFeedback.authorLabel",
+                                  {
+                                    author: formatAuthor(annotation.author),
+                                  },
+                                )}
                               </p>
                               <p className="mt-2 text-xs text-foreground/50">
                                 {annotation.updatedAt !== annotation.createdAt
                                   ? tCommission(
                                       "workspace.candidateFeedback.updatedAtLabel",
                                       {
-                                        date: formatDateTime(locale, annotation.updatedAt),
+                                        date: formatDateTime(
+                                          locale,
+                                          annotation.updatedAt,
+                                        ),
                                       },
                                     )
                                   : tCommission(
                                       "workspace.candidateFeedback.createdAtLabel",
                                       {
-                                        date: formatDateTime(locale, annotation.createdAt),
+                                        date: formatDateTime(
+                                          locale,
+                                          annotation.createdAt,
+                                        ),
                                       },
                                     )}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
-                                {tCommission(`feedback.status.${annotation.status}`)}
+                                {tCommission(
+                                  `feedback.status.${annotation.status}`,
+                                )}
                               </span>
                               {canMutateCandidateFeedback &&
                                 annotation.status === "DRAFT" &&
-                                (annotation.author.userUuid === detail.membership.userUuid ||
+                                (annotation.author.userUuid ===
+                                  detail.membership.userUuid ||
                                   canModerateCandidateFeedback) && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openDrawer(
-                                      {
-                                        anchorType: annotation.anchorType,
-                                        anchorKey: annotation.anchorKey,
-                                        label: resolveAnchorLabel(annotation),
-                                      },
-                                      "candidate",
-                                      {
-                                        draftAnnotation: annotation,
-                                      },
-                                    )
-                                  }
-                                  className={IA_BUTTON_SECONDARY_SM}
-                                >
-                                  {tCommission("workspace.candidateFeedback.editDraft")}
-                                </button>
-                              )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openDrawer(
+                                        {
+                                          anchorType: annotation.anchorType,
+                                          anchorKey: annotation.anchorKey,
+                                          label: resolveAnchorLabel(annotation),
+                                        },
+                                        "candidate",
+                                        {
+                                          draftAnnotation: annotation,
+                                        },
+                                      )
+                                    }
+                                    className={IA_BUTTON_SECONDARY_SM}
+                                  >
+                                    {tCommission(
+                                      "workspace.candidateFeedback.editDraft",
+                                    )}
+                                  </button>
+                                )}
                             </div>
                           </div>
                           <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
@@ -1154,128 +1346,129 @@ export function CommissionApplicationDetail({
               title={tCommission("timeline.title")}
               description={tCommission("timeline.description")}
             >
-              {detail.resolvedRevisionRequests.length === 0 &&
-              detail.timeline.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
-                  {tCommission("timeline.empty")}
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {detail.resolvedRevisionRequests.length > 0 ? (
-                    <details className="rounded-2xl border border-border/70 bg-muted/15">
-                      <summary className="cursor-pointer list-none p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">
-                              {tCommission("workspace.revisionAudit.title")}
-                            </p>
-                            <p className="mt-1 text-sm text-foreground/60">
-                              {tCommission("workspace.revisionAudit.description")}
-                            </p>
-                          </div>
-                          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
-                            {tCommission("workspace.revisionAudit.count", {
-                              count: detail.resolvedRevisionRequests.length,
-                            })}
-                          </span>
-                        </div>
-                      </summary>
-
-                      <div className="border-t border-border/70 px-4 py-4">
-                        <CommissionRevisionAuditPanel
-                          locale={locale}
-                          resolvedRevisionRequests={detail.resolvedRevisionRequests}
-                          requirements={app.requirements}
-                          resolveAnchorLabel={resolveAnchorLabel}
-                        />
+              <div className="space-y-4">
+                <details className="rounded-2xl border border-border/70 bg-muted/15">
+                  <summary className="cursor-pointer list-none p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {tCommission("workspace.revisionAudit.title")}
+                        </p>
+                        <p className="mt-1 text-sm text-foreground/60">
+                          {tCommission("workspace.revisionAudit.description")}
+                        </p>
                       </div>
-                    </details>
-                  ) : null}
-                  {detail.timeline.length > 0 ? (
-                    <details className="rounded-2xl border border-border/70 bg-muted/15">
-                      <summary className="cursor-pointer list-none p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">
-                              {tCommission("timeline.title")}
-                            </p>
-                            <p className="mt-1 text-sm text-foreground/60">
-                              {tCommission("timeline.description")}
-                            </p>
-                          </div>
-                          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
-                            {tCommission("timeline.count", {
-                              count: detail.timeline.length,
-                            })}
-                          </span>
+                    </div>
+                  </summary>
+
+                  <div className="border-t border-border/70 px-4 py-4">
+                    <CommissionRevisionAuditPanel
+                      key={historyRefreshKey}
+                      locale={locale}
+                      commissionUuid={commissionUuid}
+                      applicationUuid={applicationUuid}
+                      requirements={app.requirements}
+                      resolveAnchorLabel={resolveAnchorLabel}
+                    />
+                  </div>
+                </details>
+                {detail.timeline.length > 0 ? (
+                  <details className="rounded-2xl border border-border/70 bg-muted/15">
+                    <summary className="cursor-pointer list-none p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {tCommission("timeline.title")}
+                          </p>
+                          <p className="mt-1 text-sm text-foreground/60">
+                            {tCommission("timeline.description")}
+                          </p>
                         </div>
-                      </summary>
-
-                      <div className="border-t border-border/70 px-4 py-4">
-                        <div className="space-y-4">
-                          {visibleTimelineEvents.map((event) => {
-                            const summary = renderTimelineSummary(event);
-
-                            return (
-                              <article
-                                key={`${event.kind}:${event.uuid}`}
-                                className="rounded-2xl border border-border/70 bg-background p-4"
-                              >
-                                <p className="text-sm font-semibold">{summary.title}</p>
-                                {summary.body ? (
-                                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
-                                    {summary.body}
-                                  </p>
-                                ) : null}
-                                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/45">
-                                  {summary.meta}
-                                </p>
-                              </article>
-                            );
+                        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                          {tCommission("timeline.count", {
+                            count: detail.timeline.length,
                           })}
-
-                          {totalTimelinePages > 1 ? (
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
-                              <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
-                                {tCommission("timeline.paginationLabel", {
-                                  page: currentTimelinePage,
-                                  total: totalTimelinePages,
-                                })}
-                              </span>
-                              <div className="flex flex-wrap gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setTimelinePage((previous) =>
-                                      Math.max(1, previous - 1),
-                                    )
-                                  }
-                                  disabled={currentTimelinePage === 1}
-                                  className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
-                                >
-                                  {tCommission("actions.previousPage")}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setTimelinePage((previous) =>
-                                      Math.min(totalTimelinePages, previous + 1),
-                                    )
-                                  }
-                                  disabled={currentTimelinePage === totalTimelinePages}
-                                  className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
-                                >
-                                  {tCommission("actions.nextPage")}
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
+                        </span>
                       </div>
-                    </details>
-                  ) : null}
-                </div>
-              )}
+                    </summary>
+
+                    <div className="border-t border-border/70 px-4 py-4">
+                      <div className="space-y-4">
+                        {visibleTimelineEvents.map((event) => {
+                          const summary = renderTimelineSummary(event);
+
+                          return (
+                            <article
+                              key={`${event.kind}:${event.uuid}`}
+                              className="rounded-2xl border border-border/70 bg-background p-4"
+                            >
+                              <p className="text-sm font-semibold">
+                                {summary.title}
+                              </p>
+                              {summary.body ? (
+                                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
+                                  {summary.body}
+                                </p>
+                              ) : null}
+                              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/45">
+                                {summary.meta}
+                              </p>
+                            </article>
+                          );
+                        })}
+
+                        {totalTimelinePages > 1 ? (
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+                            <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                              {tCommission("timeline.paginationLabel", {
+                                page: currentTimelinePage,
+                                total: totalTimelinePages,
+                              })}
+                            </span>
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTimelineUiState({
+                                    refreshKey: historyRefreshKey,
+                                    page: Math.max(1, currentTimelinePage - 1),
+                                  })
+                                }
+                                disabled={currentTimelinePage === 1}
+                                className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                {tCommission("actions.previousPage")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTimelineUiState({
+                                    refreshKey: historyRefreshKey,
+                                    page: Math.min(
+                                      totalTimelinePages,
+                                      currentTimelinePage + 1,
+                                    ),
+                                  })
+                                }
+                                disabled={
+                                  currentTimelinePage === totalTimelinePages
+                                }
+                                className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                {tCommission("actions.nextPage")}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </details>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
+                    {tCommission("timeline.empty")}
+                  </p>
+                )}
+              </div>
             </SectionCard>
           )}
         </section>

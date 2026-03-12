@@ -3,18 +3,17 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@hss/database';
 import type {
   CommissionReviewCandidateAnnotation,
+  CommissionReviewResolvedRevisionRequestMetadata,
   CommissionReviewResolvedAnnotationAudit,
   CommissionReviewResolvedAnnotationChange,
   CommissionReviewResolvedChangeValue,
   CommissionReviewResolvedRevisionRequest,
-  CommissionReviewRevisionRequest,
   EditableInstructorApplicationField,
 } from '@hss/schemas';
 
 type SnapshotInput = {
   uuid: string;
   revision: number;
-  candidateSnapshot: Prisma.JsonValue;
   requirementsSnapshot: Prisma.JsonValue;
   attachmentsMetadata: Prisma.JsonValue;
   applicationDataSnapshot: Prisma.JsonValue;
@@ -49,6 +48,13 @@ type NormalizedSnapshot = {
   requirementsByUuid: Map<string, NormalizedRequirementSnapshot>;
   attachments: NormalizedAttachmentSnapshot[];
   attachmentsByUuid: Map<string, NormalizedAttachmentSnapshot>;
+  attachmentCollectionsByOwner: Map<
+    string,
+    {
+      value: CommissionReviewResolvedChangeValue;
+      signature: string;
+    }
+  >;
 };
 
 type AttachmentOwner =
@@ -90,11 +96,13 @@ const ENUM_FIELDS = new Set<string>([
 @Injectable()
 export class CommissionReviewChangeAuditService {
   buildResolvedRevisionRequestAudit(params: {
-    revisionRequest: CommissionReviewRevisionRequest;
+    revisionRequest: CommissionReviewResolvedRevisionRequestMetadata;
+    annotations: CommissionReviewCandidateAnnotation[];
     baselineSnapshot: SnapshotInput | null;
     responseSnapshot: SnapshotInput | null;
   }): CommissionReviewResolvedRevisionRequest {
-    const { revisionRequest, baselineSnapshot, responseSnapshot } = params;
+    const { revisionRequest, annotations, baselineSnapshot, responseSnapshot } =
+      params;
 
     const missingReason = baselineSnapshot
       ? responseSnapshot
@@ -103,7 +111,7 @@ export class CommissionReviewChangeAuditService {
       : 'BASELINE_SNAPSHOT_MISSING';
 
     if (!baselineSnapshot || !responseSnapshot) {
-      const annotationAudits = revisionRequest.annotations.map((annotation) =>
+      const annotationAudits = annotations.map((annotation) =>
         this.createNotComparableAnnotationAudit(annotation, null),
       );
 
@@ -122,7 +130,7 @@ export class CommissionReviewChangeAuditService {
 
     const normalizedBaseline = this.normalizeSnapshot(baselineSnapshot);
     const normalizedResponse = this.normalizeSnapshot(responseSnapshot);
-    const annotationAudits = revisionRequest.annotations.map((annotation) =>
+    const annotationAudits = annotations.map((annotation) =>
       this.buildAnnotationAudit(
         annotation,
         normalizedBaseline,
@@ -158,9 +166,17 @@ export class CommissionReviewChangeAuditService {
       case 'FIELD':
         return this.buildFieldAnnotationAudit(annotation, baseline, response);
       case 'REQUIREMENT':
-        return this.buildRequirementAnnotationAudit(annotation, baseline, response);
+        return this.buildRequirementAnnotationAudit(
+          annotation,
+          baseline,
+          response,
+        );
       case 'ATTACHMENT':
-        return this.buildAttachmentAnnotationAudit(annotation, baseline, response);
+        return this.buildAttachmentAnnotationAudit(
+          annotation,
+          baseline,
+          response,
+        );
       default:
         return this.createNotComparableAnnotationAudit(annotation, null);
     }
@@ -265,14 +281,15 @@ export class CommissionReviewChangeAuditService {
       );
     }
 
-    const beforeAttachments = this.listAttachmentsForOwner(baseline, owner);
-    const afterAttachments = this.listAttachmentsForOwner(response, owner);
-
-    const beforeValue = this.toAttachmentSetValue(beforeAttachments);
-    const afterValue = this.toAttachmentSetValue(afterAttachments);
-    const changed =
-      this.createAttachmentSetSignature(beforeAttachments) !==
-      this.createAttachmentSetSignature(afterAttachments);
+    const beforeCollection = this.getAttachmentCollectionForOwner(
+      baseline,
+      owner,
+    );
+    const afterCollection = this.getAttachmentCollectionForOwner(
+      response,
+      owner,
+    );
+    const changed = beforeCollection.signature !== afterCollection.signature;
 
     return {
       annotation,
@@ -282,8 +299,8 @@ export class CommissionReviewChangeAuditService {
         {
           key: 'attachments',
           changed,
-          before: beforeValue,
-          after: afterValue,
+          before: beforeCollection.value,
+          after: afterCollection.value,
         },
       ],
     };
@@ -358,7 +375,6 @@ export class CommissionReviewChangeAuditService {
           originalFilename: attachment.originalFilename,
           contentType: attachment.contentType,
           sizeBytes: attachment.sizeBytes,
-          checksum: attachment.checksum,
         })),
     };
   }
@@ -383,7 +399,10 @@ export class CommissionReviewChangeAuditService {
   private resolveAttachmentOwner(
     attachment: NormalizedAttachmentSnapshot,
   ): AttachmentOwner | null {
-    if (!attachment.hasRequirementUuidKey || !attachment.hasHufcowyPresenceKey) {
+    if (
+      !attachment.hasRequirementUuidKey ||
+      !attachment.hasHufcowyPresenceKey
+    ) {
       return null;
     }
 
@@ -401,21 +420,29 @@ export class CommissionReviewChangeAuditService {
     return { kind: 'GENERAL_ATTACHMENTS' };
   }
 
-  private listAttachmentsForOwner(
+  private getAttachmentCollectionForOwner(
     snapshot: NormalizedSnapshot,
     owner: AttachmentOwner,
-  ): NormalizedAttachmentSnapshot[] {
-    return snapshot.attachments.filter((attachment) => {
-      if (owner.kind === 'HUFCOWY_PRESENCE') {
-        return attachment.isHufcowyPresence;
+  ): {
+    value: CommissionReviewResolvedChangeValue;
+    signature: string;
+  } {
+    return (
+      snapshot.attachmentCollectionsByOwner.get(
+        this.toAttachmentOwnerKey(owner),
+      ) ?? {
+        value: this.toAttachmentSetValue([]),
+        signature: this.createAttachmentSetSignature([]),
       }
+    );
+  }
 
-      if (owner.kind === 'GENERAL_ATTACHMENTS') {
-        return !attachment.isHufcowyPresence && !attachment.requirementUuid;
-      }
+  private toAttachmentOwnerKey(owner: AttachmentOwner): string {
+    if (owner.kind === 'REQUIREMENT') {
+      return `REQUIREMENT:${owner.requirementUuid}`;
+    }
 
-      return attachment.requirementUuid === owner.requirementUuid;
-    });
+    return owner.kind;
   }
 
   private formatRequirementLabel(
@@ -439,7 +466,10 @@ export class CommissionReviewChangeAuditService {
 
   private normalizeSnapshot(snapshot: SnapshotInput): NormalizedSnapshot {
     const applicationData = this.readRecord(snapshot.applicationDataSnapshot);
-    const applicationFields = new Map<EditableInstructorApplicationField, string | null>();
+    const applicationFields = new Map<
+      EditableInstructorApplicationField,
+      string | null
+    >();
     for (const fieldKey of SNAPSHOT_FIELD_KEYS) {
       if (!this.hasOwn(applicationData, fieldKey)) {
         continue;
@@ -469,7 +499,52 @@ export class CommissionReviewChangeAuditService {
       attachmentsByUuid: new Map(
         attachments.map((attachment) => [attachment.uuid, attachment]),
       ),
+      attachmentCollectionsByOwner:
+        this.buildAttachmentCollectionsByOwner(attachments),
     };
+  }
+
+  private buildAttachmentCollectionsByOwner(
+    attachments: NormalizedAttachmentSnapshot[],
+  ): Map<
+    string,
+    {
+      value: CommissionReviewResolvedChangeValue;
+      signature: string;
+    }
+  > {
+    const attachmentsByOwner = new Map<
+      string,
+      NormalizedAttachmentSnapshot[]
+    >();
+
+    for (const attachment of attachments) {
+      const owner = this.resolveAttachmentOwner(attachment);
+
+      if (!owner) {
+        continue;
+      }
+
+      const ownerKey = this.toAttachmentOwnerKey(owner);
+      const existing = attachmentsByOwner.get(ownerKey);
+
+      if (existing) {
+        existing.push(attachment);
+        continue;
+      }
+
+      attachmentsByOwner.set(ownerKey, [attachment]);
+    }
+
+    return new Map(
+      [...attachmentsByOwner.entries()].map(([ownerKey, ownerAttachments]) => [
+        ownerKey,
+        {
+          value: this.toAttachmentSetValue(ownerAttachments),
+          signature: this.createAttachmentSetSignature(ownerAttachments),
+        },
+      ]),
+    );
   }
 
   private normalizeRequirement(
@@ -567,6 +642,6 @@ export class CommissionReviewChangeAuditService {
   }
 
   private hasOwn(record: Record<string, unknown>, key: string): boolean {
-    return Object.prototype.hasOwnProperty.call(record, key);
+    return Object.hasOwn(record, key);
   }
 }

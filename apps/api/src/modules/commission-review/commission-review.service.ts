@@ -28,6 +28,8 @@ import type {
   CommissionReviewInternalNoteUpdateBody,
   CommissionReviewMembership,
   CommissionReviewResolvedRevisionRequest,
+  CommissionReviewResolvedRevisionRequestListQuery,
+  CommissionReviewResolvedRevisionRequestSummary,
   CommissionReviewRevisionRequest,
   CommissionReviewRevisionRequestCancelBody,
   CommissionReviewRevisionRequestDraftBody,
@@ -39,7 +41,7 @@ import { PrismaService } from '@/database/prisma/prisma.service';
 import { StorageService } from '@/modules/storage/storage.service';
 import {
   buildInstructorApplicationCandidateEditScope,
-  PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
+  type PublishedRevisionRequestScopeRow,
 } from '../instructor-application/instructor-application-edit-scope';
 import { CommissionReviewAuditService } from './commission-review-audit.service';
 import { CommissionReviewChangeAuditService } from './commission-review-change-audit.service';
@@ -101,10 +103,11 @@ const REVISION_REQUEST_DRAFT_ALLOWED_STATUSES: ApplicationStatus[] = [
   ApplicationStatus.UNDER_REVIEW,
 ];
 
-const OPEN_REVISION_REQUEST_STATUSES: InstructorReviewRevisionRequestStatus[] = [
-  InstructorReviewRevisionRequestStatus.DRAFT,
-  InstructorReviewRevisionRequestStatus.PUBLISHED,
-];
+const OPEN_REVISION_REQUEST_STATUSES: InstructorReviewRevisionRequestStatus[] =
+  [
+    InstructorReviewRevisionRequestStatus.DRAFT,
+    InstructorReviewRevisionRequestStatus.PUBLISHED,
+  ];
 
 function isActionableCandidateAnnotation(annotation: {
   anchorType: InstructorReviewAnchorType;
@@ -284,14 +287,6 @@ const COMMISSION_REVIEW_DETAIL_INCLUDE = {
       uploadedAt: true,
     },
   },
-  reviewRevisionRequests: {
-    where: {
-      status: InstructorReviewRevisionRequestStatus.PUBLISHED,
-    },
-    orderBy: [{ publishedAt: 'desc' as const }, { createdAt: 'desc' as const }],
-    take: 1,
-    select: PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
-  },
 } satisfies Prisma.InstructorApplicationInclude;
 
 const COMMISSION_REVIEW_INTERNAL_NOTE_SELECT = {
@@ -326,11 +321,67 @@ const COMMISSION_REVIEW_CANDIDATE_ANNOTATION_SELECT = {
 const COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT = {
   uuid: true,
   revision: true,
-  candidateSnapshot: true,
   requirementsSnapshot: true,
   attachmentsMetadata: true,
   applicationDataSnapshot: true,
 } satisfies Prisma.InstructorApplicationSnapshotSelect;
+
+const COMMISSION_REVIEW_TIMELINE_REVISION_REQUEST_SELECT = {
+  uuid: true,
+  status: true,
+  summaryMessage: true,
+  updatedAt: true,
+  publishedAt: true,
+  resolvedAt: true,
+  updatedBy: {
+    select: COMMISSION_AUTHOR_SELECT,
+  },
+  publishedBy: {
+    select: COMMISSION_AUTHOR_SELECT,
+  },
+  resolvedBy: {
+    select: COMMISSION_AUTHOR_SELECT,
+  },
+} satisfies Prisma.InstructorReviewRevisionRequestSelect;
+
+const COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_SUMMARY_SELECT = {
+  uuid: true,
+  summaryMessage: true,
+  publishedAt: true,
+  resolvedAt: true,
+  baselineSnapshot: {
+    select: {
+      revision: true,
+    },
+  },
+  responseSnapshot: {
+    select: {
+      revision: true,
+    },
+  },
+} satisfies Prisma.InstructorReviewRevisionRequestSelect;
+
+const COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_AUDIT_SELECT = {
+  uuid: true,
+  summaryMessage: true,
+  publishedAt: true,
+  resolvedAt: true,
+  baselineSnapshot: {
+    select: COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT,
+  },
+  responseSnapshot: {
+    select: COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT,
+  },
+  annotations: {
+    where: {
+      status: {
+        not: InstructorReviewCandidateAnnotationStatus.CANCELLED,
+      },
+    },
+    orderBy: [{ createdAt: 'asc' as const }, { uuid: 'asc' as const }],
+    select: COMMISSION_REVIEW_CANDIDATE_ANNOTATION_SELECT,
+  },
+} satisfies Prisma.InstructorReviewRevisionRequestSelect;
 
 const COMMISSION_REVIEW_REVISION_REQUEST_SELECT = {
   uuid: true,
@@ -425,9 +476,10 @@ type CommissionReviewDetailRow = Prisma.InstructorApplicationGetPayload<{
   include: typeof COMMISSION_REVIEW_DETAIL_INCLUDE;
 }>;
 
-type CommissionReviewInternalNoteRow = Prisma.InstructorReviewInternalNoteGetPayload<{
-  select: typeof COMMISSION_REVIEW_INTERNAL_NOTE_SELECT;
-}>;
+type CommissionReviewInternalNoteRow =
+  Prisma.InstructorReviewInternalNoteGetPayload<{
+    select: typeof COMMISSION_REVIEW_INTERNAL_NOTE_SELECT;
+  }>;
 
 type CommissionReviewCandidateAnnotationRow =
   Prisma.InstructorReviewCandidateAnnotationGetPayload<{
@@ -439,9 +491,25 @@ type CommissionReviewRevisionRequestRow =
     select: typeof COMMISSION_REVIEW_REVISION_REQUEST_SELECT;
   }>;
 
-type OpenRevisionRequestStateRow = Prisma.InstructorReviewRevisionRequestGetPayload<{
-  select: typeof OPEN_REVISION_REQUEST_STATE_SELECT;
-}>;
+type CommissionReviewTimelineRevisionRequestRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof COMMISSION_REVIEW_TIMELINE_REVISION_REQUEST_SELECT;
+  }>;
+
+type CommissionReviewResolvedRevisionRequestSummaryRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_SUMMARY_SELECT;
+  }>;
+
+type CommissionReviewResolvedRevisionRequestAuditRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_AUDIT_SELECT;
+  }>;
+
+type OpenRevisionRequestStateRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof OPEN_REVISION_REQUEST_STATE_SELECT;
+  }>;
 
 type LegacyFixRequestTimelineRow =
   Prisma.InstructorApplicationFixRequestGetPayload<{
@@ -533,41 +601,121 @@ export class CommissionReviewService {
       applicationUuid,
       this.prisma,
     );
-    const [internalNotes, revisionRequests, auditEvents] = await Promise.all([
+    const [
+      internalNotes,
+      activeRevisionRequest,
+      timelineRevisionRequests,
+      auditEvents,
+    ] = await Promise.all([
       this.listInternalNotes(applicationUuid),
-      this.listRevisionRequests(applicationUuid),
+      this.findActiveRevisionRequest(applicationUuid),
+      this.listTimelineRevisionRequests(applicationUuid),
       this.listTimelineAuditEvents(applicationUuid),
     ]);
     const auditActors = await this.resolveAuditActors(auditEvents);
-    const activeRevisionRequest =
-      this.findCurrentOpenRevisionRequest(revisionRequests);
 
     return {
       membership: this.toMembershipDto(membership),
-      application: this.toApplicationDetailDto(application),
+      application: this.toApplicationDetailDto(
+        application,
+        this.toPublishedRevisionRequestScope(activeRevisionRequest),
+      ),
       permissions: this.toPermissionsDto(membership, application.status),
       internalNotes: internalNotes.map((note) => this.toInternalNoteDto(note)),
       activeRevisionRequest: activeRevisionRequest
         ? this.toRevisionRequestDto(activeRevisionRequest)
         : null,
-      resolvedRevisionRequests: revisionRequests
-        .filter(
-          (revisionRequest) =>
-            revisionRequest.status === InstructorReviewRevisionRequestStatus.RESOLVED,
-        )
-        .sort(
-          (left, right) =>
-            (right.resolvedAt?.getTime() ?? 0) - (left.resolvedAt?.getTime() ?? 0),
-        )
-        .map((revisionRequest) =>
-          this.toResolvedRevisionRequestDto(revisionRequest),
-        ),
       availableTransitions: this.getAvailableTransitions(
         application.status,
         membership,
       ),
-      timeline: this.buildTimeline(revisionRequests, auditEvents, auditActors),
+      timeline: this.buildTimeline(
+        timelineRevisionRequests,
+        auditEvents,
+        auditActors,
+      ),
     };
+  }
+
+  async listResolvedRevisionRequestAudits(
+    principal: AuthPrincipal,
+    commissionUuid: string,
+    applicationUuid: string,
+    query: CommissionReviewResolvedRevisionRequestListQuery,
+  ) {
+    await this.resolveMembershipForCommission(
+      principal,
+      commissionUuid,
+      CommissionType.INSTRUCTOR,
+    );
+    await this.findAccessibleApplicationSummary(applicationUuid, this.prisma);
+
+    const page = query.page;
+    const pageSize = query.pageSize;
+    const skip = (page - 1) * pageSize;
+    const where = {
+      applicationUuid,
+      status: InstructorReviewRevisionRequestStatus.RESOLVED,
+    } satisfies Prisma.InstructorReviewRevisionRequestWhereInput;
+
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.instructorReviewRevisionRequest.count({
+        where,
+      }),
+      this.prisma.instructorReviewRevisionRequest.findMany({
+        where,
+        select: COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_SUMMARY_SELECT,
+        orderBy: [
+          { resolvedAt: 'desc' as const },
+          { createdAt: 'desc' as const },
+          { uuid: 'desc' as const },
+        ],
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items: items.map((item) =>
+        this.toResolvedRevisionRequestSummaryDto(item),
+      ),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async getResolvedRevisionRequestAudit(
+    principal: AuthPrincipal,
+    commissionUuid: string,
+    applicationUuid: string,
+    revisionRequestUuid: string,
+  ): Promise<CommissionReviewResolvedRevisionRequest> {
+    await this.resolveMembershipForCommission(
+      principal,
+      commissionUuid,
+      CommissionType.INSTRUCTOR,
+    );
+    await this.findAccessibleApplicationSummary(applicationUuid, this.prisma);
+
+    const revisionRequest =
+      await this.prisma.instructorReviewRevisionRequest.findFirst({
+        where: {
+          uuid: revisionRequestUuid,
+          applicationUuid,
+          status: InstructorReviewRevisionRequestStatus.RESOLVED,
+        },
+        select: COMMISSION_REVIEW_RESOLVED_REVISION_REQUEST_AUDIT_SELECT,
+      });
+
+    if (!revisionRequest) {
+      throw new NotFoundException({
+        code: 'REVISION_REQUEST_AUDIT_NOT_FOUND',
+        message: 'Resolved revision request audit not found.',
+      });
+    }
+
+    return this.toResolvedRevisionRequestDto(revisionRequest);
   }
 
   async createInternalNote(
@@ -1122,15 +1270,17 @@ export class CommissionReviewService {
         });
       }
 
-      const baselineSnapshot = await tx.instructorApplicationSnapshot.findFirst({
-        where: {
-          applicationUuid,
+      const baselineSnapshot = await tx.instructorApplicationSnapshot.findFirst(
+        {
+          where: {
+            applicationUuid,
+          },
+          orderBy: [{ revision: 'desc' }, { submittedAt: 'desc' }],
+          select: {
+            uuid: true,
+          },
         },
-        orderBy: [{ revision: 'desc' }, { submittedAt: 'desc' }],
-        select: {
-          uuid: true,
-        },
-      });
+      );
 
       if (!baselineSnapshot) {
         throw new BadRequestException({
@@ -1161,7 +1311,7 @@ export class CommissionReviewService {
           status: InstructorReviewRevisionRequestStatus.PUBLISHED,
           summaryMessage:
             normalizedSummaryMessage === undefined
-              ? openRevisionRequest.summaryMessage ?? null
+              ? (openRevisionRequest.summaryMessage ?? null)
               : normalizedSummaryMessage,
           updatedByUuid: membership.userUuid,
           publishedByUuid: membership.userUuid,
@@ -1577,8 +1727,7 @@ export class CommissionReviewService {
         commissionType === CommissionType.INSTRUCTOR ? 'instructor' : 'scout';
       throw new ForbiddenException({
         code: 'INSUFFICIENT_COMMISSION_MEMBERSHIP',
-        message:
-          `You need an active ${commissionTypeLabel} commission membership to access this area.`,
+        message: `You need an active ${commissionTypeLabel} commission membership to access this area.`,
       });
     }
 
@@ -1743,7 +1892,9 @@ export class CommissionReviewService {
     });
   }
 
-  private resolveRequestedStatuses(statuses: ApplicationStatus[]): ApplicationStatus[] {
+  private resolveRequestedStatuses(
+    statuses: ApplicationStatus[],
+  ): ApplicationStatus[] {
     if (statuses.length === 0) {
       return COMMISSION_VISIBLE_APPLICATION_STATUSES;
     }
@@ -1920,10 +2071,44 @@ export class CommissionReviewService {
     return application;
   }
 
-  private toApplicationDetailDto(application: CommissionReviewDetailRow) {
+  private toPublishedRevisionRequestScope(
+    revisionRequest: CommissionReviewRevisionRequestRow | null,
+  ): PublishedRevisionRequestScopeRow | null {
+    if (
+      !revisionRequest ||
+      revisionRequest.status !==
+        InstructorReviewRevisionRequestStatus.PUBLISHED ||
+      !revisionRequest.publishedAt
+    ) {
+      return null;
+    }
+
+    return {
+      uuid: revisionRequest.uuid,
+      summaryMessage: revisionRequest.summaryMessage ?? null,
+      publishedAt: revisionRequest.publishedAt,
+      candidateFirstViewedAt: revisionRequest.candidateFirstViewedAt,
+      candidateFirstEditedAt: revisionRequest.candidateFirstEditedAt,
+      candidateLastActivityAt: revisionRequest.candidateLastActivityAt,
+      annotations: revisionRequest.annotations
+        .filter((annotation) => annotation.status === 'PUBLISHED')
+        .map((annotation) => ({
+          uuid: annotation.uuid,
+          anchorType: annotation.anchorType,
+          anchorKey: annotation.anchorKey,
+          body: annotation.body,
+          publishedAt: annotation.publishedAt,
+        })),
+    };
+  }
+
+  private toApplicationDetailDto(
+    application: CommissionReviewDetailRow,
+    publishedRevisionRequestScope: PublishedRevisionRequestScopeRow | null,
+  ) {
     const candidateEditScope = buildInstructorApplicationCandidateEditScope(
       application.status,
-      application.reviewRevisionRequests[0] ?? null,
+      publishedRevisionRequestScope,
     );
 
     return {
@@ -1957,13 +2142,15 @@ export class CommissionReviewService {
         degreeCode: application.template.degreeCode,
         name: application.template.name,
         version: application.template.version,
-        groupDefinitions: application.template.definitions.map((definition) => ({
-          uuid: definition.uuid,
-          code: definition.code,
-          description: definition.description,
-          sortOrder: definition.sortOrder,
-          parentId: definition.parentId,
-        })),
+        groupDefinitions: application.template.definitions.map(
+          (definition) => ({
+            uuid: definition.uuid,
+            code: definition.code,
+            description: definition.description,
+            sortOrder: definition.sortOrder,
+            parentId: definition.parentId,
+          }),
+        ),
       },
       candidateProfile: {
         firstName: application.candidate.firstName,
@@ -2037,12 +2224,29 @@ export class CommissionReviewService {
     });
   }
 
-  private async listRevisionRequests(applicationUuid: string) {
+  private async findActiveRevisionRequest(
+    applicationUuid: string,
+  ): Promise<CommissionReviewRevisionRequestRow | null> {
+    return this.prisma.instructorReviewRevisionRequest.findFirst({
+      where: {
+        applicationUuid,
+        status: {
+          in: OPEN_REVISION_REQUEST_STATUSES,
+        },
+      },
+      select: COMMISSION_REVIEW_REVISION_REQUEST_SELECT,
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { uuid: 'desc' }],
+    });
+  }
+
+  private async listTimelineRevisionRequests(
+    applicationUuid: string,
+  ): Promise<CommissionReviewTimelineRevisionRequestRow[]> {
     return this.prisma.instructorReviewRevisionRequest.findMany({
       where: {
         applicationUuid,
       },
-      select: COMMISSION_REVIEW_REVISION_REQUEST_SELECT,
+      select: COMMISSION_REVIEW_TIMELINE_REVISION_REQUEST_SELECT,
       orderBy: [{ createdAt: 'desc' }, { uuid: 'desc' }],
     });
   }
@@ -2164,13 +2368,45 @@ export class CommissionReviewService {
     };
   }
 
-  private toResolvedRevisionRequestDto(
-    revisionRequest: CommissionReviewRevisionRequestRow,
-  ): CommissionReviewResolvedRevisionRequest {
-    const revisionRequestDto = this.toRevisionRequestDto(revisionRequest);
+  private toResolvedRevisionRequestSummaryDto(
+    revisionRequest: CommissionReviewResolvedRevisionRequestSummaryRow,
+  ): CommissionReviewResolvedRevisionRequestSummary {
+    return {
+      revisionRequest: {
+        uuid: revisionRequest.uuid,
+        summaryMessage: revisionRequest.summaryMessage ?? null,
+        publishedAt: revisionRequest.publishedAt?.toISOString() ?? null,
+        resolvedAt: revisionRequest.resolvedAt?.toISOString() ?? null,
+      },
+      auditAvailable:
+        revisionRequest.baselineSnapshot !== null &&
+        revisionRequest.responseSnapshot !== null,
+      auditMissingReason:
+        revisionRequest.baselineSnapshot === null
+          ? 'BASELINE_SNAPSHOT_MISSING'
+          : revisionRequest.responseSnapshot === null
+            ? 'RESPONSE_SNAPSHOT_MISSING'
+            : null,
+      baselineSnapshotRevision:
+        revisionRequest.baselineSnapshot?.revision ?? null,
+      responseSnapshotRevision:
+        revisionRequest.responseSnapshot?.revision ?? null,
+    };
+  }
 
+  private toResolvedRevisionRequestDto(
+    revisionRequest: CommissionReviewResolvedRevisionRequestAuditRow,
+  ): CommissionReviewResolvedRevisionRequest {
     return this.changeAuditService.buildResolvedRevisionRequestAudit({
-      revisionRequest: revisionRequestDto,
+      revisionRequest: {
+        uuid: revisionRequest.uuid,
+        summaryMessage: revisionRequest.summaryMessage ?? null,
+        publishedAt: revisionRequest.publishedAt?.toISOString() ?? null,
+        resolvedAt: revisionRequest.resolvedAt?.toISOString() ?? null,
+      },
+      annotations: revisionRequest.annotations.map((annotation) =>
+        this.toCandidateAnnotationDto(annotation),
+      ),
       baselineSnapshot: revisionRequest.baselineSnapshot,
       responseSnapshot: revisionRequest.responseSnapshot,
     });
@@ -2190,16 +2426,6 @@ export class CommissionReviewService {
     };
   }
 
-  private findCurrentOpenRevisionRequest(
-    revisionRequests: CommissionReviewRevisionRequestRow[],
-  ): CommissionReviewRevisionRequestRow | null {
-    return (
-      revisionRequests.find((revisionRequest) =>
-        OPEN_REVISION_REQUEST_STATUSES.includes(revisionRequest.status),
-      ) ?? null
-    );
-  }
-
   private getAvailableTransitions(
     status: ApplicationStatus,
     membership: CommissionMembershipRow,
@@ -2214,7 +2440,7 @@ export class CommissionReviewService {
   }
 
   private buildTimeline(
-    revisionRequests: CommissionReviewRevisionRequestRow[],
+    revisionRequests: CommissionReviewTimelineRevisionRequestRow[],
     auditEvents: Array<{
       uuid: string;
       action: string;
@@ -2238,61 +2464,61 @@ export class CommissionReviewService {
       }),
     );
 
-    const auditTimelineEvents = auditEvents.reduce<CommissionReviewTimelineEvent[]>(
-      (events, event) => {
-        const actor = auditActors.get(event.actorKeycloakUuid) ?? null;
+    const auditTimelineEvents = auditEvents.reduce<
+      CommissionReviewTimelineEvent[]
+    >((events, event) => {
+      const actor = auditActors.get(event.actorKeycloakUuid) ?? null;
 
-        if (event.action === 'COMMISSION_REVIEW_STATUS_CHANGED') {
-          const fromStatus = this.readApplicationStatusMetadata(
-            event.metadata,
-            'fromStatus',
-          );
-          const toStatus = this.readApplicationStatusMetadata(
-            event.metadata,
-            'toStatus',
-          );
+      if (event.action === 'COMMISSION_REVIEW_STATUS_CHANGED') {
+        const fromStatus = this.readApplicationStatusMetadata(
+          event.metadata,
+          'fromStatus',
+        );
+        const toStatus = this.readApplicationStatusMetadata(
+          event.metadata,
+          'toStatus',
+        );
 
-          if (!toStatus) {
-            return events;
-          }
-
-          events.push({
-            kind: 'STATUS_CHANGE',
-            uuid: event.uuid,
-            createdAt: event.createdAt.toISOString(),
-            actorDisplayName: this.formatAuditActorDisplayName(
-              actor,
-              event.actorKeycloakUuid,
-            ),
-            fromStatus,
-            toStatus,
-            note: this.readOptionalMetadataString(event.metadata, 'note'),
-          });
+        if (!toStatus) {
           return events;
         }
 
-        if (event.action === 'INSTRUCTOR_APPLICATION_SUBMITTED') {
-          events.push({
-            kind: 'SYSTEM_EVENT',
-            uuid: event.uuid,
-            createdAt: event.createdAt.toISOString(),
-            actorDisplayName: this.formatAuditActorDisplayName(
-              actor,
-              event.actorKeycloakUuid,
-            ),
-            action: event.action,
-            summary: 'Application submitted for review.',
-          });
-        }
-
+        events.push({
+          kind: 'STATUS_CHANGE',
+          uuid: event.uuid,
+          createdAt: event.createdAt.toISOString(),
+          actorDisplayName: this.formatAuditActorDisplayName(
+            actor,
+            event.actorKeycloakUuid,
+          ),
+          fromStatus,
+          toStatus,
+          note: this.readOptionalMetadataString(event.metadata, 'note'),
+        });
         return events;
-      },
-      [],
-    );
+      }
+
+      if (event.action === 'INSTRUCTOR_APPLICATION_SUBMITTED') {
+        events.push({
+          kind: 'SYSTEM_EVENT',
+          uuid: event.uuid,
+          createdAt: event.createdAt.toISOString(),
+          actorDisplayName: this.formatAuditActorDisplayName(
+            actor,
+            event.actorKeycloakUuid,
+          ),
+          action: event.action,
+          summary: 'Application submitted for review.',
+        });
+      }
+
+      return events;
+    }, []);
 
     return [...revisionRequestEvents, ...auditTimelineEvents].sort(
       (left, right) =>
-        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+        new Date(right.createdAt).getTime() -
+        new Date(left.createdAt).getTime(),
     );
   }
 
@@ -2352,7 +2578,8 @@ export class CommissionReviewService {
     }
 
     if (
-      revisionRequest.status === InstructorReviewRevisionRequestStatus.CANCELLED &&
+      revisionRequest.status ===
+        InstructorReviewRevisionRequestStatus.CANCELLED &&
       revisionRequest.updatedBy
     ) {
       events.push({
@@ -2507,12 +2734,13 @@ export class CommissionReviewService {
     requirementUuid: string,
     client: Prisma.TransactionClient | PrismaService,
   ): Promise<void> {
-    const requirement = await client.instructorApplicationRequirement.findUnique({
-      where: { uuid: requirementUuid },
-      select: {
-        applicationUuid: true,
-      },
-    });
+    const requirement =
+      await client.instructorApplicationRequirement.findUnique({
+        where: { uuid: requirementUuid },
+        select: {
+          applicationUuid: true,
+        },
+      });
 
     if (!requirement || requirement.applicationUuid !== applicationUuid) {
       throw new NotFoundException({

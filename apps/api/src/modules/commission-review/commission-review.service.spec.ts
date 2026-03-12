@@ -51,11 +51,49 @@ const REVISION_REQUEST_UUID = '55555555-5555-5555-5555-555555555555';
 const ANNOTATION_UUID = '66666666-6666-6666-6666-666666666666';
 const SNAPSHOT_UUID = '77777777-7777-7777-7777-777777777777';
 
+type MockCallSource = {
+  mock: {
+    calls: unknown[][];
+  };
+};
+
+type AuditLogEntry = {
+  action?: string;
+  metadata?: Record<string, unknown>;
+  requestId?: string;
+  targetUuid?: string;
+};
+
+async function expectRejectsWithCode(
+  operation: Promise<unknown>,
+  code: string,
+): Promise<void> {
+  await expect(operation).rejects.toMatchObject({
+    response: {
+      code,
+    },
+  });
+}
+
+function getLastMockArg<T>(mockFn: MockCallSource): T | undefined {
+  const lastCall = mockFn.mock.calls.at(-1);
+
+  return lastCall ? (lastCall[0] as T) : undefined;
+}
+
+function findAuditLogEntry(
+  mockFn: MockCallSource,
+  action: string,
+): AuditLogEntry | undefined {
+  return (mockFn.mock.calls as [AuditLogEntry][]).find(
+    ([entry]) => entry.action === action,
+  )?.[0];
+}
+
 function createSnapshotRow(
   overrides?: Partial<{
     uuid: string;
     revision: number;
-    candidateSnapshot: Record<string, unknown>;
     requirementsSnapshot: unknown[];
     attachmentsMetadata: unknown[];
     applicationDataSnapshot: Record<string, unknown>;
@@ -64,7 +102,6 @@ function createSnapshotRow(
   return {
     uuid: overrides?.uuid ?? SNAPSHOT_UUID,
     revision: overrides?.revision ?? 3,
-    candidateSnapshot: overrides?.candidateSnapshot ?? {},
     requirementsSnapshot: overrides?.requirementsSnapshot ?? [],
     attachmentsMetadata: overrides?.attachmentsMetadata ?? [],
     applicationDataSnapshot: overrides?.applicationDataSnapshot ?? {},
@@ -96,13 +133,24 @@ function createRevisionRequestRow(
   status: InstructorReviewRevisionRequestStatus,
   annotations: Array<{
     uuid: string;
-    anchorType: 'FIELD' | 'APPLICATION' | 'SECTION' | 'REQUIREMENT' | 'ATTACHMENT';
+    anchorType:
+      | 'FIELD'
+      | 'APPLICATION'
+      | 'SECTION'
+      | 'REQUIREMENT'
+      | 'ATTACHMENT';
     anchorKey: string;
     body: string;
     status: InstructorReviewCandidateAnnotationStatus;
   }>,
 ) {
   const author = createAuthor();
+  const isPublishedRequest =
+    status === InstructorReviewRevisionRequestStatus.PUBLISHED ||
+    status === InstructorReviewRevisionRequestStatus.RESOLVED;
+  const isResolvedRequest =
+    status === InstructorReviewRevisionRequestStatus.RESOLVED;
+
   return {
     uuid: REVISION_REQUEST_UUID,
     status,
@@ -111,22 +159,21 @@ function createRevisionRequestRow(
     responseSnapshot: null,
     createdAt: new Date('2026-03-10T11:00:00.000Z'),
     updatedAt: new Date('2026-03-10T11:10:00.000Z'),
-    publishedAt:
-      status === InstructorReviewRevisionRequestStatus.PUBLISHED
-        ? new Date('2026-03-10T11:10:00.000Z')
-        : null,
-    resolvedAt: null,
+    publishedAt: isPublishedRequest
+      ? new Date('2026-03-10T11:10:00.000Z')
+      : null,
+    resolvedAt: isResolvedRequest ? new Date('2026-03-10T12:00:00.000Z') : null,
     createdBy: author,
     updatedBy: author,
-    publishedBy:
-      status === InstructorReviewRevisionRequestStatus.PUBLISHED ? author : null,
-    resolvedBy: null,
+    publishedBy: isPublishedRequest ? author : null,
+    resolvedBy: isResolvedRequest ? author : null,
     annotations: annotations.map((annotation) => ({
       ...annotation,
       createdAt: new Date('2026-03-10T11:01:00.000Z'),
       updatedAt: new Date('2026-03-10T11:02:00.000Z'),
       publishedAt:
-        annotation.status === InstructorReviewCandidateAnnotationStatus.PUBLISHED
+        annotation.status ===
+        InstructorReviewCandidateAnnotationStatus.PUBLISHED
           ? new Date('2026-03-10T11:10:00.000Z')
           : null,
       resolvedAt: null,
@@ -151,6 +198,7 @@ function createPrismaMock() {
       update: jest.fn(),
     },
     instructorReviewRevisionRequest: {
+      count: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
@@ -199,6 +247,7 @@ function createPrismaMock() {
       findMany: jest.fn(),
     },
     instructorReviewRevisionRequest: {
+      count: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
@@ -256,9 +305,15 @@ function createService() {
     buildResolvedRevisionRequestAudit: jest.fn(),
   };
   const service = new CommissionReviewService(
-    prisma as unknown as ConstructorParameters<typeof CommissionReviewService>[0],
-    storage as unknown as ConstructorParameters<typeof CommissionReviewService>[1],
-    auditService as unknown as ConstructorParameters<typeof CommissionReviewService>[2],
+    prisma as unknown as ConstructorParameters<
+      typeof CommissionReviewService
+    >[0],
+    storage as unknown as ConstructorParameters<
+      typeof CommissionReviewService
+    >[1],
+    auditService as unknown as ConstructorParameters<
+      typeof CommissionReviewService
+    >[2],
     changeAuditService as unknown as ConstructorParameters<
       typeof CommissionReviewService
     >[3],
@@ -317,7 +372,7 @@ describe('CommissionReviewService', () => {
       updatedAt: new Date('2026-03-10T10:00:00.000Z'),
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.createCandidateAnnotation(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -329,11 +384,8 @@ describe('CommissionReviewService', () => {
         },
         'req-annotation-archived',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'REVISION_REQUEST_DRAFT_NOT_ALLOWED',
-      }),
-    });
+      'REVISION_REQUEST_DRAFT_NOT_ALLOWED',
+    );
   });
 
   it('blocks creating a candidate annotation for a section anchor', async () => {
@@ -342,7 +394,7 @@ describe('CommissionReviewService', () => {
       createMembershipRow(CommissionRole.MEMBER),
     );
 
-    await expect(
+    await expectRejectsWithCode(
       service.createCandidateAnnotation(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -354,11 +406,8 @@ describe('CommissionReviewService', () => {
         } as Parameters<typeof service.createCandidateAnnotation>[3],
         'req-annotation-section',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'CANDIDATE_ANNOTATION_SECTION_NOT_ALLOWED',
-      }),
-    });
+      'CANDIDATE_ANNOTATION_SECTION_NOT_ALLOWED',
+    );
   });
 
   it('blocks creating an internal note when the application is not under review', async () => {
@@ -372,7 +421,7 @@ describe('CommissionReviewService', () => {
       updatedAt: new Date('2026-03-10T10:00:00.000Z'),
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.createInternalNote(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -384,11 +433,8 @@ describe('CommissionReviewService', () => {
         },
         'req-note-archived',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'COMMISSION_INTERNAL_NOTE_NOT_ALLOWED',
-      }),
-    });
+      'COMMISSION_INTERNAL_NOTE_NOT_ALLOWED',
+    );
   });
 
   it('publishes a draft revision request and moves the application to TO_FIX', async () => {
@@ -412,17 +458,22 @@ describe('CommissionReviewService', () => {
         },
       ],
     });
-    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({ count: 1 });
+    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({
+      count: 1,
+    });
     tx.instructorReviewRevisionRequest.update.mockResolvedValue(
-      createRevisionRequestRow(InstructorReviewRevisionRequestStatus.PUBLISHED, [
-        {
-          uuid: ANNOTATION_UUID,
-          anchorType: 'FIELD',
-          anchorKey: 'plannedFinishAt',
-          body: 'Doprecyzuj termin.',
-          status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
-        },
-      ]),
+      createRevisionRequestRow(
+        InstructorReviewRevisionRequestStatus.PUBLISHED,
+        [
+          {
+            uuid: ANNOTATION_UUID,
+            anchorType: 'FIELD',
+            anchorKey: 'plannedFinishAt',
+            body: 'Doprecyzuj termin.',
+            status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
+          },
+        ],
+      ),
     );
     tx.instructorApplication.update.mockResolvedValue({
       uuid: APPLICATION_UUID,
@@ -440,27 +491,43 @@ describe('CommissionReviewService', () => {
       'req-publish',
     );
 
-    expect(tx.instructorReviewCandidateAnnotation.updateMany).toHaveBeenCalledWith({
+    const publishAnnotationsCall = getLastMockArg<{
+      where: {
+        revisionRequestUuid: string;
+        status: InstructorReviewCandidateAnnotationStatus;
+      };
+      data: Record<string, unknown>;
+    }>(tx.instructorReviewCandidateAnnotation.updateMany);
+    expect(publishAnnotationsCall).toMatchObject({
       where: {
         revisionRequestUuid: REVISION_REQUEST_UUID,
         status: InstructorReviewCandidateAnnotationStatus.DRAFT,
       },
-      data: expect.objectContaining({
+      data: {
         status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
         publishedByUuid: USER_UUID,
         updatedByUuid: USER_UUID,
-      }),
+      },
     });
-    expect(tx.instructorApplication.update).toHaveBeenCalledWith({
+    const applicationUpdateCall = getLastMockArg<{
+      where: { uuid: string };
+      select: {
+        uuid: boolean;
+        status: boolean;
+        updatedAt: boolean;
+      };
+      data: Record<string, unknown>;
+    }>(tx.instructorApplication.update);
+    expect(applicationUpdateCall).toMatchObject({
       where: { uuid: APPLICATION_UUID },
       select: {
         uuid: true,
         status: true,
         updatedAt: true,
       },
-      data: expect.objectContaining({
+      data: {
         status: ApplicationStatus.TO_FIX,
-      }),
+      },
     });
     expect(result).toMatchObject({
       applicationStatus: ApplicationStatus.TO_FIX,
@@ -475,15 +542,14 @@ describe('CommissionReviewService', () => {
         requestId: 'req-publish',
       }),
     );
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'COMMISSION_REVIEW_STATUS_CHANGED',
-        metadata: expect.objectContaining({
-          fromStatus: ApplicationStatus.UNDER_REVIEW,
-          toStatus: ApplicationStatus.TO_FIX,
-        }),
-      }),
-    );
+    expect(
+      findAuditLogEntry(auditService.log, 'COMMISSION_REVIEW_STATUS_CHANGED'),
+    ).toMatchObject({
+      metadata: {
+        fromStatus: ApplicationStatus.UNDER_REVIEW,
+        toStatus: ApplicationStatus.TO_FIX,
+      },
+    });
   });
 
   it('blocks publishing when the draft contains only a regular section annotation', async () => {
@@ -508,7 +574,7 @@ describe('CommissionReviewService', () => {
       ],
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.publishRevisionRequest(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -518,13 +584,12 @@ describe('CommissionReviewService', () => {
         },
         'req-publish-section-only',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'REVISION_REQUEST_ACTIONABLE_ANNOTATION_REQUIRED',
-      }),
-    });
+      'REVISION_REQUEST_ACTIONABLE_ANNOTATION_REQUIRED',
+    );
 
-    expect(tx.instructorReviewCandidateAnnotation.updateMany).not.toHaveBeenCalled();
+    expect(
+      tx.instructorReviewCandidateAnnotation.updateMany,
+    ).not.toHaveBeenCalled();
     expect(tx.instructorApplication.update).not.toHaveBeenCalled();
   });
 
@@ -551,7 +616,7 @@ describe('CommissionReviewService', () => {
     });
     tx.instructorApplicationSnapshot.findFirst.mockResolvedValue(null);
 
-    await expect(
+    await expectRejectsWithCode(
       service.publishRevisionRequest(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -561,13 +626,12 @@ describe('CommissionReviewService', () => {
         },
         'req-publish-without-snapshot',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'REVISION_REQUEST_BASELINE_SNAPSHOT_REQUIRED',
-      }),
-    });
+      'REVISION_REQUEST_BASELINE_SNAPSHOT_REQUIRED',
+    );
 
-    expect(tx.instructorReviewCandidateAnnotation.updateMany).not.toHaveBeenCalled();
+    expect(
+      tx.instructorReviewCandidateAnnotation.updateMany,
+    ).not.toHaveBeenCalled();
     expect(tx.instructorReviewRevisionRequest.update).not.toHaveBeenCalled();
   });
 
@@ -594,17 +658,22 @@ describe('CommissionReviewService', () => {
         },
       ],
     });
-    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({ count: 1 });
+    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({
+      count: 1,
+    });
     tx.instructorReviewRevisionRequest.update.mockResolvedValue(
-      createRevisionRequestRow(InstructorReviewRevisionRequestStatus.PUBLISHED, [
-        {
-          uuid: ANNOTATION_UUID,
-          anchorType: 'FIELD',
-          anchorKey: 'plannedFinishAt',
-          body: 'Doprecyzuj termin.',
-          status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
-        },
-      ]),
+      createRevisionRequestRow(
+        InstructorReviewRevisionRequestStatus.PUBLISHED,
+        [
+          {
+            uuid: ANNOTATION_UUID,
+            anchorType: 'FIELD',
+            anchorKey: 'plannedFinishAt',
+            body: 'Doprecyzuj termin.',
+            status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
+          },
+        ],
+      ),
     );
     tx.instructorApplication.update.mockResolvedValue({
       uuid: APPLICATION_UUID,
@@ -637,7 +706,7 @@ describe('CommissionReviewService', () => {
       createMembershipRow(CommissionRole.MEMBER),
     );
 
-    await expect(
+    await expectRejectsWithCode(
       service.publishRevisionRequest(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -647,11 +716,8 @@ describe('CommissionReviewService', () => {
         },
         'req-member-publish',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'INSUFFICIENT_COMMISSION_ROLE',
-      }),
-    });
+      'INSUFFICIENT_COMMISSION_ROLE',
+    );
   });
 
   it('cancels a published revision request when rolling TO_FIX back to UNDER_REVIEW', async () => {
@@ -667,7 +733,9 @@ describe('CommissionReviewService', () => {
       status: InstructorReviewRevisionRequestStatus.PUBLISHED,
       annotations: [],
     });
-    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({ count: 1 });
+    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({
+      count: 1,
+    });
     tx.instructorReviewRevisionRequest.update.mockResolvedValue({
       uuid: REVISION_REQUEST_UUID,
     });
@@ -687,7 +755,9 @@ describe('CommissionReviewService', () => {
       'req-rollback',
     );
 
-    expect(tx.instructorReviewCandidateAnnotation.updateMany).toHaveBeenCalledWith({
+    expect(
+      tx.instructorReviewCandidateAnnotation.updateMany,
+    ).toHaveBeenCalledWith({
       where: {
         revisionRequestUuid: REVISION_REQUEST_UUID,
         status: {
@@ -702,14 +772,22 @@ describe('CommissionReviewService', () => {
         updatedByUuid: USER_UUID,
       },
     });
-    expect(tx.instructorReviewRevisionRequest.update).toHaveBeenCalledWith({
+    const revisionRequestUpdateCall = getLastMockArg<{
+      where: { uuid: string };
+      data: {
+        status: InstructorReviewRevisionRequestStatus;
+        updatedByUuid: string;
+      };
+      select: Record<string, unknown>;
+    }>(tx.instructorReviewRevisionRequest.update);
+    expect(revisionRequestUpdateCall).toMatchObject({
       where: { uuid: REVISION_REQUEST_UUID },
       data: {
         status: InstructorReviewRevisionRequestStatus.CANCELLED,
         updatedByUuid: USER_UUID,
       },
-      select: expect.any(Object),
     });
+    expect(revisionRequestUpdateCall?.select).toBeDefined();
     expect(result).toMatchObject({
       uuid: APPLICATION_UUID,
       status: ApplicationStatus.UNDER_REVIEW,
@@ -722,16 +800,15 @@ describe('CommissionReviewService', () => {
         requestId: 'req-rollback',
       }),
     );
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'COMMISSION_REVIEW_STATUS_CHANGED',
-        metadata: expect.objectContaining({
-          fromStatus: ApplicationStatus.TO_FIX,
-          toStatus: ApplicationStatus.UNDER_REVIEW,
-          note: null,
-        }),
-      }),
-    );
+    expect(
+      findAuditLogEntry(auditService.log, 'COMMISSION_REVIEW_STATUS_CHANGED'),
+    ).toMatchObject({
+      metadata: {
+        fromStatus: ApplicationStatus.TO_FIX,
+        toStatus: ApplicationStatus.UNDER_REVIEW,
+        note: null,
+      },
+    });
   });
 
   it('cancels a draft candidate annotation', async () => {
@@ -779,14 +856,22 @@ describe('CommissionReviewService', () => {
       'req-annotation-cancel',
     );
 
-    expect(tx.instructorReviewCandidateAnnotation.update).toHaveBeenCalledWith({
+    const annotationUpdateCall = getLastMockArg<{
+      where: { uuid: string };
+      data: {
+        status: InstructorReviewCandidateAnnotationStatus;
+        updatedByUuid: string;
+      };
+      select: Record<string, unknown>;
+    }>(tx.instructorReviewCandidateAnnotation.update);
+    expect(annotationUpdateCall).toMatchObject({
       where: { uuid: ANNOTATION_UUID },
       data: {
         status: InstructorReviewCandidateAnnotationStatus.CANCELLED,
         updatedByUuid: USER_UUID,
       },
-      select: expect.any(Object),
     });
+    expect(annotationUpdateCall?.select).toBeDefined();
     expect(result).toMatchObject({
       uuid: ANNOTATION_UUID,
       status: InstructorReviewCandidateAnnotationStatus.CANCELLED,
@@ -820,7 +905,7 @@ describe('CommissionReviewService', () => {
       },
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.updateCandidateAnnotation(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -831,11 +916,8 @@ describe('CommissionReviewService', () => {
         },
         'req-annotation-cancel-archived',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'REVISION_REQUEST_DRAFT_NOT_ALLOWED',
-      }),
-    });
+      'REVISION_REQUEST_DRAFT_NOT_ALLOWED',
+    );
   });
 
   it('blocks member from editing another author draft annotation', async () => {
@@ -859,7 +941,7 @@ describe('CommissionReviewService', () => {
       },
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.updateCandidateAnnotation(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -870,11 +952,8 @@ describe('CommissionReviewService', () => {
         },
         'req-annotation-forbidden',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'CANDIDATE_ANNOTATION_EDIT_FORBIDDEN',
-      }),
-    });
+      'CANDIDATE_ANNOTATION_EDIT_FORBIDDEN',
+    );
   });
 
   it('updates an internal note only for its author', async () => {
@@ -943,7 +1022,7 @@ describe('CommissionReviewService', () => {
       createdByUuid: USER_UUID,
     });
 
-    await expect(
+    await expectRejectsWithCode(
       service.deleteInternalNote(
         PRINCIPAL,
         COMMISSION_UUID,
@@ -951,11 +1030,8 @@ describe('CommissionReviewService', () => {
         '99999999-9999-9999-9999-999999999999',
         'req-note-delete-archived',
       ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'COMMISSION_INTERNAL_NOTE_NOT_ALLOWED',
-      }),
-    });
+      'COMMISSION_INTERNAL_NOTE_NOT_ALLOWED',
+    );
   });
 
   it('allows direct status transition to TO_FIX and publishes draft annotations', async () => {
@@ -979,17 +1055,22 @@ describe('CommissionReviewService', () => {
         },
       ],
     });
-    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({ count: 1 });
+    tx.instructorReviewCandidateAnnotation.updateMany.mockResolvedValue({
+      count: 1,
+    });
     tx.instructorReviewRevisionRequest.update.mockResolvedValue(
-      createRevisionRequestRow(InstructorReviewRevisionRequestStatus.PUBLISHED, [
-        {
-          uuid: ANNOTATION_UUID,
-          anchorType: 'FIELD',
-          anchorKey: 'plannedFinishAt',
-          body: 'Doprecyzuj termin.',
-          status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
-        },
-      ]),
+      createRevisionRequestRow(
+        InstructorReviewRevisionRequestStatus.PUBLISHED,
+        [
+          {
+            uuid: ANNOTATION_UUID,
+            anchorType: 'FIELD',
+            anchorKey: 'plannedFinishAt',
+            body: 'Doprecyzuj termin.',
+            status: InstructorReviewCandidateAnnotationStatus.PUBLISHED,
+          },
+        ],
+      ),
     );
     tx.instructorApplication.update.mockResolvedValue({
       uuid: APPLICATION_UUID,
@@ -1021,20 +1102,86 @@ describe('CommissionReviewService', () => {
     );
   });
 
-  it('builds resolved revision request audit from snapshots', () => {
-    const { service, changeAuditService } = createService();
-    const revisionRequestRow = {
-      ...createRevisionRequestRow(InstructorReviewRevisionRequestStatus.RESOLVED, [
-        {
-          uuid: ANNOTATION_UUID,
-          anchorType: 'FIELD' as const,
-          anchorKey: 'teamFunction',
-          body: 'Uzupełnij funkcję.',
-          status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+  it('lists resolved revision request audit summaries with pagination', async () => {
+    const { service, prisma } = createService();
+    prisma.commissionMember.findFirst.mockResolvedValue(createMembershipRow());
+    prisma.instructorApplication.findFirst.mockResolvedValue({
+      uuid: APPLICATION_UUID,
+      status: ApplicationStatus.TO_FIX,
+    });
+    prisma.instructorReviewRevisionRequest.count.mockResolvedValue(2);
+    prisma.instructorReviewRevisionRequest.findMany.mockResolvedValue([
+      {
+        uuid: REVISION_REQUEST_UUID,
+        summaryMessage: 'Popraw plan działania.',
+        publishedAt: new Date('2026-03-10T11:10:00.000Z'),
+        resolvedAt: new Date('2026-03-11T08:30:00.000Z'),
+        baselineSnapshot: {
+          revision: 4,
         },
-      ]),
-      resolvedAt: new Date('2026-03-10T12:00:00.000Z'),
-      resolvedBy: createAuthor(),
+        responseSnapshot: null,
+      },
+    ]);
+
+    const result = await service.listResolvedRevisionRequestAudits(
+      PRINCIPAL,
+      COMMISSION_UUID,
+      APPLICATION_UUID,
+      {
+        page: 1,
+        pageSize: 5,
+      },
+    );
+
+    expect(result).toEqual({
+      items: [
+        {
+          revisionRequest: {
+            uuid: REVISION_REQUEST_UUID,
+            summaryMessage: 'Popraw plan działania.',
+            publishedAt: '2026-03-10T11:10:00.000Z',
+            resolvedAt: '2026-03-11T08:30:00.000Z',
+          },
+          auditAvailable: false,
+          auditMissingReason: 'RESPONSE_SNAPSHOT_MISSING',
+          baselineSnapshotRevision: 4,
+          responseSnapshotRevision: null,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 5,
+    });
+    expect(
+      prisma.instructorReviewRevisionRequest.findMany,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: 5,
+      }),
+    );
+  });
+
+  it('returns resolved revision request audit detail from dedicated endpoint', async () => {
+    const { service, prisma, changeAuditService } = createService();
+    prisma.commissionMember.findFirst.mockResolvedValue(createMembershipRow());
+    prisma.instructorApplication.findFirst.mockResolvedValue({
+      uuid: APPLICATION_UUID,
+      status: ApplicationStatus.TO_FIX,
+    });
+    const revisionRequestRow = {
+      ...createRevisionRequestRow(
+        InstructorReviewRevisionRequestStatus.RESOLVED,
+        [
+          {
+            uuid: ANNOTATION_UUID,
+            anchorType: 'FIELD' as const,
+            anchorKey: 'teamFunction',
+            body: 'Uzupełnij funkcję.',
+            status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+          },
+        ],
+      ),
       baselineSnapshot: createSnapshotRow({
         uuid: SNAPSHOT_UUID,
         revision: 2,
@@ -1047,6 +1194,9 @@ describe('CommissionReviewService', () => {
     const expectedAudit = {
       revisionRequest: {
         uuid: REVISION_REQUEST_UUID,
+        summaryMessage: 'Popraw wskazane miejsca.',
+        publishedAt: '2026-03-10T11:10:00.000Z',
+        resolvedAt: '2026-03-10T12:00:00.000Z',
       },
       auditAvailable: true,
       auditMissingReason: null,
@@ -1060,23 +1210,47 @@ describe('CommissionReviewService', () => {
     changeAuditService.buildResolvedRevisionRequestAudit.mockReturnValue(
       expectedAudit,
     );
-
-    const result = (
-      service as unknown as {
-        toResolvedRevisionRequestDto: (value: typeof revisionRequestRow) => unknown;
-      }
-    ).toResolvedRevisionRequestDto(revisionRequestRow);
-
-    expect(changeAuditService.buildResolvedRevisionRequestAudit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        revisionRequest: expect.objectContaining({
-          uuid: REVISION_REQUEST_UUID,
-          status: InstructorReviewRevisionRequestStatus.RESOLVED,
-        }),
-        baselineSnapshot: revisionRequestRow.baselineSnapshot,
-        responseSnapshot: revisionRequestRow.responseSnapshot,
-      }),
+    prisma.instructorReviewRevisionRequest.findFirst.mockResolvedValue(
+      revisionRequestRow,
     );
+
+    const result = await service.getResolvedRevisionRequestAudit(
+      PRINCIPAL,
+      COMMISSION_UUID,
+      APPLICATION_UUID,
+      REVISION_REQUEST_UUID,
+    );
+
+    const buildAuditCall = getLastMockArg<{
+      revisionRequest: {
+        uuid: string;
+        summaryMessage: string | null;
+        publishedAt: string | null;
+        resolvedAt: string | null;
+      };
+      annotations: Array<{
+        uuid: string;
+        status: InstructorReviewCandidateAnnotationStatus;
+      }>;
+      baselineSnapshot: unknown;
+      responseSnapshot: unknown;
+    }>(changeAuditService.buildResolvedRevisionRequestAudit);
+    expect(buildAuditCall).toMatchObject({
+      revisionRequest: {
+        uuid: REVISION_REQUEST_UUID,
+        summaryMessage: 'Popraw wskazane miejsca.',
+        publishedAt: '2026-03-10T11:10:00.000Z',
+        resolvedAt: '2026-03-10T12:00:00.000Z',
+      },
+      annotations: [
+        {
+          uuid: ANNOTATION_UUID,
+          status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+        },
+      ],
+      baselineSnapshot: revisionRequestRow.baselineSnapshot,
+      responseSnapshot: revisionRequestRow.responseSnapshot,
+    });
     expect(result).toBe(expectedAudit);
   });
 
@@ -1105,30 +1279,38 @@ describe('CommissionReviewService', () => {
       'req-status-override',
     );
 
-    expect(tx.instructorApplication.update).toHaveBeenCalledWith({
+    const overrideStatusUpdateCall = getLastMockArg<{
+      where: { uuid: string };
+      select: {
+        uuid: boolean;
+        status: boolean;
+        updatedAt: boolean;
+      };
+      data: Record<string, unknown>;
+    }>(tx.instructorApplication.update);
+    expect(overrideStatusUpdateCall).toMatchObject({
       where: { uuid: APPLICATION_UUID },
       select: {
         uuid: true,
         status: true,
         updatedAt: true,
       },
-      data: expect.objectContaining({
+      data: {
         status: ApplicationStatus.SUBMITTED,
         approvedAt: null,
-      }),
+      },
     });
     expect(result).toMatchObject({
       uuid: APPLICATION_UUID,
       status: ApplicationStatus.SUBMITTED,
       activeRevisionRequestStatus: null,
     });
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'COMMISSION_REVIEW_STATUS_CHANGED',
-        metadata: expect.objectContaining({
-          note: null,
-        }),
-      }),
-    );
+    expect(
+      findAuditLogEntry(auditService.log, 'COMMISSION_REVIEW_STATUS_CHANGED'),
+    ).toMatchObject({
+      metadata: {
+        note: null,
+      },
+    });
   });
 });

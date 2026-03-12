@@ -20,7 +20,9 @@ type Props = {
   }>;
 };
 
-export default async function CommissionApplicationDetailPage({ params }: Props) {
+export default async function CommissionApplicationDetailPage({
+  params,
+}: Props) {
   const { locale, commissionUuid, applicationUuid } = await params;
   const tCommon = await getTranslations("common");
   const tCommission = await getTranslations("commission");
@@ -80,19 +82,12 @@ export default async function CommissionApplicationDetailPage({ params }: Props)
     );
   }
 
+  let detail!: Parameters<typeof CommissionApplicationDetail>[0]["detail"];
+
   try {
-    const detail = await bffServerFetchValidated(
+    detail = await bffServerFetchValidated(
       commissionReviewApplicationDetailSchema,
       `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}`,
-    );
-
-    return (
-      <CommissionApplicationDetail
-        locale={locale}
-        commissionUuid={commissionUuid}
-        applicationUuid={applicationUuid}
-        detail={detail}
-      />
     );
   } catch (error: unknown) {
     if (error instanceof BffServerFetchError && error.status === 404) {
@@ -102,14 +97,19 @@ export default async function CommissionApplicationDetailPage({ params }: Props)
     if (error instanceof BffServerFetchError && error.status === 403) {
       return (
         <main className="mx-auto max-w-4xl px-6 py-10">
-          <h1 className="text-2xl font-semibold">{tCommon("nav.commission")}</h1>
+          <h1 className="text-2xl font-semibold">
+            {tCommon("nav.commission")}
+          </h1>
           <AccessDenied
             code="403"
             codeLabel={tCommon("accessDenied.codeLabel", { code: "403" })}
             title={tCommon("accessDenied.title")}
             message={tCommission("accessDenied.applicationMessage")}
             actions={[
-              { label: tCommon("nav.commission"), href: `/${locale}/commission` },
+              {
+                label: tCommon("nav.commission"),
+                href: `/${locale}/commission`,
+              },
               {
                 label: tCommission("detail.backToInbox"),
                 href: `/${locale}/commission/${commissionUuid}`,
@@ -122,4 +122,13 @@ export default async function CommissionApplicationDetailPage({ params }: Props)
 
     throw error;
   }
+
+  return (
+    <CommissionApplicationDetail
+      locale={locale}
+      commissionUuid={commissionUuid}
+      applicationUuid={applicationUuid}
+      detail={detail}
+    />
+  );
 }
