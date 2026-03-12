@@ -315,6 +315,108 @@ export type CommissionReviewRevisionRequest = z.infer<
   typeof commissionReviewRevisionRequestSchema
 >;
 
+export const commissionReviewResolvedAnnotationComparisonStatusSchema = z.enum([
+  "CHANGED",
+  "UNCHANGED",
+  "NOT_COMPARABLE",
+]);
+export type CommissionReviewResolvedAnnotationComparisonStatus = z.infer<
+  typeof commissionReviewResolvedAnnotationComparisonStatusSchema
+>;
+
+export const commissionReviewResolvedRevisionRequestAuditMissingReasonSchema = z.enum([
+  "BASELINE_SNAPSHOT_MISSING",
+  "RESPONSE_SNAPSHOT_MISSING",
+]);
+export type CommissionReviewResolvedRevisionRequestAuditMissingReason = z.infer<
+  typeof commissionReviewResolvedRevisionRequestAuditMissingReasonSchema
+>;
+
+export const commissionReviewResolvedChangeValueSchema = z.discriminatedUnion(
+  "kind",
+  [
+    z
+      .object({
+        kind: z.literal("TEXT"),
+        text: z.string().nullable(),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal("DATE"),
+        date: z.string().nullable(),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal("ENUM"),
+        value: z.string().nullable(),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal("ATTACHMENT_SET"),
+        items: z.array(
+          z
+            .object({
+              uuid: uuidSchema.nullable(),
+              originalFilename: z.string(),
+              contentType: z.string(),
+              sizeBytes: z.number(),
+              checksum: z.string().nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  ],
+);
+export type CommissionReviewResolvedChangeValue = z.infer<
+  typeof commissionReviewResolvedChangeValueSchema
+>;
+
+export const commissionReviewResolvedAnnotationChangeSchema = z
+  .object({
+    key: z.string().min(1).max(128),
+    changed: z.boolean(),
+    before: commissionReviewResolvedChangeValueSchema.nullable(),
+    after: commissionReviewResolvedChangeValueSchema.nullable(),
+  })
+  .strict();
+export type CommissionReviewResolvedAnnotationChange = z.infer<
+  typeof commissionReviewResolvedAnnotationChangeSchema
+>;
+
+export const commissionReviewResolvedAnnotationAuditSchema = z
+  .object({
+    annotation: commissionReviewCandidateAnnotationSchema,
+    anchorLabel: z.string().nullable(),
+    comparisonStatus: commissionReviewResolvedAnnotationComparisonStatusSchema,
+    changes: z.array(commissionReviewResolvedAnnotationChangeSchema),
+  })
+  .strict();
+export type CommissionReviewResolvedAnnotationAudit = z.infer<
+  typeof commissionReviewResolvedAnnotationAuditSchema
+>;
+
+export const commissionReviewResolvedRevisionRequestSchema = z
+  .object({
+    revisionRequest: commissionReviewRevisionRequestSchema,
+    auditAvailable: z.boolean(),
+    auditMissingReason:
+      commissionReviewResolvedRevisionRequestAuditMissingReasonSchema.nullable(),
+    baselineSnapshotRevision: z.number().int().nullable(),
+    responseSnapshotRevision: z.number().int().nullable(),
+    changedCount: z.number().int().nonnegative(),
+    unchangedCount: z.number().int().nonnegative(),
+    notComparableCount: z.number().int().nonnegative(),
+    annotationAudits: z.array(commissionReviewResolvedAnnotationAuditSchema),
+  })
+  .strict();
+export type CommissionReviewResolvedRevisionRequest = z.infer<
+  typeof commissionReviewResolvedRevisionRequestSchema
+>;
+
 export const commissionReviewRevisionRequestDraftBodySchema = z
   .object({
     summaryMessage: z.string().trim().max(5000).nullable().optional(),
@@ -418,6 +520,9 @@ export const commissionReviewApplicationDetailSchema = z
     permissions: commissionReviewPermissionsSchema,
     internalNotes: z.array(commissionReviewInternalNoteSchema),
     activeRevisionRequest: commissionReviewRevisionRequestSchema.nullable(),
+    resolvedRevisionRequests: z.array(
+      commissionReviewResolvedRevisionRequestSchema,
+    ),
     availableTransitions: z.array(applicationStatusSchema),
     timeline: z.array(commissionReviewTimelineEventSchema),
   })
