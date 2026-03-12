@@ -98,7 +98,7 @@ flowchart LR
 
 - API akceptuje wyłącznie tokeny wystawione przez Keycloak (JWKS).
 - Dostęp do danych prób tylko dla ownera + komisji + admina + root.
-- Zmiana statusu tylko `COMMISSION_CHAIR`.
+- Zmiana statusu tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 
 ---
 
@@ -119,10 +119,11 @@ flowchart LR
 - `COMMISSION_SECRETARY`:
   - wszystko co member +
   - posiedzenia/sloty + anulowanie/przeniesienie rezerwacji
+  - zmiana statusów prób
 
 - `COMMISSION_CHAIR`:
-  - wszystko co secretary +
-  - zmiana statusów prób
+  - wszystko co secretary
+  - w obecnym MVP bez dodatkowych uprawnień systemowych w workflow prób
 
 - `ADMIN`:
   - admin endpoints (approval, role management)
@@ -241,15 +242,15 @@ sequenceDiagram
   API-->>S: 200
 ```
 
-### 10B) Zmiana statusu (chair-only)
+### 10B) Zmiana statusu (sekretarz/przewodniczący)
 
 ```mermaid
 sequenceDiagram
-  participant C as Chair (Web)
+  participant C as Sekretarz/Przewodniczący (Web)
   participant API as API (NestJS)
   participant DB as Postgres
   C->>API: POST server/trials/{id}/status {to}
-  API->>API: RBAC (chair-only) + transition validation
+  API->>API: RBAC (sekretarz/przewodniczący) + transition validation
   API->>DB: update status
   API->>DB: insert Audit(TRIAL_STATUS_CHANGED)
   API-->>C: 200
@@ -275,6 +276,6 @@ sequenceDiagram
 
 - OIDC (Keycloak) jako jedyny mechanizm auth.
 - RBAC + owner-checks w API.
-- Zmiana statusu tylko `COMMISSION_CHAIR`.
+- Zmiana statusu tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Approval kont harcerzy przez `ADMIN`.
 - Presigned upload/download + prywatny bucket.

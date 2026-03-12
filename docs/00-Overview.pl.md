@@ -115,7 +115,7 @@ C:.
 ## MVP (w skrócie)
 
 - Harcerz: rejestracja → utworzenie próby → wypełnienie formularza → submit → poprawki (jeśli wymagane) → śledzenie statusu.
-- Komisja: asynchroniczny przegląd prób → komentarze → decyzja (status) przez przewodniczącego.
+- Komisja: asynchroniczny przegląd prób → komentarze → decyzja (status) przez sekretarza lub przewodniczącego.
 - Kalendarz posiedzeń: komisja tworzy posiedzenia i sloty, harcerz rezerwuje slot po zaakceptowaniu próby.
 - Załączniki jako dowody wykonania zadań (MinIO).
 - Admin: akceptacja kont harcerzy + zarządzanie rolami komisji (panel w aplikacji).
@@ -156,7 +156,7 @@ C:.
 ## Wymagania twarde
 
 - Dostęp do próby tylko dla: właściciela próby, komisji.
-- Zmiana statusu próby tylko przez `COMMISSION_CHAIR`.
+- Zmiana statusu próby tylko przez `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Harcerz może mieć tylko **jedną aktywną próbę** naraz.
 - Załączniki przechowywane w prywatnym storage (MinIO).
 - Zgodność z RODO: minimalizacja dostępu, audyt działań, brak wycieków danych w logach.

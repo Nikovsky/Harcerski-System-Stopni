@@ -23,7 +23,7 @@ Dokument jest źródłem prawdy dla backlogu, API i pracy agentów AI.
 
 - Konto harcerza po rejestracji nie pozwala się zalogować do czasu akceptacji.
 - Komisja nie może się zalogować bez `@zhr.pl`.
-- Tylko przewodniczący ma możliwość zmiany statusu próby.
+- Tylko sekretarz lub przewodniczący mają możliwość zmiany statusu próby.
 
 ---
 
@@ -91,7 +91,7 @@ Dokument jest źródłem prawdy dla backlogu, API i pracy agentów AI.
 
 - Dostęp do panelu tylko dla roli `ADMIN`.
 - Approve/reject wpływa na możliwość logowania.
-- Zmiana roli wpływa na uprawnienia (np. status change tylko dla chair).
+- Zmiana roli wpływa na uprawnienia (np. status change tylko dla `COMMISSION_SECRETARY|COMMISSION_CHAIR`).
 
 ---
 

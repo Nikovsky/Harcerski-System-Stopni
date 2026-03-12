@@ -73,9 +73,9 @@
 
 - Komisja loguje się przez Google lub email/haslo skonfigurowane w Keycloak.
 
-### D-SEC-05: Zmiana statusu próby tylko przez przewodniczącego
+### D-SEC-05: Zmiana statusu próby przez sekretarza lub przewodniczącego
 
-- Tylko `COMMISSION_CHAIR` może zmieniać status próby.
+- Tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR` mogą zmieniać status próby.
 
 ### D-SEC-06: RBAC + owner-checks w API (IDOR prevention)
 

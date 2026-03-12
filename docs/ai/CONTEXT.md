@@ -94,7 +94,7 @@ Przedział czasu w ramach posiedzenia, możliwy do rezerwacji przez harcerza. Je
 
 - Keycloak OIDC + RBAC + owner-checks.
 - Harcerz: rejestracja (email/hasło) + approval admina, próba (formularz), zadania, załączniki, submit, statusy, komentarze.
-- Komisja: przegląd prób, komentarze, przewodniczący zmienia status.
+- Komisja: przegląd prób, komentarze, sekretarz lub przewodniczący zmienia status.
 - Posiedzenia: komisja tworzy posiedzenia i sloty; harcerz rezerwuje slot po `ACCEPTED`.
 - Admin panel (w aplikacji): approve/reject kont + zarządzanie rolami komisji.
 - Storage: MinIO (presigned URLs).
@@ -106,7 +106,7 @@ Przedział czasu w ramach posiedzenia, możliwy do rezerwacji przez harcerza. Je
 - Jedna aktywna próba na harcerza.
 - Edycja próby tylko w `DRAFT|NEEDS_CHANGES`.
 - Submit blokuje edycję.
-- Zmiana statusu tylko przez `COMMISSION_CHAIR`.
+- Zmiana statusu tylko przez `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Rezerwacja slotu tylko po `ACCEPTED`.
 - Harcerz nie anuluje slotu w MVP (tylko komisja).
 

@@ -91,7 +91,7 @@ MVP może być uznane za gotowe do użycia, gdy:
 
 - działają end-to-end ścieżki:
   1. harcerz rejestruje się → admin akceptuje → harcerz tworzy próbę → submit,
-  2. komisja przegląda → komentarz → chair zmienia status na ACCEPTED,
+  2. komisja przegląda → komentarz → sekretarz lub przewodniczący zmienia status na ACCEPTED,
   3. harcerz rezerwuje slot,
   4. komisja widzi listę zapisanych.
 - brak IDOR (testy + smoke manual).
@@ -104,7 +104,7 @@ MVP może być uznane za gotowe do użycia, gdy:
 ## 5) Wymagania twarde (DoD-level)
 
 - RBAC + owner-checks w API (zawsze).
-- Status change tylko chair.
+- Status change tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Approval kont harcerzy przez admin.
 - Presigned URLs dla attachments (brak proxy plików przez API).
 - Brak danych wrażliwych w logach.

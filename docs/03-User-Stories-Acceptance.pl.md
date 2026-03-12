@@ -83,7 +83,7 @@
 
 - `SCOUT` nie ma dostępu do cudzych prób ani załączników (403)
 - `COMMISSION_*` ma dostęp do prób i załączników zgodnie z rolą
-- `COMMISSION_CHAIR` jako jedyny może zmieniać status próby
+- `COMMISSION_SECRETARY|COMMISSION_CHAIR` mogą zmieniać status próby
 - `ADMIN` ma dostęp do admin panel i audytu
 - `ROOT` full access
 - Testy integracyjne pokrywają przypadki forbidden/IDOR
@@ -167,15 +167,15 @@
 
 ---
 
-### US-TRY-06: Zmiana statusu próby (tylko przewodniczący)
+### US-TRY-06: Zmiana statusu próby (sekretarz lub przewodniczący)
 
-**Jako** przewodniczący komisji  
+**Jako** sekretarz lub przewodniczący komisji  
 **Chcę** zmienić status próby  
 **Aby** formalnie podjąć decyzję
 
 **Acceptance criteria**
 
-- Tylko `COMMISSION_CHAIR` może zmieniać status
+- Tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR` mogą zmieniać status
 - Dozwolone przejścia zgodne ze state machine:
   - `SUBMITTED` → `NEEDS_CHANGES|ACCEPTED|REJECTED`
   - `NEEDS_CHANGES` → `SUBMITTED`
@@ -373,7 +373,7 @@
 ## Wymagania twarde (globalne)
 
 - Brak IDOR (owner-checks w API)
-- Zmiana statusu tylko `COMMISSION_CHAIR`
+- Zmiana statusu tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`
 - Jedna aktywna próba na harcerza
 - Rezerwacja slotu tylko po `ACCEPTED`
 - Approval kont harcerzy przez `ADMIN`

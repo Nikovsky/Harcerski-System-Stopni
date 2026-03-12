@@ -77,7 +77,7 @@ HSS digitalizuje proces prób i komunikację:
 
 - Harcerz wypełnia próbę (formularz), dołącza załączniki jako dowody realizacji zadań i przesyła do komisji.
 - Komisja przegląda próby asynchronicznie, dodaje komentarze i wskazuje poprawki.
-- Przewodniczący dokonuje formalnej zmiany statusu próby.
+- Sekretarz lub przewodniczący dokonuje formalnej zmiany statusu próby.
 - Po akceptacji harcerz rezerwuje slot na posiedzenie.
 - Całość jest archiwizowana i dostępna do podglądu zgodnie z uprawnieniami.
 
@@ -129,7 +129,7 @@ HSS digitalizuje proces prób i komunikację:
 
 - Komisja ma dostęp do prób i załączników wyłącznie w ramach swoich uprawnień.
 - Harcerz ma dostęp wyłącznie do swoich prób.
-- Workflow decyzji: statusy zmienia wyłącznie `COMMISSION_CHAIR`.
+- Workflow decyzji: statusy zmienia `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Approval flow: konto harcerza wymaga akceptacji admina.
 - Posiedzenia/sloty: rezerwacja tylko dla prób `ACCEPTED`.
 

@@ -52,7 +52,7 @@ Zasada:
 - Reguły domenowe:
   - edycja tylko w `DRAFT|NEEDS_CHANGES`,
   - booking tylko po `ACCEPTED`,
-  - chair-only status change (logika policy/guard helper).
+  - status change tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR` (logika policy/guard helper).
 
 ### Jak pisać
 
@@ -152,8 +152,8 @@ Jeśli wybieramy B:
 
 ### RBAC
 
-- MEMBER/SECRETARY nie zmienia statusu.
-- CHAIR może zmieniać statusy zgodnie z state machine.
+- MEMBER nie zmienia statusu.
+- `COMMISSION_SECRETARY|COMMISSION_CHAIR` mogą zmieniać statusy zgodnie z state machine.
 - ADMIN może:
   - approve konta,
   - zarządzać rolami,

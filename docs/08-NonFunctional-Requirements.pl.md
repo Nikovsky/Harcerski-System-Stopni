@@ -67,7 +67,7 @@
 - Presigned URLs do MinIO + bucket prywatny.
 - Brak publicznych URL do załączników.
 - Walidacja limitów plików (MIME/size) w API.
-- Zmiana statusu próby tylko przez `COMMISSION_CHAIR`.
+- Zmiana statusu próby tylko przez `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Admin endpoints tylko dla `ADMIN`.
 - Rate limiting na newralgicznych endpointach (MVP minimal): login/oidc callback (po stronie Keycloak) + API (opcjonalnie).
 
@@ -136,7 +136,7 @@
 
 - Keycloak OIDC + RBAC + owner-checks
 - Presigned URLs + prywatny bucket MinIO
-- Chair-only status change
+- Zmiana statusu przez sekretarza/przewodniczącego
 - Approval kont harcerzy (enabled=false → admin enable)
 - Audit działań krytycznych
 - Backup DB + MinIO

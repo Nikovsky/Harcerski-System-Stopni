@@ -47,7 +47,7 @@ Konwencja:
 
 - Harcerz rejestruje się i widzi “konto oczekuje na akceptację”.
 - Admin akceptuje konto w panelu → harcerz może wejść do app.
-- RBAC działa: tylko chair zmienia statusy; brak IDOR.
+- RBAC działa: sekretarz/przewodniczący zmienia statusy; brak IDOR.
 
 ---
 
@@ -58,7 +58,7 @@ Konwencja:
 | TRY-01 | DB: Trial + status enum + history/audit hooks          |        P0 |     M / 5 |
 | TRY-02 | API: create/get/list/update trial (owner + commission) |        P0 |     M / 5 |
 | TRY-03 | API: submit trial + blokada edycji                     |        P0 |     S / 3 |
-| TRY-04 | API: chair-only status change + state machine          |        P0 |     M / 5 |
+| TRY-04 | API: `COMMISSION_SECRETARY|COMMISSION_CHAIR` status change + state machine |        P0 |     M / 5 |
 | TRY-05 | Web: dashboard harcerza + empty state                  |        P0 |     S / 3 |
 | TRY-06 | Web: formularz próby (sekcje) + save                   |        P0 |     L / 8 |
 | TRY-07 | Web: read-only view po submit + status badge           |        P0 |     S / 3 |
@@ -68,7 +68,7 @@ Konwencja:
 
 - Harcerz tworzy próbę, uzupełnia, wysyła, widzi status.
 - Komisja widzi próby i szczegóły.
-- Chair zmienia statusy zgodnie z regułami.
+- Sekretarz/przewodniczący zmienia statusy zgodnie z regułami.
 
 ---
 

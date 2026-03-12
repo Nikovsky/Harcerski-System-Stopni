@@ -25,8 +25,8 @@
 - Dashboard komisji (lista prób)
 - Szczegóły próby
 - Komentarze
-- (Chair) Zmiana statusu
-- Posiedzenia i sloty (sekretarz/chair)
+- (Sekretarz/przewodniczący) Zmiana statusu
+- Posiedzenia i sloty (sekretarz/przewodniczący)
 - Lista zapisanych na posiedzenie
 
 ### Admin (`ADMIN`)
@@ -174,16 +174,16 @@ Zasady:
 
 ---
 
-## Flow 6 — Przewodniczący: zmiana statusu próby
+## Flow 6 — Sekretarz lub przewodniczący: zmiana statusu próby
 
-1. Przewodniczący otwiera szczegóły próby.
+1. Sekretarz lub przewodniczący otwiera szczegóły próby.
 2. Widzi akcje statusu (np. “Do poprawy”, “Przyjmij”, “Odrzuć”).
 3. Wybiera nowy status + opcjonalny powód.
 4. System zapisuje zmianę i audytuje.
 
 **Kryteria akceptacji**
 
-- Akcje statusów widoczne tylko dla `COMMISSION_CHAIR`.
+- Akcje statusów widoczne tylko dla `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - System blokuje niedozwolone przejścia statusów (komunikat).
 
 ---
