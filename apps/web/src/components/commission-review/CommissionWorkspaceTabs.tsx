@@ -63,7 +63,7 @@ export function CommissionWorkspaceTabs({
                   className={`rounded-full px-2 py-0.5 text-xs ${
                     isActive
                       ? "bg-primary-foreground/15 text-primary-foreground"
-                      : "bg-muted text-foreground/55"
+                      : "bg-muted text-foreground/75"
                   }`}
                 >
                   {tab.badge}

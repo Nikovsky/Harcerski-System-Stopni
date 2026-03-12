@@ -1,4 +1,5 @@
 // @file: apps/web/src/app/[locale]/commission/[commissionUuid]/applications/[applicationUuid]/page.tsx
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/ui/AccessDenied";
@@ -20,19 +21,69 @@ type Props = {
   }>;
 };
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const tCommon = await getTranslations({ locale, namespace: "common" });
+
+  return {
+    title: tCommon("nav.commission"),
+  };
+}
+
+function renderServiceUnavailable(
+  locale: string,
+  tCommon: Awaited<ReturnType<typeof getTranslations>>,
+): React.ReactNode {
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="text-2xl font-semibold">{tCommon("nav.commission")}</h1>
+      <AccessDenied
+        code="503"
+        codeLabel={tCommon("accessDenied.codeLabel", { code: "503" })}
+        title={tCommon("accessDenied.serviceUnavailableTitle")}
+        message={tCommon("accessDenied.serviceUnavailableMessage")}
+        actions={[
+          { label: tCommon("nav.commission"), href: `/${locale}/commission` },
+          { label: tCommon("nav.home"), href: `/${locale}/` },
+        ]}
+      />
+    </main>
+  );
+}
+
 export default async function CommissionApplicationDetailPage({
   params,
 }: Props) {
   const { locale, commissionUuid, applicationUuid } = await params;
   const tCommon = await getTranslations("common");
   const tCommission = await getTranslations("commission");
-  const membershipsResponse = await bffServerFetchValidated(
-    commissionReviewMembershipListResponseSchema,
-    "commission-review/memberships",
-  );
-  const membership = membershipsResponse.memberships.find(
-    (item) => item.commissionUuid === commissionUuid,
-  );
+  const membership = await (async () => {
+    try {
+      const membershipsResponse = await bffServerFetchValidated(
+        commissionReviewMembershipListResponseSchema,
+        "commission-review/memberships",
+      );
+
+      return (
+        membershipsResponse.memberships.find(
+          (item) => item.commissionUuid === commissionUuid,
+        ) ?? null
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof BffServerFetchError &&
+        (error.status === 502 || error.status === 503)
+      ) {
+        return undefined;
+      }
+
+      throw error;
+    }
+  })();
+
+  if (membership === undefined) {
+    return renderServiceUnavailable(locale, tCommon);
+  }
 
   if (!membership) {
     return (
@@ -92,6 +143,13 @@ export default async function CommissionApplicationDetailPage({
   } catch (error: unknown) {
     if (error instanceof BffServerFetchError && error.status === 404) {
       notFound();
+    }
+
+    if (
+      error instanceof BffServerFetchError &&
+      (error.status === 502 || error.status === 503)
+    ) {
+      return renderServiceUnavailable(locale, tCommon);
     }
 
     if (error instanceof BffServerFetchError && error.status === 403) {

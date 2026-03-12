@@ -65,7 +65,7 @@ export function CommissionAttachmentDownloadLink({
         <button
           type="button"
           onClick={() => handleAction(previewable)}
-          className="text-primary hover:underline"
+          className="font-medium text-foreground hover:text-primary hover:underline"
         >
           {showFilename
             ? attachment.originalFilename
@@ -77,7 +77,7 @@ export function CommissionAttachmentDownloadLink({
           <button
             type="button"
             onClick={() => handleAction(false)}
-            className="text-foreground/40 hover:underline"
+            className="text-foreground/75 hover:text-foreground hover:underline"
           >
             {showFilename
               ? `(${downloadLabel ?? t("actions.download")})`

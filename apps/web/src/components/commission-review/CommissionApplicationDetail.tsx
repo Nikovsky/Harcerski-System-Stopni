@@ -159,7 +159,7 @@ function SectionCard({
         <div>
           <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
           {description ? (
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-foreground/60">
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-foreground/75">
               {description}
             </p>
           ) : null}
@@ -185,7 +185,7 @@ function ValueCard({
   return (
     <article className="rounded-2xl border border-border/70 bg-muted/15 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
           {label}
         </p>
         {actions}
@@ -524,7 +524,7 @@ export function CommissionApplicationDetail({
             <p className="break-words text-sm font-medium">
               {attachment.originalFilename}
             </p>
-            <p className="mt-1 text-xs text-foreground/45">
+            <p className="mt-1 text-xs text-foreground/75">
               {tCommission("workspace.application.fileMeta", {
                 sizeKb: Math.max(1, Math.round(attachment.sizeBytes / 1024)),
                 uploadedAt: formatDateTime(locale, attachment.uploadedAt),
@@ -608,7 +608,7 @@ export function CommissionApplicationDetail({
       <header className="rounded-3xl border border-border bg-gradient-to-br from-background via-background to-muted/50 p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground/55">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground/75">
               <span className="rounded-full border border-border px-3 py-1">
                 {tCommission(`types.${detail.membership.commissionType}`)}
               </span>
@@ -619,7 +619,7 @@ export function CommissionApplicationDetail({
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">
               {candidateName}
             </h1>
-            <p className="mt-2 break-words text-sm text-foreground/60">
+            <p className="mt-2 break-words text-sm text-foreground/75">
               {degreeLabel} ·{" "}
               {app.candidateProfile.email ?? tCommission("detail.noEmail")}
             </p>
@@ -642,7 +642,7 @@ export function CommissionApplicationDetail({
               key={item.label}
               className="rounded-2xl border border-border/70 bg-background/80 p-4"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                 {item.label}
               </p>
               <p className="mt-2 text-sm font-medium leading-6 text-foreground/85">
@@ -940,10 +940,10 @@ export function CommissionApplicationDetail({
                 <div className="grid gap-5 xl:grid-cols-2">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/80">
                         {tApplications("sections.hufcowyWrittenOpinion")}
                       </h3>
-                      <p className="mt-1 text-sm text-foreground/60">
+                      <p className="mt-1 text-sm text-foreground/75">
                         {tCommission(
                           "workspace.application.hufcowyDescription",
                         )}
@@ -959,7 +959,7 @@ export function CommissionApplicationDetail({
                         )}
                       </div>
                     ) : (
-                      <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-foreground/55">
+                      <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-foreground/75">
                         {tCommission("workspace.application.hufcowyEmpty")}
                       </p>
                     )}
@@ -967,10 +967,10 @@ export function CommissionApplicationDetail({
 
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/80">
                         {tCommission("detail.generalAttachmentsTitle")}
                       </h3>
-                      <p className="mt-1 text-sm text-foreground/60">
+                      <p className="mt-1 text-sm text-foreground/75">
                         {tCommission(
                           "workspace.application.generalAttachmentsDescription",
                         )}
@@ -986,7 +986,7 @@ export function CommissionApplicationDetail({
                         )}
                       </div>
                     ) : (
-                      <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-foreground/55">
+                      <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-foreground/75">
                         {tCommission("detail.noGeneralAttachments")}
                       </p>
                     )}
@@ -1002,7 +1002,7 @@ export function CommissionApplicationDetail({
               description={tCommission("workspace.requirements.description")}
             >
               {groupedRequirements.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
+                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/75">
                   {tCommission("workspace.requirements.empty")}
                 </p>
               ) : (
@@ -1013,7 +1013,7 @@ export function CommissionApplicationDetail({
                         <h3 className="text-base font-semibold">
                           {group.title}
                         </h3>
-                        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/55">
+                        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
                           {tCommission("workspace.requirements.groupCount", {
                             count: group.requirements.length,
                           })}
@@ -1036,7 +1036,7 @@ export function CommissionApplicationDetail({
                                   <h4 className="text-sm font-semibold leading-6">
                                     {requirementLabel}
                                   </h4>
-                                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/45">
+                                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/80">
                                     {tApplications(
                                       `requirementState.${requirement.state}`,
                                     )}
@@ -1067,7 +1067,7 @@ export function CommissionApplicationDetail({
                               </div>
 
                               <div className="mt-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                                   {tCommission(
                                     "workspace.requirements.attachmentsLabel",
                                   )}
@@ -1083,7 +1083,7 @@ export function CommissionApplicationDetail({
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="mt-2 text-sm text-foreground/55">
+                                  <p className="mt-2 text-sm text-foreground/75">
                                     {tCommission(
                                       "workspace.requirements.noAttachments",
                                     )}
@@ -1136,7 +1136,7 @@ export function CommissionApplicationDetail({
                   <article className="rounded-2xl border border-border/70 bg-muted/15 p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                           {tCommission(
                             "workspace.candidateFeedback.requestLabel",
                           )}
@@ -1147,7 +1147,7 @@ export function CommissionApplicationDetail({
                           )}
                         </h3>
                       </div>
-                      <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/55">
+                      <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
                         {tCommission(
                           "workspace.candidateFeedback.annotationCount",
                           {
@@ -1163,7 +1163,7 @@ export function CommissionApplicationDetail({
                     {activeRevisionRequest.status === "PUBLISHED" && (
                       <div className="mt-4 grid gap-3 md:grid-cols-3">
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                             {tCommission(
                               "workspace.candidateFeedback.publishedAtLabel",
                             )}
@@ -1176,7 +1176,7 @@ export function CommissionApplicationDetail({
                           </p>
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                             {tCommission(
                               "workspace.candidateFeedback.firstViewedAtLabel",
                             )}
@@ -1189,7 +1189,7 @@ export function CommissionApplicationDetail({
                           </p>
                         </div>
                         <div className="rounded-2xl border border-border/70 bg-background p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
                             {tCommission(
                               "workspace.candidateFeedback.lastActivityAtLabel",
                             )}
@@ -1206,7 +1206,7 @@ export function CommissionApplicationDetail({
                   </article>
 
                   {visibleAnnotations.length === 0 ? (
-                    <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
+                    <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/75">
                       {tCommission("workspace.candidateFeedback.empty")}
                     </p>
                   ) : (
@@ -1221,7 +1221,7 @@ export function CommissionApplicationDetail({
                               <p className="text-sm font-semibold">
                                 {resolveAnchorLabel(annotation)}
                               </p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/45">
+                              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-foreground/80">
                                 {tCommission(
                                   "workspace.candidateFeedback.authorLabel",
                                   {
@@ -1229,7 +1229,7 @@ export function CommissionApplicationDetail({
                                   },
                                 )}
                               </p>
-                              <p className="mt-2 text-xs text-foreground/50">
+                              <p className="mt-2 text-xs text-foreground/75">
                                 {annotation.updatedAt !== annotation.createdAt
                                   ? tCommission(
                                       "workspace.candidateFeedback.updatedAtLabel",
@@ -1252,7 +1252,7 @@ export function CommissionApplicationDetail({
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                              <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
                                 {tCommission(
                                   `feedback.status.${annotation.status}`,
                                 )}
@@ -1295,7 +1295,7 @@ export function CommissionApplicationDetail({
                   )}
                 </div>
               ) : (
-                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
+                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/75">
                   {tCommission("workspace.candidateFeedback.noActiveRequest")}
                 </p>
               )}
@@ -1354,7 +1354,7 @@ export function CommissionApplicationDetail({
                         <p className="text-sm font-semibold">
                           {tCommission("workspace.revisionAudit.title")}
                         </p>
-                        <p className="mt-1 text-sm text-foreground/60">
+                        <p className="mt-1 text-sm text-foreground/75">
                           {tCommission("workspace.revisionAudit.description")}
                         </p>
                       </div>
@@ -1380,11 +1380,11 @@ export function CommissionApplicationDetail({
                           <p className="text-sm font-semibold">
                             {tCommission("timeline.title")}
                           </p>
-                          <p className="mt-1 text-sm text-foreground/60">
+                          <p className="mt-1 text-sm text-foreground/75">
                             {tCommission("timeline.description")}
                           </p>
                         </div>
-                        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
                           {tCommission("timeline.count", {
                             count: detail.timeline.length,
                           })}
@@ -1410,7 +1410,7 @@ export function CommissionApplicationDetail({
                                   {summary.body}
                                 </p>
                               ) : null}
-                              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/45">
+                              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/80">
                                 {summary.meta}
                               </p>
                             </article>
@@ -1419,7 +1419,7 @@ export function CommissionApplicationDetail({
 
                         {totalTimelinePages > 1 ? (
                           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
-                            <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                            <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
                               {tCommission("timeline.paginationLabel", {
                                 page: currentTimelinePage,
                                 total: totalTimelinePages,
@@ -1464,7 +1464,7 @@ export function CommissionApplicationDetail({
                     </div>
                   </details>
                 ) : (
-                  <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
+                  <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/75">
                     {tCommission("timeline.empty")}
                   </p>
                 )}
