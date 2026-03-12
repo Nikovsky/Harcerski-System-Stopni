@@ -19,6 +19,7 @@ import { CommissionAnnotationDrawer } from "@/components/commission-review/Commi
 import { CommissionAttachmentDownloadLink } from "@/components/commission-review/CommissionAttachmentDownloadLink";
 import { CommissionCommentsClient } from "@/components/commission-review/CommissionCommentsClient";
 import { CommissionInlineAnnotationTrigger } from "@/components/commission-review/CommissionInlineAnnotationTrigger";
+import { CommissionRevisionAuditPanel } from "@/components/commission-review/CommissionRevisionAuditPanel";
 import { CommissionStatusActions } from "@/components/commission-review/CommissionStatusActions";
 import {
   CommissionWorkspaceTabs,
@@ -70,6 +71,8 @@ const TAB_IDS: readonly CommissionWorkspaceTabId[] = [
   "internalNotes",
   "history",
 ];
+
+const TIMELINE_PAGE_SIZE = 5;
 
 const APPLICATION_FIELDS: readonly EditableInstructorApplicationField[] = [
   "plannedFinishAt",
@@ -202,6 +205,7 @@ export function CommissionApplicationDetail({
     : "application";
   const activeRevisionRequest = detail.activeRevisionRequest;
   const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
+  const [timelinePage, setTimelinePage] = useState(1);
 
   const requirementLabelByUuid = useMemo(
     () =>
@@ -295,6 +299,16 @@ export function CommissionApplicationDetail({
 
     return groups;
   }, [app.requirements, app.template.groupDefinitions, tCommission]);
+
+  const totalTimelinePages = Math.max(
+    1,
+    Math.ceil(detail.timeline.length / TIMELINE_PAGE_SIZE),
+  );
+  const currentTimelinePage = Math.min(timelinePage, totalTimelinePages);
+  const visibleTimelineEvents = useMemo(() => {
+    const startIndex = (currentTimelinePage - 1) * TIMELINE_PAGE_SIZE;
+    return detail.timeline.slice(startIndex, startIndex + TIMELINE_PAGE_SIZE);
+  }, [currentTimelinePage, detail.timeline]);
 
   const candidateName =
     [app.candidateProfile.firstName, app.candidateProfile.surname]
@@ -1140,32 +1154,126 @@ export function CommissionApplicationDetail({
               title={tCommission("timeline.title")}
               description={tCommission("timeline.description")}
             >
-              {detail.timeline.length === 0 ? (
+              {detail.resolvedRevisionRequests.length === 0 &&
+              detail.timeline.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-foreground/55">
                   {tCommission("timeline.empty")}
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {detail.timeline.map((event) => {
-                    const summary = renderTimelineSummary(event);
+                  {detail.resolvedRevisionRequests.length > 0 ? (
+                    <details className="rounded-2xl border border-border/70 bg-muted/15">
+                      <summary className="cursor-pointer list-none p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {tCommission("workspace.revisionAudit.title")}
+                            </p>
+                            <p className="mt-1 text-sm text-foreground/60">
+                              {tCommission("workspace.revisionAudit.description")}
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                            {tCommission("workspace.revisionAudit.count", {
+                              count: detail.resolvedRevisionRequests.length,
+                            })}
+                          </span>
+                        </div>
+                      </summary>
 
-                    return (
-                      <article
-                        key={`${event.kind}:${event.uuid}`}
-                        className="rounded-2xl border border-border/70 bg-muted/15 p-4"
-                      >
-                        <p className="text-sm font-semibold">{summary.title}</p>
-                        {summary.body ? (
-                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
-                            {summary.body}
-                          </p>
-                        ) : null}
-                        <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/45">
-                          {summary.meta}
-                        </p>
-                      </article>
-                    );
-                  })}
+                      <div className="border-t border-border/70 px-4 py-4">
+                        <CommissionRevisionAuditPanel
+                          locale={locale}
+                          resolvedRevisionRequests={detail.resolvedRevisionRequests}
+                          requirements={app.requirements}
+                          resolveAnchorLabel={resolveAnchorLabel}
+                        />
+                      </div>
+                    </details>
+                  ) : null}
+                  {detail.timeline.length > 0 ? (
+                    <details className="rounded-2xl border border-border/70 bg-muted/15">
+                      <summary className="cursor-pointer list-none p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {tCommission("timeline.title")}
+                            </p>
+                            <p className="mt-1 text-sm text-foreground/60">
+                              {tCommission("timeline.description")}
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                            {tCommission("timeline.count", {
+                              count: detail.timeline.length,
+                            })}
+                          </span>
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-border/70 px-4 py-4">
+                        <div className="space-y-4">
+                          {visibleTimelineEvents.map((event) => {
+                            const summary = renderTimelineSummary(event);
+
+                            return (
+                              <article
+                                key={`${event.kind}:${event.uuid}`}
+                                className="rounded-2xl border border-border/70 bg-background p-4"
+                              >
+                                <p className="text-sm font-semibold">{summary.title}</p>
+                                {summary.body ? (
+                                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground/80">
+                                    {summary.body}
+                                  </p>
+                                ) : null}
+                                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-foreground/45">
+                                  {summary.meta}
+                                </p>
+                              </article>
+                            );
+                          })}
+
+                          {totalTimelinePages > 1 ? (
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+                              <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+                                {tCommission("timeline.paginationLabel", {
+                                  page: currentTimelinePage,
+                                  total: totalTimelinePages,
+                                })}
+                              </span>
+                              <div className="flex flex-wrap gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTimelinePage((previous) =>
+                                      Math.max(1, previous - 1),
+                                    )
+                                  }
+                                  disabled={currentTimelinePage === 1}
+                                  className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  {tCommission("actions.previousPage")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTimelinePage((previous) =>
+                                      Math.min(totalTimelinePages, previous + 1),
+                                    )
+                                  }
+                                  disabled={currentTimelinePage === totalTimelinePages}
+                                  className="rounded-full border border-border px-4 py-2 text-sm text-foreground/70 disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  {tCommission("actions.nextPage")}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
               )}
             </SectionCard>
