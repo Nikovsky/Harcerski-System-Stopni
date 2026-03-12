@@ -1,6 +1,7 @@
 // @file: apps/web/scripts/run-lighthouse.mjs
 import fs from "node:fs/promises";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { playAudit } from "playwright-lighthouse";
@@ -100,6 +101,44 @@ async function loginByKeycloak(page, { baseUrl, locale, username, password }) {
   await page.waitForLoadState("networkidle");
 }
 
+async function resolveLighthouseReport(auditResult, reportDir, reportName) {
+  const inMemoryReport = auditResult?.lhr ?? auditResult?.results?.lhr ?? null;
+  if (inMemoryReport) {
+    return inMemoryReport;
+  }
+
+  const reportPath = path.join(reportDir, `${reportName}.json`);
+  const raw = await fs.readFile(reportPath, "utf8");
+  return JSON.parse(raw);
+}
+
+async function ensureAuthenticatedAuditUrl({
+  auditResult,
+  reportDir,
+  reportName,
+  expectedUrl,
+  expectedHost,
+  label,
+}) {
+  const report = await resolveLighthouseReport(auditResult, reportDir, reportName);
+  const finalUrl = report?.finalUrl ?? report?.finalDisplayedUrl ?? null;
+  const requestedUrl = report?.requestedUrl ?? null;
+
+  if (!finalUrl) {
+    throw new Error(
+      `Lighthouse did not expose finalUrl for ${label}. Requested URL: ${expectedUrl}.`,
+    );
+  }
+
+  const final = new URL(finalUrl);
+
+  if (final.host !== expectedHost) {
+    throw new Error(
+      `Lighthouse audited ${label} outside the app host. Requested: ${requestedUrl ?? expectedUrl}. Final: ${finalUrl}.`,
+    );
+  }
+}
+
 async function getFirstApplicationPath(page, locale) {
   const firstApplicationLink = page
     .locator(`a[href^='/${locale}/commission/'][href*='/applications/']`)
@@ -158,6 +197,7 @@ const ignoreHttpsErrors = parseBoolean(
 const username = requireEnv("HSS_E2E_COMMISSION_USERNAME");
 const password = requireEnv("HSS_E2E_COMMISSION_PASSWORD");
 const reportDir = path.resolve(process.cwd(), "generated", "lighthouse-report");
+const tmpRootDir = path.join(os.tmpdir(), "hss-playwright-lighthouse");
 const thresholds = {
   performance: Number(process.env.HSS_E2E_LIGHTHOUSE_MIN_PERFORMANCE ?? "20"),
   accessibility: Number(
@@ -170,16 +210,22 @@ const thresholds = {
 };
 
 await fs.mkdir(reportDir, { recursive: true });
+await fs.mkdir(tmpRootDir, { recursive: true });
 
 const port = await getFreePort();
-const browser = await chromium.launch({
+const userDataDir = path.join(
+  tmpRootDir,
+  `commission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+);
+const expectedHost = new URL(baseUrl).host;
+const context = await chromium.launchPersistentContext(userDataDir, {
   headless: true,
+  ignoreHTTPSErrors: ignoreHttpsErrors,
   args: [`--remote-debugging-port=${port}`],
 });
 
 try {
-  const context = await browser.newContext({ ignoreHTTPSErrors: ignoreHttpsErrors });
-  const page = await context.newPage();
+  const page = context.pages()[0] ?? (await context.newPage());
 
   await loginByKeycloak(page, {
     baseUrl,
@@ -189,7 +235,8 @@ try {
   });
   await assertCommissionInboxReady(page, locale);
 
-  await playAudit({
+  const inboxReportName = "commission-inbox";
+  const inboxAudit = await playAudit({
     page,
     port,
     thresholds,
@@ -199,8 +246,16 @@ try {
         html: true,
         json: true,
       },
-      name: "commission-inbox",
+      name: inboxReportName,
     },
+  });
+  await ensureAuthenticatedAuditUrl({
+    auditResult: inboxAudit,
+    reportDir,
+    reportName: inboxReportName,
+    expectedUrl: page.url(),
+    expectedHost,
+    label: "commission inbox",
   });
 
   const firstApplicationPath = await getFirstApplicationPath(page, locale);
@@ -209,7 +264,8 @@ try {
   });
   await assertCommissionDetailReady(page);
 
-  await playAudit({
+  const detailReportName = "commission-application-detail";
+  const detailAudit = await playAudit({
     page,
     port,
     thresholds,
@@ -219,11 +275,18 @@ try {
         html: true,
         json: true,
       },
-      name: "commission-application-detail",
+      name: detailReportName,
     },
   });
-
-  await context.close();
+  await ensureAuthenticatedAuditUrl({
+    auditResult: detailAudit,
+    reportDir,
+    reportName: detailReportName,
+    expectedUrl: page.url(),
+    expectedHost,
+    label: "commission application detail",
+  });
 } finally {
-  await browser.close();
+  await context.close();
+  await fs.rm(userDataDir, { recursive: true, force: true }).catch(() => {});
 }

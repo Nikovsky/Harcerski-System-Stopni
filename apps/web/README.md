@@ -57,6 +57,8 @@ Notes:
 - Playwright smoke and A11y tests log in inside the same browser context they
   verify. This is slower than shared storage state, but it is safer for the
   current opaque-session model.
+- Lighthouse for protected routes uses a persistent Chromium profile on purpose.
+  If a report lands on `auth.hss.local`, the run is invalid and should fail.
 
 ## Install
 
