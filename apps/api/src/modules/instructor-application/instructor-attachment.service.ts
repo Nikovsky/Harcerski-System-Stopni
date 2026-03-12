@@ -45,9 +45,10 @@ const REVISION_REQUEST_ACTIVITY_SELECT = {
   candidateLastActivityAt: true,
 } satisfies Prisma.InstructorReviewRevisionRequestSelect;
 
-type RevisionRequestActivityRow = Prisma.InstructorReviewRevisionRequestGetPayload<{
-  select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
-}>;
+type RevisionRequestActivityRow =
+  Prisma.InstructorReviewRevisionRequestGetPayload<{
+    select: typeof REVISION_REQUEST_ACTIVITY_SELECT;
+  }>;
 
 @Injectable()
 export class InstructorAttachmentService {
@@ -103,7 +104,10 @@ export class InstructorAttachmentService {
     dto: PresignUploadRequest,
     requestId?: string | null,
   ) {
-    const app = await this.ensureOwnEditableApplication(principal, applicationId);
+    const app = await this.ensureOwnEditableApplication(
+      principal,
+      applicationId,
+    );
     const isHufcowyPresenceAttachment =
       !dto.requirementUuid && app.hufcowyPresence === 'ATTACHMENT_OPINION';
     this.ensureAttachmentEditAllowed(
@@ -163,7 +167,10 @@ export class InstructorAttachmentService {
     dto: ConfirmUploadRequest,
     requestId?: string | null,
   ) {
-    const app = await this.ensureOwnEditableApplication(principal, applicationId);
+    const app = await this.ensureOwnEditableApplication(
+      principal,
+      applicationId,
+    );
     const isHufcowyPresenceAttachment = dto.isHufcowyPresence === true;
     this.ensureAttachmentEditAllowed(
       app.status,
@@ -669,8 +676,8 @@ export class InstructorAttachmentService {
 
     if (options.isHufcowyPresenceAttachment) {
       if (
-        canEditInstructorHufcowyPresenceAttachment(scope)
-        || canEditInstructorApplicationField(scope, 'hufcowyPresence')
+        canEditInstructorHufcowyPresenceAttachment(scope) ||
+        canEditInstructorApplicationField(scope, 'hufcowyPresence')
       ) {
         return;
       }
@@ -702,12 +709,13 @@ export class InstructorAttachmentService {
       return;
     }
 
-    const requirement = await client.instructorApplicationRequirement.findUnique({
-      where: { uuid: requirementUuid },
-      select: {
-        applicationUuid: true,
-      },
-    });
+    const requirement =
+      await client.instructorApplicationRequirement.findUnique({
+        where: { uuid: requirementUuid },
+        select: {
+          applicationUuid: true,
+        },
+      });
     if (!requirement || requirement.applicationUuid !== applicationId) {
       throw new BadRequestException(
         'Requirement does not belong to this application',

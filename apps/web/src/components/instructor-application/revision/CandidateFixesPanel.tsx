@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/instructor-application/revision/CandidateFixesPanel.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   IA_BUTTON_PRIMARY_MD,
@@ -22,6 +22,16 @@ type Props = {
   targets: CandidateFixTarget[];
   progressByTargetId: Record<string, ChangeSummary>;
   onOpenTarget: (target: CandidateFixTarget) => void;
+};
+
+type QueueUiState = {
+  signature: string;
+  selectedAnnotationUuid: string | null;
+};
+
+type GroupUiState = {
+  signature: string;
+  openStepId: CandidateFixStepId | null;
 };
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -53,49 +63,59 @@ export function CandidateFixesPanel({
   const t = useTranslations("applications");
   const actionableTargets = targets.filter((target) => !target.isGeneral);
   const generalTargets = targets.filter((target) => target.isGeneral);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [expandedTargetIds, setExpandedTargetIds] = useState<string[]>([]);
 
   const groupedTargets = CANDIDATE_FIX_STEPS.map((stepId, stepIndex) => ({
     stepId,
     stepIndex,
-    targets: actionableTargets.filter((target) => target.stepIndex === stepIndex),
+    targets: actionableTargets.filter(
+      (target) => target.stepIndex === stepIndex,
+    ),
   })).filter((group) => group.targets.length > 0);
 
   const shouldGroupByStep = groupedTargets.length > 1;
   const activeGroupStepId =
-    groupedTargets.find((group) => group.stepIndex === activeStep)?.stepId
-    ?? groupedTargets[0]?.stepId
-    ?? null;
-  const [openGroupStepId, setOpenGroupStepId] = useState<CandidateFixStepId | null>(
-    activeGroupStepId,
-  );
+    groupedTargets.find((group) => group.stepIndex === activeStep)?.stepId ??
+    groupedTargets[0]?.stepId ??
+    null;
+  const actionableTargetSignature = actionableTargets
+    .map((target) => target.annotationUuid)
+    .join("|");
+  const groupUiSignature = [
+    shouldGroupByStep ? "grouped" : "flat",
+    activeGroupStepId ?? "",
+    groupedTargets.map((group) => group.stepId).join("|"),
+  ].join(":");
+  const [queueUiState, setQueueUiState] = useState<QueueUiState>(() => ({
+    signature: actionableTargetSignature,
+    selectedAnnotationUuid: actionableTargets[0]?.annotationUuid ?? null,
+  }));
+  const [groupUiState, setGroupUiState] = useState<GroupUiState>(() => ({
+    signature: groupUiSignature,
+    openStepId: shouldGroupByStep ? activeGroupStepId : null,
+  }));
+  const selectedAnnotationUuid =
+    queueUiState.signature === actionableTargetSignature
+      ? queueUiState.selectedAnnotationUuid
+      : (actionableTargets[0]?.annotationUuid ?? null);
+  const currentIndex = selectedAnnotationUuid
+    ? Math.max(
+        0,
+        actionableTargets.findIndex(
+          (target) => target.annotationUuid === selectedAnnotationUuid,
+        ),
+      )
+    : 0;
+  const openGroupStepId =
+    groupUiState.signature === groupUiSignature
+      ? groupUiState.openStepId
+      : shouldGroupByStep
+        ? activeGroupStepId
+        : null;
   const currentQueueTarget = actionableTargets[currentIndex] ?? null;
   const currentQueueStepLabel = currentQueueTarget
     ? t(`steps.${currentQueueTarget.stepId}`)
     : null;
-
-  useEffect(() => {
-    if (actionableTargets.length === 0) {
-      setCurrentIndex(0);
-      return;
-    }
-
-    setCurrentIndex((previousIndex) =>
-      previousIndex >= actionableTargets.length
-        ? actionableTargets.length - 1
-        : previousIndex,
-    );
-  }, [actionableTargets.length]);
-
-  useEffect(() => {
-    if (!shouldGroupByStep) {
-      setOpenGroupStepId(null);
-      return;
-    }
-
-    setOpenGroupStepId(activeGroupStepId);
-  }, [activeGroupStepId, shouldGroupByStep]);
 
   function toggleExpandedTarget(targetId: string): void {
     setExpandedTargetIds((previousIds) =>
@@ -106,8 +126,14 @@ export function CandidateFixesPanel({
   }
 
   function openTarget(target: CandidateFixTarget, index: number): void {
-    setCurrentIndex(index);
-    setOpenGroupStepId(target.stepId);
+    setQueueUiState({
+      signature: actionableTargetSignature,
+      selectedAnnotationUuid: actionableTargets[index]?.annotationUuid ?? null,
+    });
+    setGroupUiState({
+      signature: groupUiSignature,
+      openStepId: target.stepId,
+    });
     setExpandedTargetIds((previousIds) =>
       previousIds.includes(target.annotationUuid)
         ? previousIds
@@ -126,12 +152,15 @@ export function CandidateFixesPanel({
     }
 
     const nextIndex =
-      (currentIndex + direction + actionableTargets.length) % actionableTargets.length;
+      (currentIndex + direction + actionableTargets.length) %
+      actionableTargets.length;
 
     openTarget(actionableTargets[nextIndex], nextIndex);
   }
 
-  function getTargetProgress(target: CandidateFixTarget): ChangeSummary | undefined {
+  function getTargetProgress(
+    target: CandidateFixTarget,
+  ): ChangeSummary | undefined {
     const progressId = target.progressId ?? target.targetId;
 
     if (!progressId) {
@@ -142,7 +171,8 @@ export function CandidateFixesPanel({
   }
 
   function countChangedTargets(stepTargets: CandidateFixTarget[]): number {
-    return stepTargets.filter((target) => getTargetProgress(target)?.isChanged).length;
+    return stepTargets.filter((target) => getTargetProgress(target)?.isChanged)
+      .length;
   }
 
   function renderTargetCard(target: CandidateFixTarget, index: number) {
@@ -243,7 +273,9 @@ export function CandidateFixesPanel({
         ) : null}
       </div>
 
-      {currentQueueTarget && currentQueueTarget.stepIndex !== activeStep && currentQueueStepLabel ? (
+      {currentQueueTarget &&
+      currentQueueTarget.stepIndex !== activeStep &&
+      currentQueueStepLabel ? (
         <p className="mt-3 text-sm text-foreground/70">
           {t("candidateEditScope.currentFixHint", {
             step: currentQueueStepLabel,
@@ -273,7 +305,9 @@ export function CandidateFixesPanel({
 
           <div className="mt-4 space-y-3">
             {generalTargets.map((target) => {
-              const isExpanded = expandedTargetIds.includes(target.annotationUuid);
+              const isExpanded = expandedTargetIds.includes(
+                target.annotationUuid,
+              );
               const isToggleVisible = canToggleDetails(target);
               const progress = getTargetProgress(target);
 
@@ -306,7 +340,9 @@ export function CandidateFixesPanel({
                     {isToggleVisible ? (
                       <button
                         type="button"
-                        onClick={() => toggleExpandedTarget(target.annotationUuid)}
+                        onClick={() =>
+                          toggleExpandedTarget(target.annotationUuid)
+                        }
                         className={IA_BUTTON_SECONDARY_SM}
                       >
                         {isExpanded
@@ -333,9 +369,13 @@ export function CandidateFixesPanel({
                     type="button"
                     aria-expanded={openGroupStepId === group.stepId}
                     onClick={() =>
-                      setOpenGroupStepId((previousStepId) =>
-                        previousStepId === group.stepId ? null : group.stepId,
-                      )
+                      setGroupUiState({
+                        signature: groupUiSignature,
+                        openStepId:
+                          openGroupStepId === group.stepId
+                            ? null
+                            : group.stepId,
+                      })
                     }
                     className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                       openGroupStepId === group.stepId
@@ -363,7 +403,9 @@ export function CandidateFixesPanel({
                         {group.targets.length}
                       </span>
                       <span className="text-foreground/60">
-                        <ChevronIcon expanded={openGroupStepId === group.stepId} />
+                        <ChevronIcon
+                          expanded={openGroupStepId === group.stepId}
+                        />
                       </span>
                     </div>
                   </button>
@@ -373,7 +415,8 @@ export function CandidateFixesPanel({
                       {group.targets.map((target) => {
                         const targetIndex = actionableTargets.findIndex(
                           (candidateTarget) =>
-                            candidateTarget.annotationUuid === target.annotationUuid,
+                            candidateTarget.annotationUuid ===
+                            target.annotationUuid,
                         );
 
                         return renderTargetCard(target, targetIndex);

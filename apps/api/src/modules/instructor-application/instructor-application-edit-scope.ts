@@ -1,9 +1,5 @@
 // @file: apps/api/src/modules/instructor-application/instructor-application-edit-scope.ts
-import {
-  ApplicationStatus,
-  InstructorFixRequestStatus,
-  Prisma,
-} from '@hss/database';
+import { ApplicationStatus, Prisma } from '@hss/database';
 import {
   EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
   type EditableInstructorApplicationField,
@@ -81,7 +77,7 @@ function isEditableInstructorApplicationField(
 function isInstructorReviewSectionKey(
   value: string,
 ): value is InstructorReviewSectionKey {
-  return Object.prototype.hasOwnProperty.call(SECTION_FIELD_SCOPE_MAP, value);
+  return Object.hasOwn(SECTION_FIELD_SCOPE_MAP, value);
 }
 
 export function sanitizeEditableInstructorApplicationFields(
@@ -115,10 +111,7 @@ function toPublicAnnotation(
 
 export function buildInstructorApplicationCandidateEditScope(
   status: ApplicationStatus | null | undefined,
-  publishedRevisionRequest:
-    | PublishedRevisionRequestScopeRow
-    | null
-    | undefined,
+  publishedRevisionRequest: PublishedRevisionRequestScopeRow | null | undefined,
   legacyPublishedFixRequest:
     | PublishedFixRequestScopeRow
     | null
@@ -146,7 +139,8 @@ export function buildInstructorApplicationCandidateEditScope(
 
   if (
     status !== ApplicationStatus.TO_FIX ||
-    (!publishedRevisionRequest || !publishedRevisionRequest.publishedAt)
+    !publishedRevisionRequest ||
+    !publishedRevisionRequest.publishedAt
   ) {
     if (legacyPublishedFixRequest?.publishedAt) {
       return {

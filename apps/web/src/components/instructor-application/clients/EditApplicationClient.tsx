@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/instructor-application/clients/EditApplicationClient.tsx
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetchValidated } from "@/lib/api";
 import { degreeKey, scoutRankKey } from "@/lib/applications-i18n";
@@ -65,15 +65,23 @@ function describeAttachmentSet(attachments: readonly AttachmentLike[]): string {
     return "—";
   }
 
-  return attachments.map((attachment) => attachment.originalFilename).join(", ");
+  return attachments
+    .map((attachment) => attachment.originalFilename)
+    .join(", ");
 }
 
 function buildAttachmentSetChangeSummary(
   initialAttachments: readonly AttachmentLike[],
   currentAttachments: readonly AttachmentLike[],
 ): ChangeSummary {
-  const initialKey = initialAttachments.map((attachment) => attachment.uuid).sort().join("|");
-  const currentKey = currentAttachments.map((attachment) => attachment.uuid).sort().join("|");
+  const initialKey = initialAttachments
+    .map((attachment) => attachment.uuid)
+    .sort()
+    .join("|");
+  const currentKey = currentAttachments
+    .map((attachment) => attachment.uuid)
+    .sort()
+    .join("|");
 
   return {
     isChanged: initialKey !== currentKey,
@@ -161,11 +169,11 @@ function areRequirementDraftsEqual(
   }
 
   return (
-    left.state === right.state
-    && normalizeComparableValue(left.actionDescription)
-      === normalizeComparableValue(right.actionDescription)
-    && normalizeComparableValue(left.verificationText)
-      === normalizeComparableValue(right.verificationText)
+    left.state === right.state &&
+    normalizeComparableValue(left.actionDescription) ===
+      normalizeComparableValue(right.actionDescription) &&
+    normalizeComparableValue(left.verificationText) ===
+      normalizeComparableValue(right.verificationText)
   );
 }
 
@@ -188,19 +196,23 @@ function buildFixProgressByTargetId(
   t: TranslateFn,
 ): Record<string, ChangeSummary> {
   const currentGeneralAttachments = currentApp.attachments.filter(
-    (attachment) => attachment.uuid !== currentApp.hufcowyPresenceAttachmentUuid,
+    (attachment) =>
+      attachment.uuid !== currentApp.hufcowyPresenceAttachmentUuid,
   );
   const initialGeneralAttachments = initialApp.attachments.filter(
-    (attachment) => attachment.uuid !== initialApp.hufcowyPresenceAttachmentUuid,
+    (attachment) =>
+      attachment.uuid !== initialApp.hufcowyPresenceAttachmentUuid,
   );
   const currentHufcowyAttachments = currentApp.hufcowyPresenceAttachmentUuid
     ? currentApp.attachments.filter(
-        (attachment) => attachment.uuid === currentApp.hufcowyPresenceAttachmentUuid,
+        (attachment) =>
+          attachment.uuid === currentApp.hufcowyPresenceAttachmentUuid,
       )
     : [];
   const initialHufcowyAttachments = initialApp.hufcowyPresenceAttachmentUuid
     ? initialApp.attachments.filter(
-        (attachment) => attachment.uuid === initialApp.hufcowyPresenceAttachmentUuid,
+        (attachment) =>
+          attachment.uuid === initialApp.hufcowyPresenceAttachmentUuid,
       )
     : [];
 
@@ -213,7 +225,8 @@ function buildFixProgressByTargetId(
       }
 
       if (target.annotation.anchorType === "FIELD") {
-        const field = target.annotation.anchorKey as EditableInstructorApplicationField;
+        const field = target.annotation
+          .anchorKey as EditableInstructorApplicationField;
         const beforeValue = formatFieldValue(field, initialApp, t);
         const afterValue = formatFieldValue(field, currentApp, t);
         const beforeRawValue = normalizeComparableValue(
@@ -249,10 +262,11 @@ function buildFixProgressByTargetId(
         const baselineRequirement = initialApp.requirements.find(
           (requirement) => requirement.uuid === target.annotation.anchorKey,
         );
-        const baselineRequirementDraft = getRequirementDraftState(baselineRequirement);
+        const baselineRequirementDraft =
+          getRequirementDraftState(baselineRequirement);
         const liveRequirementDraft =
-          requirementDraftsByUuid[target.annotation.anchorKey]
-          ?? getRequirementDraftState(
+          requirementDraftsByUuid[target.annotation.anchorKey] ??
+          getRequirementDraftState(
             currentApp.requirements.find(
               (requirement) => requirement.uuid === target.annotation.anchorKey,
             ),
@@ -292,8 +306,10 @@ function buildFixProgressByTargetId(
         }
 
         if (
-          target.annotation.anchorKey === currentApp.hufcowyPresenceAttachmentUuid
-          || target.annotation.anchorKey === initialApp.hufcowyPresenceAttachmentUuid
+          target.annotation.anchorKey ===
+            currentApp.hufcowyPresenceAttachmentUuid ||
+          target.annotation.anchorKey ===
+            initialApp.hufcowyPresenceAttachmentUuid
         ) {
           progressMap[progressId] = buildAttachmentSetChangeSummary(
             initialHufcowyAttachments,
@@ -342,9 +358,7 @@ function buildFixProgressByTargetId(
             return false;
           }
 
-          return progressByTargetId[
-            candidateProgressId
-          ]?.isChanged === true;
+          return progressByTargetId[candidateProgressId]?.isChanged === true;
         }),
       };
       continue;
@@ -378,13 +392,15 @@ export function EditApplicationClient({ initialApp, id }: Props) {
     requirementFlushRef,
     navigateTo,
   } = useEditApplicationNavigation({ initialApp, id });
-  const initialSnapshotRef = useRef(initialApp);
+  const [initialSnapshot] = useState(() => initialApp);
   const [requirementDraftsByUuid, setRequirementDraftsByUuid] = useState<
     Record<string, RequirementDraftState>
   >({});
 
   const translatedDegreeKey = degreeKey(app.template.degreeCode);
-  const degreeTitle = translatedDegreeKey ? t(translatedDegreeKey) : app.template.degreeCode;
+  const degreeTitle = translatedDegreeKey
+    ? t(translatedDegreeKey)
+    : app.template.degreeCode;
   const isLimitedFixScope =
     app.status === "TO_FIX" && app.candidateEditScope.mode === "LIMITED";
   const canEditTopLevelAttachments = canEditInstructorTopLevelAttachments(
@@ -395,60 +411,69 @@ export function EditApplicationClient({ initialApp, id }: Props) {
         (attachment) => attachment.uuid === app.hufcowyPresenceAttachmentUuid,
       )
     : [];
-  const initialHufcowyAttachments = initialSnapshotRef.current.hufcowyPresenceAttachmentUuid
-    ? initialSnapshotRef.current.attachments.filter(
-        (attachment) =>
-          attachment.uuid === initialSnapshotRef.current.hufcowyPresenceAttachmentUuid,
-      )
-    : [];
+  const initialHufcowyAttachments =
+    initialSnapshot.hufcowyPresenceAttachmentUuid
+      ? initialSnapshot.attachments.filter(
+          (attachment) =>
+            attachment.uuid === initialSnapshot.hufcowyPresenceAttachmentUuid,
+        )
+      : [];
   const generalAttachments = app.attachments.filter(
     (attachment) => attachment.uuid !== app.hufcowyPresenceAttachmentUuid,
   );
-  const initialGeneralAttachments = initialSnapshotRef.current.attachments.filter(
+  const initialGeneralAttachments = initialSnapshot.attachments.filter(
     (attachment) =>
-      attachment.uuid !== initialSnapshotRef.current.hufcowyPresenceAttachmentUuid,
+      attachment.uuid !== initialSnapshot.hufcowyPresenceAttachmentUuid,
   );
-  const trackedGeneralAttachmentUuids = new Set(
-    [
-      ...generalAttachments.map((attachment) => attachment.uuid),
-      ...initialGeneralAttachments.map((attachment) => attachment.uuid),
-    ],
+  const trackedGeneralAttachmentUuids = new Set([
+    ...generalAttachments.map((attachment) => attachment.uuid),
+    ...initialGeneralAttachments.map((attachment) => attachment.uuid),
+  ]);
+  const fixTargets = buildCandidateFixTargets(app, initialSnapshot, t);
+  const actionableFixTargets = fixTargets.filter(
+    isActionableCandidateFixTarget,
   );
-  const fixTargets = buildCandidateFixTargets(app, initialSnapshotRef.current, t);
-  const actionableFixTargets = fixTargets.filter(isActionableCandidateFixTarget);
-  const fixCountsByStep = CANDIDATE_FIX_STEPS.map((_, stepIndex) =>
-    actionableFixTargets.filter((target) => target.stepIndex === stepIndex).length,
+  const fixCountsByStep = CANDIDATE_FIX_STEPS.map(
+    (_, stepIndex) =>
+      actionableFixTargets.filter((target) => target.stepIndex === stepIndex)
+        .length,
   );
   const fixProgressByTargetId = buildFixProgressByTargetId(
     app,
-    initialSnapshotRef.current,
+    initialSnapshot,
     fixTargets,
     requirementDraftsByUuid,
     t,
   );
-  const fixChangedCountsByStep = CANDIDATE_FIX_STEPS.map((_, stepIndex) =>
-    actionableFixTargets.filter((target) => {
-      if (target.isGeneral || target.stepIndex !== stepIndex || !target.targetId) {
-        return false;
-      }
+  const fixChangedCountsByStep = CANDIDATE_FIX_STEPS.map(
+    (_, stepIndex) =>
+      actionableFixTargets.filter((target) => {
+        if (
+          target.isGeneral ||
+          target.stepIndex !== stepIndex ||
+          !target.targetId
+        ) {
+          return false;
+        }
 
-      return fixProgressByTargetId[target.progressId ?? target.targetId]?.isChanged === true;
-    }).length,
+        return (
+          fixProgressByTargetId[target.progressId ?? target.targetId]
+            ?.isChanged === true
+        );
+      }).length,
   );
   const initialRequirementAttachmentOwnerByUuid = new Map(
-    initialSnapshotRef.current.requirements.flatMap((requirement) =>
-      (requirement.attachments ?? []).map((attachment) => [
-        attachment.uuid,
-        requirement.uuid,
-      ] as const),
+    initialSnapshot.requirements.flatMap((requirement) =>
+      (requirement.attachments ?? []).map(
+        (attachment) => [attachment.uuid, requirement.uuid] as const,
+      ),
     ),
   );
   const currentRequirementAttachmentOwnerByUuid = new Map(
     app.requirements.flatMap((requirement) =>
-      (requirement.attachments ?? []).map((attachment) => [
-        attachment.uuid,
-        requirement.uuid,
-      ] as const),
+      (requirement.attachments ?? []).map(
+        (attachment) => [attachment.uuid, requirement.uuid] as const,
+      ),
     ),
   );
   const requirementAttachmentTargetUuids = new Set<string>();
@@ -461,9 +486,9 @@ export function EditApplicationClient({ initialApp, id }: Props) {
 
     const attachmentUuid = target.annotation.anchorKey;
     const requirementUuid =
-      currentRequirementAttachmentOwnerByUuid.get(attachmentUuid)
-      ?? initialRequirementAttachmentOwnerByUuid.get(attachmentUuid)
-      ?? null;
+      currentRequirementAttachmentOwnerByUuid.get(attachmentUuid) ??
+      initialRequirementAttachmentOwnerByUuid.get(attachmentUuid) ??
+      null;
 
     if (requirementUuid) {
       requirementAttachmentTargetUuids.add(requirementUuid);
@@ -472,21 +497,17 @@ export function EditApplicationClient({ initialApp, id }: Props) {
 
     if (
       attachmentUuid === app.hufcowyPresenceAttachmentUuid ||
-      attachmentUuid === initialSnapshotRef.current.hufcowyPresenceAttachmentUuid
+      attachmentUuid === initialSnapshot.hufcowyPresenceAttachmentUuid
     ) {
       hasHufcowyPresenceAttachmentFix = true;
     }
   }
   const summaryAttachmentTargets = fixTargets.filter(
     (target) =>
-      (
-        target.annotation.anchorType === "ATTACHMENT"
-        && trackedGeneralAttachmentUuids.has(target.annotation.anchorKey)
-      )
-      || (
-        target.annotation.anchorType === "SECTION"
-        && target.annotation.anchorKey === "GENERAL_ATTACHMENTS"
-      ),
+      (target.annotation.anchorType === "ATTACHMENT" &&
+        trackedGeneralAttachmentUuids.has(target.annotation.anchorKey)) ||
+      (target.annotation.anchorType === "SECTION" &&
+        target.annotation.anchorKey === "GENERAL_ATTACHMENTS"),
   );
   const fieldChangeByField = fixTargets.reduce<
     Partial<Record<EditableInstructorApplicationField, ChangeSummary>>
@@ -498,27 +519,28 @@ export function EditApplicationClient({ initialApp, id }: Props) {
     const progress = fixProgressByTargetId[target.targetId];
 
     if (progress) {
-      fieldMap[target.annotation.anchorKey as EditableInstructorApplicationField] = progress;
+      fieldMap[
+        target.annotation.anchorKey as EditableInstructorApplicationField
+      ] = progress;
     }
 
     return fieldMap;
   }, {});
-  const requirementChangeByUuid = fixTargets.reduce<Record<string, ChangeSummary>>(
-    (requirementMap, target) => {
-      if (target.annotation.anchorType !== "REQUIREMENT" || !target.targetId) {
-        return requirementMap;
-      }
-
-      const progress = fixProgressByTargetId[target.targetId];
-
-      if (progress) {
-        requirementMap[target.annotation.anchorKey] = progress;
-      }
-
+  const requirementChangeByUuid = fixTargets.reduce<
+    Record<string, ChangeSummary>
+  >((requirementMap, target) => {
+    if (target.annotation.anchorType !== "REQUIREMENT" || !target.targetId) {
       return requirementMap;
-    },
-    {},
-  );
+    }
+
+    const progress = fixProgressByTargetId[target.targetId];
+
+    if (progress) {
+      requirementMap[target.annotation.anchorKey] = progress;
+    }
+
+    return requirementMap;
+  }, {});
   const requirementAttachmentChangeByUuid = app.requirements.reduce<
     Record<string, ChangeSummary>
   >((attachmentMap, requirement) => {
@@ -526,7 +548,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
       return attachmentMap;
     }
 
-    const initialRequirement = initialSnapshotRef.current.requirements.find(
+    const initialRequirement = initialSnapshot.requirements.find(
       (candidateRequirement) => candidateRequirement.uuid === requirement.uuid,
     );
 
@@ -537,7 +559,10 @@ export function EditApplicationClient({ initialApp, id }: Props) {
     return attachmentMap;
   }, {});
   const hufcowyPresenceAttachmentChangeSummary = hasHufcowyPresenceAttachmentFix
-    ? buildAttachmentSetChangeSummary(initialHufcowyAttachments, hufcowyAttachments)
+    ? buildAttachmentSetChangeSummary(
+        initialHufcowyAttachments,
+        hufcowyAttachments,
+      )
     : undefined;
   const pendingFixLabels = Array.from(
     new Set(
@@ -548,9 +573,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
           return !!progressId && !fixProgressByTargetId[progressId]?.isChanged;
         })
         .map((target) =>
-          target.context
-            ? `${target.label}. ${target.context}`
-            : target.label,
+          target.context ? `${target.label}. ${target.context}` : target.label,
         ),
     ),
   );
@@ -607,9 +630,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold">
-        {degreeTitle}
-      </h1>
+      <h1 className="mb-2 text-2xl font-bold">{degreeTitle}</h1>
 
       {/* Step indicator */}
       <div className="mb-6 flex gap-1">
@@ -769,7 +790,10 @@ export function EditApplicationClient({ initialApp, id }: Props) {
             requirements={app.requirements}
             groupDefinitions={app.template.groupDefinitions}
             isRequirementReadOnly={(requirementUuid) =>
-              !canEditInstructorRequirement(app.candidateEditScope, requirementUuid)
+              !canEditInstructorRequirement(
+                app.candidateEditScope,
+                requirementUuid,
+              )
             }
             isRequirementAttachmentsReadOnly={(requirementUuid) =>
               !canEditInstructorRequirementAttachments(
@@ -797,11 +821,10 @@ export function EditApplicationClient({ initialApp, id }: Props) {
       )}
       {step === 4 && (
         <div>
-          {app.status === "TO_FIX" && (
-            canEditTopLevelAttachments
-            || generalAttachments.length > 0
-            || summaryAttachmentTargets.length > 0
-          ) ? (
+          {app.status === "TO_FIX" &&
+          (canEditTopLevelAttachments ||
+            generalAttachments.length > 0 ||
+            summaryAttachmentTargets.length > 0) ? (
             <section
               data-fix-target="section:GENERAL_ATTACHMENTS"
               tabIndex={-1}

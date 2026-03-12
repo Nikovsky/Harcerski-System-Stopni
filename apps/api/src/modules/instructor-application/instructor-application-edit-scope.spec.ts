@@ -44,9 +44,7 @@ describe('buildInstructorApplicationCandidateEditScope', () => {
 
     expect(scope.allowTopLevelAttachments).toBe(false);
     expect(scope.editableRequirementUuids).toEqual([]);
-    expect(scope.editableRequirementAttachmentUuids).toEqual([
-      'requirement-1',
-    ]);
+    expect(scope.editableRequirementAttachmentUuids).toEqual(['requirement-1']);
   });
 
   it('keeps top-level attachments editable when annotation targets a general attachment', () => {

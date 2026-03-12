@@ -1666,7 +1666,11 @@ export class MeetingsService {
     commissionUuid: string,
     tx: Prisma.TransactionClient | PrismaService,
   ): Promise<void> {
-    await this.resolveManagerMembershipForCommission(principal, commissionUuid, tx);
+    await this.resolveManagerMembershipForCommission(
+      principal,
+      commissionUuid,
+      tx,
+    );
   }
 
   private async resolveApprovedApplicationRefs(

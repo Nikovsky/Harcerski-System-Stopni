@@ -208,6 +208,14 @@ function createAuditServiceMock() {
   };
 }
 
+function getLastMockArg<T>(mockFn: {
+  mock: { calls: unknown[][] };
+}): T | undefined {
+  const lastCall = mockFn.mock.calls.at(-1);
+
+  return lastCall ? (lastCall[0] as T) : undefined;
+}
+
 function createService() {
   const { prisma, tx } = createPrismaMock();
   const auditService = createAuditServiceMock();
@@ -272,7 +280,18 @@ describe('MeetingsService', () => {
       'req-123',
     );
 
-    expect(tx.commissionMeeting.create).toHaveBeenCalledWith({
+    const createMeetingCall = getLastMockArg<{
+      data: {
+        commissionUuid: string;
+        createdByUuid: string;
+        date: Date;
+        slotMode: SlotMode;
+        status: MeetingStatus;
+        notes: string | null;
+      };
+      select: unknown;
+    }>(tx.commissionMeeting.create);
+    expect(createMeetingCall).toMatchObject({
       data: {
         commissionUuid: COMMISSION_UUID,
         createdByUuid: USER_UUID,
@@ -281,8 +300,8 @@ describe('MeetingsService', () => {
         status: MeetingStatus.OPEN_FOR_REGISTRATION,
         notes: 'Spotkanie komisji',
       },
-      select: expect.any(Object),
     });
+    expect(createMeetingCall?.select).toBeDefined();
     expect(result).toMatchObject({
       uuid: MEETING_UUID,
       commissionUuid: COMMISSION_UUID,
