@@ -27,6 +27,7 @@ import type {
   CommissionReviewInternalNoteCreateBody,
   CommissionReviewInternalNoteUpdateBody,
   CommissionReviewMembership,
+  CommissionReviewResolvedRevisionRequest,
   CommissionReviewRevisionRequest,
   CommissionReviewRevisionRequestCancelBody,
   CommissionReviewRevisionRequestDraftBody,
@@ -41,6 +42,7 @@ import {
   PUBLISHED_REVISION_REQUEST_SCOPE_SELECT,
 } from '../instructor-application/instructor-application-edit-scope';
 import { CommissionReviewAuditService } from './commission-review-audit.service';
+import { CommissionReviewChangeAuditService } from './commission-review-change-audit.service';
 
 const InstructorReviewAnchorType = {
   APPLICATION: 'APPLICATION',
@@ -321,6 +323,15 @@ const COMMISSION_REVIEW_CANDIDATE_ANNOTATION_SELECT = {
   },
 } satisfies Prisma.InstructorReviewCandidateAnnotationSelect;
 
+const COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT = {
+  uuid: true,
+  revision: true,
+  candidateSnapshot: true,
+  requirementsSnapshot: true,
+  attachmentsMetadata: true,
+  applicationDataSnapshot: true,
+} satisfies Prisma.InstructorApplicationSnapshotSelect;
+
 const COMMISSION_REVIEW_REVISION_REQUEST_SELECT = {
   uuid: true,
   status: true,
@@ -343,6 +354,12 @@ const COMMISSION_REVIEW_REVISION_REQUEST_SELECT = {
   },
   resolvedBy: {
     select: COMMISSION_AUTHOR_SELECT,
+  },
+  baselineSnapshot: {
+    select: COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT,
+  },
+  responseSnapshot: {
+    select: COMMISSION_REVIEW_AUDIT_SNAPSHOT_SELECT,
   },
   annotations: {
     where: {
@@ -441,6 +458,7 @@ export class CommissionReviewService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly auditService: CommissionReviewAuditService,
+    private readonly changeAuditService: CommissionReviewChangeAuditService,
   ) {}
 
   async listMemberships(principal: AuthPrincipal) {
@@ -532,6 +550,18 @@ export class CommissionReviewService {
       activeRevisionRequest: activeRevisionRequest
         ? this.toRevisionRequestDto(activeRevisionRequest)
         : null,
+      resolvedRevisionRequests: revisionRequests
+        .filter(
+          (revisionRequest) =>
+            revisionRequest.status === InstructorReviewRevisionRequestStatus.RESOLVED,
+        )
+        .sort(
+          (left, right) =>
+            (right.resolvedAt?.getTime() ?? 0) - (left.resolvedAt?.getTime() ?? 0),
+        )
+        .map((revisionRequest) =>
+          this.toResolvedRevisionRequestDto(revisionRequest),
+        ),
       availableTransitions: this.getAvailableTransitions(
         application.status,
         membership,
@@ -1092,6 +1122,24 @@ export class CommissionReviewService {
         });
       }
 
+      const baselineSnapshot = await tx.instructorApplicationSnapshot.findFirst({
+        where: {
+          applicationUuid,
+        },
+        orderBy: [{ revision: 'desc' }, { submittedAt: 'desc' }],
+        select: {
+          uuid: true,
+        },
+      });
+
+      if (!baselineSnapshot) {
+        throw new BadRequestException({
+          code: 'REVISION_REQUEST_BASELINE_SNAPSHOT_REQUIRED',
+          message:
+            'A submitted application snapshot is required before publishing candidate feedback.',
+        });
+      }
+
       await tx.instructorReviewCandidateAnnotation.updateMany({
         where: {
           revisionRequestUuid: openRevisionRequest.uuid,
@@ -1118,6 +1166,8 @@ export class CommissionReviewService {
           updatedByUuid: membership.userUuid,
           publishedByUuid: membership.userUuid,
           publishedAt: now,
+          baselineSnapshotUuid: baselineSnapshot.uuid,
+          responseSnapshotUuid: null,
           resolvedByUuid: null,
           resolvedAt: null,
         },
@@ -2112,6 +2162,18 @@ export class CommissionReviewService {
         this.toCandidateAnnotationDto(annotation),
       ),
     };
+  }
+
+  private toResolvedRevisionRequestDto(
+    revisionRequest: CommissionReviewRevisionRequestRow,
+  ): CommissionReviewResolvedRevisionRequest {
+    const revisionRequestDto = this.toRevisionRequestDto(revisionRequest);
+
+    return this.changeAuditService.buildResolvedRevisionRequestAudit({
+      revisionRequest: revisionRequestDto,
+      baselineSnapshot: revisionRequest.baselineSnapshot,
+      responseSnapshot: revisionRequest.responseSnapshot,
+    });
   }
 
   private toAuthorDto(author: {

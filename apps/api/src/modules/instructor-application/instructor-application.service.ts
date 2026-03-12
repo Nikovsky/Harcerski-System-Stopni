@@ -734,6 +734,18 @@ export class InstructorApplicationService {
       // Validate required fields before submit
       this.validationService.validateRequiredFieldsForSubmit(fullApp);
 
+      const publishedRevisionRequest =
+        await tx.instructorReviewRevisionRequest.findFirst({
+          where: {
+            applicationUuid: fullApp.uuid,
+            status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+          },
+          orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            uuid: true,
+          },
+        });
+
       // Count existing snapshots inside transaction
       const latestSnapshot = await tx.instructorApplicationSnapshot.findFirst({
         where: { applicationUuid: applicationId },
@@ -748,7 +760,11 @@ export class InstructorApplicationService {
       const submittedAt = new Date();
 
       // Create snapshot
-      await tx.instructorApplicationSnapshot.create({
+      const submittedSnapshot = await tx.instructorApplicationSnapshot.create({
+        select: {
+          uuid: true,
+          revision: true,
+        },
         data: {
           applicationUuid: fullApp.uuid,
           revision: nextRevision,
@@ -770,6 +786,7 @@ export class InstructorApplicationService {
             description: r.requirementDefinition.description,
             state: r.state,
             actionDescription: r.actionDescription,
+            verificationText: r.verificationText,
           })),
           attachmentsMetadata: fullApp.attachments.map((a) => ({
             uuid: a.uuid,
@@ -777,15 +794,30 @@ export class InstructorApplicationService {
             originalFilename: a.originalFilename,
             contentType: a.contentType,
             sizeBytes: Number(a.sizeBytes),
+            checksum: a.checksum ?? null,
+            checksumAlgorithm: a.checksumAlgorithm ?? null,
+            instructorRequirementUuid: a.instructorRequirementUuid ?? null,
+            isHufcowyPresence: fullApp.hufcowyPresenceAttachmentUuid === a.uuid,
           })),
           applicationDataSnapshot: {
-            plannedFinishAt: fullApp.plannedFinishAt,
+            plannedFinishAt:
+              fullApp.plannedFinishAt?.toISOString().split('T')[0] ?? null,
             teamFunction: fullApp.teamFunction,
             hufiecFunction: fullApp.hufiecFunction,
             openTrialForRank: fullApp.openTrialForRank,
+            openTrialDeadline:
+              fullApp.openTrialDeadline?.toISOString().split('T')[0] ?? null,
+            hufcowyPresence: fullApp.hufcowyPresence,
+            functionsHistory: fullApp.functionsHistory,
+            coursesHistory: fullApp.coursesHistory,
+            campsHistory: fullApp.campsHistory,
+            successes: fullApp.successes,
+            failures: fullApp.failures,
             supervisorFirstName: fullApp.supervisorFirstName,
+            supervisorSecondName: fullApp.supervisorSecondName,
             supervisorSurname: fullApp.supervisorSurname,
             supervisorInstructorRank: fullApp.supervisorInstructorRank,
+            supervisorInstructorFunction: fullApp.supervisorInstructorFunction,
           },
           candidateFirstName: fullApp.candidate.firstName ?? '',
           candidateSurname: fullApp.candidate.surname ?? '',
@@ -796,20 +828,23 @@ export class InstructorApplicationService {
         },
       });
 
-      const resolvedRevisionRequest = await tx.instructorReviewRevisionRequest.updateMany(
-        {
+      let resolvedRevisionRequestCount = 0;
+
+      if (publishedRevisionRequest) {
+        await tx.instructorReviewRevisionRequest.update({
           where: {
-            applicationUuid: fullApp.uuid,
-            status: InstructorReviewRevisionRequestStatus.PUBLISHED,
+            uuid: publishedRevisionRequest.uuid,
           },
           data: {
             status: InstructorReviewRevisionRequestStatus.RESOLVED,
             resolvedAt: submittedAt,
             resolvedByUuid: fullApp.candidate.uuid,
             updatedByUuid: fullApp.candidate.uuid,
+            responseSnapshotUuid: submittedSnapshot.uuid,
           },
-        },
-      );
+        });
+        resolvedRevisionRequestCount = 1;
+      }
 
       await tx.instructorReviewCandidateAnnotation.updateMany({
         where: {
@@ -843,7 +878,7 @@ export class InstructorApplicationService {
 
       return {
         ...updatedApplication,
-        resolvedRevisionRequestCount: resolvedRevisionRequest.count,
+        resolvedRevisionRequestCount,
       };
     });
 

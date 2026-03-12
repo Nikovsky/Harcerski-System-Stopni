@@ -30,6 +30,12 @@ jest.mock('./commission-review-audit.service', () => ({
   },
 }));
 
+jest.mock('./commission-review-change-audit.service', () => ({
+  CommissionReviewChangeAuditService: class CommissionReviewChangeAuditService {
+    buildResolvedRevisionRequestAudit = jest.fn();
+  },
+}));
+
 import { CommissionReviewService } from './commission-review.service';
 
 const PRINCIPAL: AuthPrincipal = {
@@ -43,6 +49,27 @@ const COMMISSION_UUID = '33333333-3333-3333-3333-333333333333';
 const APPLICATION_UUID = '44444444-4444-4444-4444-444444444444';
 const REVISION_REQUEST_UUID = '55555555-5555-5555-5555-555555555555';
 const ANNOTATION_UUID = '66666666-6666-6666-6666-666666666666';
+const SNAPSHOT_UUID = '77777777-7777-7777-7777-777777777777';
+
+function createSnapshotRow(
+  overrides?: Partial<{
+    uuid: string;
+    revision: number;
+    candidateSnapshot: Record<string, unknown>;
+    requirementsSnapshot: unknown[];
+    attachmentsMetadata: unknown[];
+    applicationDataSnapshot: Record<string, unknown>;
+  }>,
+) {
+  return {
+    uuid: overrides?.uuid ?? SNAPSHOT_UUID,
+    revision: overrides?.revision ?? 3,
+    candidateSnapshot: overrides?.candidateSnapshot ?? {},
+    requirementsSnapshot: overrides?.requirementsSnapshot ?? [],
+    attachmentsMetadata: overrides?.attachmentsMetadata ?? [],
+    applicationDataSnapshot: overrides?.applicationDataSnapshot ?? {},
+  };
+}
 
 function createMembershipRow(role: CommissionRole = CommissionRole.CHAIRMAN) {
   return {
@@ -80,6 +107,8 @@ function createRevisionRequestRow(
     uuid: REVISION_REQUEST_UUID,
     status,
     summaryMessage: 'Popraw wskazane miejsca.',
+    baselineSnapshot: null,
+    responseSnapshot: null,
     createdAt: new Date('2026-03-10T11:00:00.000Z'),
     updatedAt: new Date('2026-03-10T11:10:00.000Z'),
     publishedAt:
@@ -127,6 +156,9 @@ function createPrismaMock() {
       create: jest.fn(),
       update: jest.fn(),
     },
+    instructorApplicationSnapshot: {
+      findFirst: jest.fn().mockResolvedValue({ uuid: SNAPSHOT_UUID }),
+    },
     instructorReviewCandidateAnnotation: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -169,6 +201,9 @@ function createPrismaMock() {
     instructorReviewRevisionRequest: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+    },
+    instructorApplicationSnapshot: {
+      findFirst: jest.fn(),
     },
     instructorReviewCandidateAnnotation: {
       findFirst: jest.fn(),
@@ -217,13 +252,19 @@ function createService() {
   const { prisma, tx } = createPrismaMock();
   const storage = createStorageServiceMock();
   const auditService = createAuditServiceMock();
+  const changeAuditService = {
+    buildResolvedRevisionRequestAudit: jest.fn(),
+  };
   const service = new CommissionReviewService(
     prisma as unknown as ConstructorParameters<typeof CommissionReviewService>[0],
     storage as unknown as ConstructorParameters<typeof CommissionReviewService>[1],
     auditService as unknown as ConstructorParameters<typeof CommissionReviewService>[2],
+    changeAuditService as unknown as ConstructorParameters<
+      typeof CommissionReviewService
+    >[3],
   );
 
-  return { service, prisma, tx, storage, auditService };
+  return { service, prisma, tx, storage, auditService, changeAuditService };
 }
 
 describe('CommissionReviewService', () => {
@@ -485,6 +526,49 @@ describe('CommissionReviewService', () => {
 
     expect(tx.instructorReviewCandidateAnnotation.updateMany).not.toHaveBeenCalled();
     expect(tx.instructorApplication.update).not.toHaveBeenCalled();
+  });
+
+  it('blocks publishing when no baseline snapshot exists for the application', async () => {
+    const { service, prisma, tx } = createService();
+    prisma.commissionMember.findFirst.mockResolvedValue(createMembershipRow());
+    tx.instructorApplication.findFirst.mockResolvedValue({
+      uuid: APPLICATION_UUID,
+      status: ApplicationStatus.UNDER_REVIEW,
+      updatedAt: new Date('2026-03-10T10:00:00.000Z'),
+    });
+    tx.instructorReviewRevisionRequest.findFirst.mockResolvedValue({
+      uuid: REVISION_REQUEST_UUID,
+      status: InstructorReviewRevisionRequestStatus.DRAFT,
+      summaryMessage: 'Popraw wskazane miejsca.',
+      annotations: [
+        {
+          uuid: ANNOTATION_UUID,
+          anchorType: 'FIELD',
+          anchorKey: 'teamFunction',
+          status: InstructorReviewCandidateAnnotationStatus.DRAFT,
+        },
+      ],
+    });
+    tx.instructorApplicationSnapshot.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.publishRevisionRequest(
+        PRINCIPAL,
+        COMMISSION_UUID,
+        APPLICATION_UUID,
+        {
+          summaryMessage: null,
+        },
+        'req-publish-without-snapshot',
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'REVISION_REQUEST_BASELINE_SNAPSHOT_REQUIRED',
+      }),
+    });
+
+    expect(tx.instructorReviewCandidateAnnotation.updateMany).not.toHaveBeenCalled();
+    expect(tx.instructorReviewRevisionRequest.update).not.toHaveBeenCalled();
   });
 
   it('allows secretary to publish a draft revision request', async () => {
@@ -935,6 +1019,65 @@ describe('CommissionReviewService', () => {
         requestId: 'req-direct-to-fix',
       }),
     );
+  });
+
+  it('builds resolved revision request audit from snapshots', () => {
+    const { service, changeAuditService } = createService();
+    const revisionRequestRow = {
+      ...createRevisionRequestRow(InstructorReviewRevisionRequestStatus.RESOLVED, [
+        {
+          uuid: ANNOTATION_UUID,
+          anchorType: 'FIELD' as const,
+          anchorKey: 'teamFunction',
+          body: 'Uzupełnij funkcję.',
+          status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
+        },
+      ]),
+      resolvedAt: new Date('2026-03-10T12:00:00.000Z'),
+      resolvedBy: createAuthor(),
+      baselineSnapshot: createSnapshotRow({
+        uuid: SNAPSHOT_UUID,
+        revision: 2,
+      }),
+      responseSnapshot: createSnapshotRow({
+        uuid: '88888888-8888-8888-8888-888888888888',
+        revision: 3,
+      }),
+    };
+    const expectedAudit = {
+      revisionRequest: {
+        uuid: REVISION_REQUEST_UUID,
+      },
+      auditAvailable: true,
+      auditMissingReason: null,
+      baselineSnapshotRevision: 2,
+      responseSnapshotRevision: 3,
+      changedCount: 1,
+      unchangedCount: 0,
+      notComparableCount: 0,
+      annotationAudits: [],
+    };
+    changeAuditService.buildResolvedRevisionRequestAudit.mockReturnValue(
+      expectedAudit,
+    );
+
+    const result = (
+      service as unknown as {
+        toResolvedRevisionRequestDto: (value: typeof revisionRequestRow) => unknown;
+      }
+    ).toResolvedRevisionRequestDto(revisionRequestRow);
+
+    expect(changeAuditService.buildResolvedRevisionRequestAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        revisionRequest: expect.objectContaining({
+          uuid: REVISION_REQUEST_UUID,
+          status: InstructorReviewRevisionRequestStatus.RESOLVED,
+        }),
+        baselineSnapshot: revisionRequestRow.baselineSnapshot,
+        responseSnapshot: revisionRequestRow.responseSnapshot,
+      }),
+    );
+    expect(result).toBe(expectedAudit);
   });
 
   it('allows overriding workflow status without a note', async () => {
