@@ -153,6 +153,40 @@
       "authorLabel": "Author: {author}",
       "createdAtLabel": "Created: {date}",
       "updatedAtLabel": "Last change: {date}"
+    },
+    "revisionAudit": {
+      "title": "Candidate fix execution",
+      "description": "Comparison between the snapshot captured when feedback was published and the snapshot created after the candidate resubmitted the application.",
+      "count": "{count, plural, one {# set} other {# sets}}",
+      "empty": "There are no closed feedback sets with change audit yet.",
+      "listTitle": "Feedback sets",
+      "detailsTitle": "Selected set details",
+      "selectionHint": "Choose a set from the list to review the candidate's exact changes.",
+      "paginationLabel": "Page {page} of {total}",
+      "noSummary": "Closed feedback set without a summary message.",
+      "publishedAtLabel": "Feedback published",
+      "resolvedAtLabel": "Candidate resubmitted",
+      "revisionsLabel": "Revision {baseline} -> {response}",
+      "auditUnavailable": "A complete before/after audit is not available for this feedback set. This applies to older data created before snapshot links were introduced.",
+      "beforeLabel": "Before",
+      "afterLabel": "After",
+      "noValue": "No value",
+      "status": {
+        "CHANGED": "Changed",
+        "UNCHANGED": "Unchanged",
+        "NOT_COMPARABLE": "Not comparable"
+      },
+      "counts": {
+        "changed": "{count, plural, one {# changed} other {# changed}}",
+        "unchanged": "{count, plural, one {# unchanged} other {# unchanged}}",
+        "notComparable": "{count, plural, one {# not comparable} other {# not comparable}}"
+      },
+      "changeKeys": {
+        "state": "Requirement status",
+        "actionDescription": "Implementation summary",
+        "verificationText": "Attachment description",
+        "attachments": "Attachments"
+      }
     }
   },
   "anchors": {
@@ -284,6 +318,7 @@
     "title": "Commission timeline",
     "description": "Audit trail for the commission: status changes, published candidate feedback, and key system events.",
     "count": "{count, plural, one {# event} other {# events}}",
+    "paginationLabel": "Page {page} of {total}",
     "empty": "No events to display.",
     "noPreviousStatus": "no previous status",
     "statusChangeTitle": "Status change: {from} -> {to}",

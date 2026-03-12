@@ -153,6 +153,40 @@
       "authorLabel": "Autor: {author}",
       "createdAtLabel": "Dodano: {date}",
       "updatedAtLabel": "Ostatnia zmiana: {date}"
+    },
+    "revisionAudit": {
+      "title": "Wykonanie poprawek kandydata",
+      "description": "Porównanie między snapshotem z chwili publikacji uwag a snapshotem po ponownym złożeniu wniosku.",
+      "count": "{count, plural, one {# zestaw} few {# zestawy} many {# zestawów} other {# zestawu}}",
+      "empty": "Brak zamkniętych zestawów uwag z audytem zmian.",
+      "listTitle": "Zestawy poprawek",
+      "detailsTitle": "Szczegóły wybranego zestawu",
+      "selectionHint": "Wybierz zestaw z listy, aby przejrzeć dokładne zmiany kandydata.",
+      "paginationLabel": "Strona {page} z {total}",
+      "noSummary": "Zamknięty zestaw uwag bez wiadomości zbiorczej.",
+      "publishedAtLabel": "Uwagi wysłano",
+      "resolvedAtLabel": "Kandydat złożył ponownie",
+      "revisionsLabel": "Rewizja {baseline} -> {response}",
+      "auditUnavailable": "Dla tego zestawu uwag nie ma pełnego audytu before/after. Dotyczy to starszych danych sprzed wdrożenia snapshot-linków.",
+      "beforeLabel": "Było",
+      "afterLabel": "Jest",
+      "noValue": "Brak wartości",
+      "status": {
+        "CHANGED": "Zmieniono",
+        "UNCHANGED": "Bez zmian",
+        "NOT_COMPARABLE": "Brak porównania"
+      },
+      "counts": {
+        "changed": "{count, plural, one {# zmieniono} few {# zmieniono} many {# zmieniono} other {# zmieniono}}",
+        "unchanged": "{count, plural, one {# bez zmian} few {# bez zmian} many {# bez zmian} other {# bez zmian}}",
+        "notComparable": "{count, plural, one {# brak porównania} few {# braki porównania} many {# braków porównania} other {# brak porównania}}"
+      },
+      "changeKeys": {
+        "state": "Status zadania",
+        "actionDescription": "Opis realizacji",
+        "verificationText": "Opis załącznika",
+        "attachments": "Załączniki"
+      }
     }
   },
   "anchors": {
@@ -284,6 +318,7 @@
     "title": "Oś czasu komisji",
     "description": "Audit trail dla komisji: zmiany statusu, publikacje uwag dla kandydata i kluczowe zdarzenia systemowe.",
     "count": "{count, plural, one {# zdarzenie} few {# zdarzenia} many {# zdarzeń} other {# zdarzenia}}",
+    "paginationLabel": "Strona {page} z {total}",
     "empty": "Brak zdarzeń do wyświetlenia.",
     "noPreviousStatus": "brak poprzedniego statusu",
     "statusChangeTitle": "Zmiana statusu: {from} -> {to}",
