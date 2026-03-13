@@ -5,10 +5,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch, ApiError } from "@/lib/api";
 import { canPreviewInline } from "@/lib/attachment-utils";
-import type {
-  AttachmentResponse,
-  CommissionReviewAttachmentDownloadResponse,
-} from "@hss/schemas";
+import type { CommissionReviewAttachmentDownloadResponse } from "@hss/schemas/commission-review";
+import type { AttachmentResponse } from "@hss/schemas/instructor-application";
 
 type Props = {
   commissionUuid: string;

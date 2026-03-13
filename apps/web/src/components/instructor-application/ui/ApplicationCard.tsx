@@ -11,7 +11,7 @@ import {
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
 import { DeleteDraftButton } from "@/components/instructor-application/ui/DeleteDraftButton";
-import type { InstructorApplicationListItem } from "@hss/schemas";
+import type { InstructorApplicationListItem } from "@hss/schemas/instructor-application";
 
 export function ApplicationCard({ app }: { app: InstructorApplicationListItem }) {
   const t = useTranslations("applications");

@@ -17,8 +17,8 @@ import type {
   CommissionReviewInternalNoteDeleteResponse,
   CommissionReviewInternalNote,
   CommissionReviewInternalNoteUpdateResponse,
-  InstructorReviewAnchorType,
-} from "@hss/schemas";
+} from "@hss/schemas/commission-review";
+import type { InstructorReviewAnchorType } from "@hss/schemas/instructor-application";
 
 type AnnotationMode = "internal" | "candidate";
 

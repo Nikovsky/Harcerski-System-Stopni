@@ -27,7 +27,7 @@ import { TabServiceHistory } from "@/components/instructor-application/detail-ta
 import { TabSupervisor } from "@/components/instructor-application/detail-tabs/TabSupervisor";
 import { TabAttachments } from "@/components/instructor-application/detail-tabs/TabAttachments";
 import { useApplicationPdfDownload } from "@/components/instructor-application/hooks/useApplicationPdfDownload";
-import type { InstructorApplicationDetail } from "@hss/schemas";
+import type { InstructorApplicationDetail } from "@hss/schemas/instructor-application";
 
 type Props = { app: InstructorApplicationDetail; id: string };
 

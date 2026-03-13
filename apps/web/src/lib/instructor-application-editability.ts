@@ -2,7 +2,7 @@
 import type {
   EditableInstructorApplicationField,
   InstructorApplicationCandidateEditScope,
-} from "@hss/schemas";
+} from "@hss/schemas/instructor-application";
 
 export const EDITABLE_INSTRUCTOR_APPLICATION_FIELDS = [
   "plannedFinishAt",

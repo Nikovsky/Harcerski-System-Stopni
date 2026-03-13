@@ -33,7 +33,7 @@ import type {
   InstructorApplicationCandidateRevisionActivityResponse,
   InstructorApplicationDetail,
   RequirementRowResponse,
-} from "@hss/schemas";
+} from "@hss/schemas/instructor-application";
 
 type Props = { initialApp: InstructorApplicationDetail; id: string };
 

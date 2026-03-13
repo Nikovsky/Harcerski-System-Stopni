@@ -11,12 +11,12 @@ import {
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
 import type {
-  ApplicationStatus,
   CommissionReviewApplicationDetail,
   CommissionReviewRevisionRequestCancelResponse,
   CommissionReviewRevisionRequestPublishResponse,
   CommissionReviewStatusTransitionResponse,
-} from "@hss/schemas";
+} from "@hss/schemas/commission-review";
+import type { ApplicationStatus } from "@hss/schemas/enums";
 
 type Props = {
   commissionUuid: string;

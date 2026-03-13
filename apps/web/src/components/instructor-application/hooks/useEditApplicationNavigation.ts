@@ -27,7 +27,7 @@ import type {
   InstructorApplicationDetail,
   RequirementRowResponse,
   UpdateInstructorApplication,
-} from "@hss/schemas";
+} from "@hss/schemas/instructor-application";
 
 type Params = {
   initialApp: InstructorApplicationDetail;

@@ -10,8 +10,8 @@ import type {
   MeetingDayDetailItem,
   MeetingDayDetailsResponse,
   MeetingListItem,
-  MeetingStatus,
-} from "@hss/schemas";
+} from "@hss/schemas/meeting";
+import type { MeetingStatus } from "@hss/schemas/enums";
 import { MeetingBookingButton } from "@/components/meetings/MeetingBookingButton";
 import { MeetingCancellationButton } from "@/components/meetings/MeetingCancellationButton";
 import { MeetingsCommissionBadge } from "@/components/meetings/MeetingsCommissionBadge";

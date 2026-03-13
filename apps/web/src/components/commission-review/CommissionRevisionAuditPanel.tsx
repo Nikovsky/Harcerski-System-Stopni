@@ -18,9 +18,11 @@ import type {
   CommissionReviewResolvedChangeValue,
   CommissionReviewResolvedRevisionRequestDetailResponse,
   CommissionReviewResolvedRevisionRequestListResponse,
+} from "@hss/schemas/commission-review";
+import type {
   EditableInstructorApplicationField,
   RequirementRowResponse,
-} from "@hss/schemas";
+} from "@hss/schemas/instructor-application";
 
 type Props = {
   locale: string;
