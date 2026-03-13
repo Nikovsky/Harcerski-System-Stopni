@@ -10,6 +10,7 @@
     "restart:project": "pnpm stack:down && pnpm clean && pnpm start:cold",
     "restart:dev": "pnpm clean && pnpm install && pnpm dev",
     "build": "turbo build",
+    "analyze:bundle": "pnpm -C apps/web analyze:bundle",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",

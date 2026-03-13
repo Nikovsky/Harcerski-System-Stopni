@@ -14,6 +14,7 @@ The goal of this setup is to give us one reusable harness for:
 - Playwright for browser automation
 - `@axe-core/playwright` for accessibility assertions
 - Lighthouse via a Playwright-driven runner for protected routes
+- optional Next bundle analysis for route-level JS inspection
 
 ## Directory layout
 
@@ -77,6 +78,7 @@ From repo root:
 pnpm test:e2e
 pnpm test:a11y
 pnpm test:perf
+pnpm analyze:bundle
 ```
 
 Or directly from `apps/web`:
@@ -85,7 +87,19 @@ Or directly from `apps/web`:
 pnpm test:e2e
 pnpm test:a11y
 pnpm test:perf
+pnpm analyze:bundle
 ```
+
+`pnpm analyze:bundle` does two things:
+
+- runs a production build with `BUNDLE_ANALYZE=true`,
+- writes a commission-focused route report to `apps/web/generated/bundle-analysis/`.
+
+Artifacts:
+
+- `apps/web/generated/bundle-analysis/commission-bundle-report.json`
+- `apps/web/generated/bundle-analysis/commission-bundle-report.md`
+- visual analyzer HTML files under `apps/web/.next/analyze/`
 
 ## Current scope
 
@@ -103,9 +117,11 @@ The first automated suite covers the commission workspace:
 3. Add module-local specs under `apps/web/e2e/<module>/`.
 4. Keep selectors semantic first: roles, labels, stable href patterns.
 5. Add perf routes in `scripts/run-lighthouse.mjs` only when the route is stable enough to audit.
+6. Use `scripts/analyze-commission-bundle.mjs` when Lighthouse points to `unused JS` or route-specific chunk growth.
 
 ## Operational guidance
 
 - Browser tests assume the local HSS stack is already up.
 - Perf results are most meaningful against a production-like build, but the harness also works for local smoke baselines.
 - If a test depends on a persona that is not configured, it should fail clearly or skip intentionally with a useful message.
+- Bundle analysis is diagnostic, not a PR gate. Use it to identify which route-specific chunks and modules are worth refactoring next.
