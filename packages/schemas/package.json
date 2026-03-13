@@ -9,6 +9,42 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./bff": {
+      "types": "./dist/bff/index.d.ts",
+      "default": "./dist/bff/index.js"
+    },
+    "./commission": {
+      "types": "./dist/commission/index.d.ts",
+      "default": "./dist/commission/index.js"
+    },
+    "./commission-review": {
+      "types": "./dist/commission-review/index.d.ts",
+      "default": "./dist/commission-review/index.js"
+    },
+    "./enums": {
+      "types": "./dist/enums.schema.d.ts",
+      "default": "./dist/enums.schema.js"
+    },
+    "./instructor-application": {
+      "types": "./dist/instructor-application/index.d.ts",
+      "default": "./dist/instructor-application/index.js"
+    },
+    "./meeting": {
+      "types": "./dist/meeting/index.d.ts",
+      "default": "./dist/meeting/index.js"
+    },
+    "./requirement": {
+      "types": "./dist/requirement/index.d.ts",
+      "default": "./dist/requirement/index.js"
+    },
+    "./scoutUnit": {
+      "types": "./dist/scoutUnit/index.d.ts",
+      "default": "./dist/scoutUnit/index.js"
+    },
+    "./user": {
+      "types": "./dist/user/index.d.ts",
+      "default": "./dist/user/index.js"
     }
   },
   "scripts": {
