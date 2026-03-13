@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
+import { isInstructorApplicationEditable } from "@/lib/instructor-application-editability";
 import { ApplicationStatusBadge } from "@/components/instructor-application/ui/ApplicationStatusBadge";
 import { RequirementForm } from "@/components/instructor-application/requirements/RequirementForm";
 import {
@@ -26,7 +27,6 @@ import { TabServiceHistory } from "@/components/instructor-application/detail-ta
 import { TabSupervisor } from "@/components/instructor-application/detail-tabs/TabSupervisor";
 import { TabAttachments } from "@/components/instructor-application/detail-tabs/TabAttachments";
 import { useApplicationPdfDownload } from "@/components/instructor-application/hooks/useApplicationPdfDownload";
-import { isInstructorApplicationEditable } from "@hss/schemas";
 import type { InstructorApplicationDetail } from "@hss/schemas";
 
 type Props = { app: InstructorApplicationDetail; id: string };

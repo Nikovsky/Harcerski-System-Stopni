@@ -5,6 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch, ApiError } from "@/lib/api";
 import {
+  EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
+  canEditInstructorApplicationField,
+  canEditInstructorHufcowyPresenceAttachment,
+  canEditInstructorRequirement,
+  isOptionalInstructorRequirement,
+} from "@/lib/instructor-application-editability";
+import {
   RequirementValidationError,
   type RequirementFlushHandler,
 } from "@/components/instructor-application/requirements/requirement-form.types";
@@ -14,17 +21,12 @@ import {
   PRESENCE_VALUES,
   SCOUT_RANK_VALUES,
 } from "@/components/instructor-application/instructor-application.constants";
-import {
-  EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
-  canEditInstructorApplicationField,
-  canEditInstructorHufcowyPresenceAttachment,
-  canEditInstructorRequirement,
-  isOptionalInstructorRequirement,
-  type AttachmentResponse,
-  type EditableInstructorApplicationField,
-  type InstructorApplicationDetail,
-  type RequirementRowResponse,
-  type UpdateInstructorApplication,
+import type {
+  AttachmentResponse,
+  EditableInstructorApplicationField,
+  InstructorApplicationDetail,
+  RequirementRowResponse,
+  UpdateInstructorApplication,
 } from "@hss/schemas";
 
 type Params = {

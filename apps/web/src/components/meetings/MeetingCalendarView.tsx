@@ -5,18 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  meetingDayDetailsResponseSchema,
-  type MeetingBookingBlockedReasonCode,
-  type MeetingDayDetailItem,
-  type MeetingListItem,
-  type MeetingStatus,
+import type {
+  MeetingBookingBlockedReasonCode,
+  MeetingDayDetailItem,
+  MeetingDayDetailsResponse,
+  MeetingListItem,
+  MeetingStatus,
 } from "@hss/schemas";
 import { MeetingBookingButton } from "@/components/meetings/MeetingBookingButton";
 import { MeetingCancellationButton } from "@/components/meetings/MeetingCancellationButton";
 import { MeetingsCommissionBadge } from "@/components/meetings/MeetingsCommissionBadge";
 import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
-import { apiFetchValidated } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 type MeetingsView = "list" | "calendar";
 type MeetingsCommissionFilter = "all" | "scout" | "instructor";
@@ -454,8 +454,7 @@ export function MeetingCalendarView({
     }));
 
     try {
-      const response = await apiFetchValidated(
-        meetingDayDetailsResponseSchema,
+      const response = await apiFetch<MeetingDayDetailsResponse>(
         `meetings/by-date?date=${encodeURIComponent(dateKey)}`,
       );
 

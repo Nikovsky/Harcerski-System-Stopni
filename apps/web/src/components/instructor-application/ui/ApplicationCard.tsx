@@ -4,13 +4,13 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
+import { isInstructorApplicationEditable } from "@/lib/instructor-application-editability";
 import { ApplicationStatusBadge } from "./ApplicationStatusBadge";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
 import { DeleteDraftButton } from "@/components/instructor-application/ui/DeleteDraftButton";
-import { isInstructorApplicationEditable } from "@hss/schemas";
 import type { InstructorApplicationListItem } from "@hss/schemas";
 
 export function ApplicationCard({ app }: { app: InstructorApplicationListItem }) {

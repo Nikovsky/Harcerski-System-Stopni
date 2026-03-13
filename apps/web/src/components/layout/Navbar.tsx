@@ -9,6 +9,10 @@ import type { NavItem, NavbarProps } from "@/components/props/layout";
 import { canAccess, resolveVerifiedPrincipal } from "@/server/rbac";
 import { ROLE_RANK } from "@hss/schemas";
 
+function withLocaleHref(locale: string, href: string): string {
+  return href === "/" ? `/${locale}` : `/${locale}${href}`;
+}
+
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
   const resolvedPrincipal = await resolveVerifiedPrincipal(session);
@@ -37,16 +41,21 @@ export async function Navbar({ locale, session }: NavbarProps) {
         { label: t("profile"), href: "/profile" },
       ]
     : NAV_BASE;
+  const localizedNavItems = navItems.map((item) => ({
+    ...item,
+    href: withLocaleHref(locale, item.href),
+  }));
+  const homeHref = withLocaleHref(locale, "/");
 
   return (
     <header className="sticky top-0 z-80 border-b border-border bg-background text-foreground">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-2">
         <div className="flex items-center gap-6">
-          <Link href="/" className="font-semibold tracking-tight">
+          <Link href={homeHref} className="font-semibold tracking-tight">
             HSS
           </Link>
 
-          <NavbarLinks items={navItems} />
+          <NavbarLinks items={localizedNavItems} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -57,7 +66,7 @@ export async function Navbar({ locale, session }: NavbarProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 pb-3 md:hidden">
-        <NavbarLinks items={navItems} mobile />
+        <NavbarLinks items={localizedNavItems} mobile />
       </div>
     </header>
   );

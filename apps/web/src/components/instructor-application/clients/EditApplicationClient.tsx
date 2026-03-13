@@ -3,8 +3,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetchValidated } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { degreeKey, scoutRankKey } from "@/lib/applications-i18n";
+import {
+  canEditInstructorApplicationField,
+  canEditInstructorHufcowyPresenceAttachment,
+  canEditInstructorRequirement,
+  canEditInstructorRequirementAttachments,
+  canEditInstructorTopLevelAttachments,
+} from "@/lib/instructor-application-editability";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
 import { AttachmentUpload } from "@/components/instructor-application/attachments/AttachmentUpload";
 import { useEditApplicationNavigation } from "@/components/instructor-application/hooks/useEditApplicationNavigation";
@@ -21,16 +28,11 @@ import { StepBasicInfo } from "@/components/instructor-application/steps/StepBas
 import { StepServiceHistory } from "@/components/instructor-application/steps/StepServiceHistory";
 import { StepSupervisor } from "@/components/instructor-application/steps/StepSupervisor";
 import { StepNav } from "@/components/instructor-application/steps/shared";
-import {
-  canEditInstructorApplicationField,
-  canEditInstructorHufcowyPresenceAttachment,
-  canEditInstructorRequirement,
-  canEditInstructorRequirementAttachments,
-  canEditInstructorTopLevelAttachments,
-  instructorApplicationCandidateRevisionActivityResponseSchema,
-  type EditableInstructorApplicationField,
-  type InstructorApplicationDetail,
-  type RequirementRowResponse,
+import type {
+  EditableInstructorApplicationField,
+  InstructorApplicationCandidateRevisionActivityResponse,
+  InstructorApplicationDetail,
+  RequirementRowResponse,
 } from "@hss/schemas";
 
 type Props = { initialApp: InstructorApplicationDetail; id: string };
@@ -612,8 +614,7 @@ export function EditApplicationClient({ initialApp, id }: Props) {
       return;
     }
 
-    void apiFetchValidated(
-      instructorApplicationCandidateRevisionActivityResponseSchema,
+    void apiFetch<InstructorApplicationCandidateRevisionActivityResponse>(
       `instructor-applications/${id}/revision-request/viewed`,
       {
         method: "POST",
