@@ -1,5 +1,4 @@
 // @file: apps/web/src/components/commission-review/CommissionWorkflowAside.tsx
-"use client";
 
 import { CommissionStatusActions } from "@/components/commission-review/CommissionStatusActions";
 import type {

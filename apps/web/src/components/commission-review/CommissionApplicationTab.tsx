@@ -1,5 +1,4 @@
 // @file: apps/web/src/components/commission-review/CommissionApplicationTab.tsx
-"use client";
 
 import { useTranslations } from "next-intl";
 import {
@@ -10,32 +9,30 @@ import {
 } from "@/lib/applications-i18n";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
 import { CommissionAttachmentDownloadLink } from "@/components/commission-review/CommissionAttachmentDownloadLink";
+import { CommissionAnchorTriggerMarkup } from "@/components/commission-review/CommissionAnchorTriggerMarkup";
 import type {
   CommissionReviewApplicationDetail,
   EditableInstructorApplicationField,
-  InstructorReviewAnchorType,
 } from "@hss/schemas";
-
-type InlineActionAnchor = {
-  anchorType: InstructorReviewAnchorType;
-  anchorKey: string;
-  label: string;
-};
 
 type Props = {
   locale: string;
   commissionUuid: string;
   applicationUuid: string;
   application: CommissionReviewApplicationDetail["application"];
-  renderInlineActions: (
-    anchor: InlineActionAnchor,
-    options?: {
-      allowCandidateFeedback?: boolean;
-    },
-  ) => React.ReactNode;
+  canMutateCandidateFeedback: boolean;
+  canMutateInternalNotes: boolean;
+  anchorInteractionMeta: Record<
+    string,
+    {
+      candidateCount: number;
+      internalCount: number;
+      hasCandidateDraft: boolean;
+    }
+  >;
 };
 
-const APPLICATION_FIELDS: readonly EditableInstructorApplicationField[] = [
+export const APPLICATION_FIELDS: readonly EditableInstructorApplicationField[] = [
   "plannedFinishAt",
   "teamFunction",
   "hufiecFunction",
@@ -44,15 +41,10 @@ const APPLICATION_FIELDS: readonly EditableInstructorApplicationField[] = [
   "hufcowyPresence",
 ];
 
-const SERVICE_HISTORY_FIELDS: readonly EditableInstructorApplicationField[] = [
-  "functionsHistory",
-  "coursesHistory",
-  "campsHistory",
-  "successes",
-  "failures",
-];
+export const SERVICE_HISTORY_FIELDS: readonly EditableInstructorApplicationField[] =
+  ["functionsHistory", "coursesHistory", "campsHistory", "successes", "failures"];
 
-const SUPERVISOR_FIELDS: readonly EditableInstructorApplicationField[] = [
+export const SUPERVISOR_FIELDS: readonly EditableInstructorApplicationField[] = [
   "supervisorFirstName",
   "supervisorSecondName",
   "supervisorSurname",
@@ -145,7 +137,9 @@ export function CommissionApplicationTab({
   commissionUuid,
   applicationUuid,
   application,
-  renderInlineActions,
+  canMutateCandidateFeedback,
+  canMutateInternalNotes,
+  anchorInteractionMeta,
 }: Props) {
   const tCommission = useTranslations("commission");
   const tApplications = useTranslations("applications");
@@ -161,6 +155,16 @@ export function CommissionApplicationTab({
   const generalAttachments = application.attachments.filter(
     (attachment) => attachment.uuid !== application.hufcowyPresenceAttachmentUuid,
   );
+
+  function getAnchorMeta(anchorType: string, anchorKey: string) {
+    return (
+      anchorInteractionMeta[`${anchorType}:${anchorKey}`] ?? {
+        candidateCount: 0,
+        internalCount: 0,
+        hasCandidateDraft: false,
+      }
+    );
+  }
 
   function renderAttachmentCard(
     attachment: CommissionReviewApplicationDetail["application"]["attachments"][number],
@@ -193,11 +197,18 @@ export function CommissionApplicationTab({
           />
         </div>
         <div className="mt-4">
-          {renderInlineActions({
-            anchorType: "ATTACHMENT",
-            anchorKey: attachment.uuid,
-            label: `${scopeLabel}: ${attachment.originalFilename}`,
-          })}
+          <CommissionAnchorTriggerMarkup
+            anchorType="ATTACHMENT"
+            anchorKey={attachment.uuid}
+            label={`${scopeLabel}: ${attachment.originalFilename}`}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("ATTACHMENT", attachment.uuid).candidateCount}
+            internalCount={getAnchorMeta("ATTACHMENT", attachment.uuid).internalCount}
+            hasCandidateDraft={
+              getAnchorMeta("ATTACHMENT", attachment.uuid).hasCandidateDraft
+            }
+          />
         </div>
       </article>
     );
@@ -208,14 +219,21 @@ export function CommissionApplicationTab({
       <SectionCard
         title={tCommission("workspace.application.candidateTitle")}
         description={tCommission("workspace.application.candidateDescription")}
-        actions={renderInlineActions(
-          {
-            anchorType: "APPLICATION",
-            anchorKey: applicationUuid,
-            label: tCommission("anchors.application"),
-          },
-          { allowCandidateFeedback: false },
-        )}
+        actions={
+          <CommissionAnchorTriggerMarkup
+            anchorType="APPLICATION"
+            anchorKey={applicationUuid}
+            label={tCommission("anchors.application")}
+            allowCandidateFeedback={false}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("APPLICATION", applicationUuid).candidateCount}
+            internalCount={getAnchorMeta("APPLICATION", applicationUuid).internalCount}
+            hasCandidateDraft={
+              getAnchorMeta("APPLICATION", applicationUuid).hasCandidateDraft
+            }
+          />
+        }
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <ValueCard
@@ -272,9 +290,7 @@ export function CommissionApplicationTab({
               application.candidateProfile.instructorRank
                 ? (() => {
                     const key = degreeKey(application.candidateProfile.instructorRank);
-                    return key
-                      ? tApplications(key)
-                      : application.candidateProfile.instructorRank;
+                    return key ? tApplications(key) : application.candidateProfile.instructorRank;
                   })()
                 : null
             }
@@ -289,14 +305,19 @@ export function CommissionApplicationTab({
       <SectionCard
         title={tApplications("sections.applicationData")}
         description={tCommission("workspace.application.applicationDescription")}
-        actions={renderInlineActions(
-          {
-            anchorType: "SECTION",
-            anchorKey: "BASIC_INFO",
-            label: tCommission("anchors.sections.BASIC_INFO"),
-          },
-          { allowCandidateFeedback: false },
-        )}
+        actions={
+          <CommissionAnchorTriggerMarkup
+            anchorType="SECTION"
+            anchorKey="BASIC_INFO"
+            label={tCommission("anchors.sections.BASIC_INFO")}
+            allowCandidateFeedback={false}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("SECTION", "BASIC_INFO").candidateCount}
+            internalCount={getAnchorMeta("SECTION", "BASIC_INFO").internalCount}
+            hasCandidateDraft={getAnchorMeta("SECTION", "BASIC_INFO").hasCandidateDraft}
+          />
+        }
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {APPLICATION_FIELDS.map((field) => {
@@ -314,9 +335,7 @@ export function CommissionApplicationTab({
                     ? application.openTrialForRank
                       ? (() => {
                           const key = scoutRankKey(application.openTrialForRank);
-                          return key
-                            ? tApplications(key)
-                            : application.openTrialForRank;
+                          return key ? tApplications(key) : application.openTrialForRank;
                         })()
                       : null
                     : field === "hufcowyPresence"
@@ -332,11 +351,18 @@ export function CommissionApplicationTab({
                 key={field}
                 label={label}
                 value={typeof value === "string" ? value : (value ?? null)}
-                actions={renderInlineActions({
-                  anchorType: "FIELD",
-                  anchorKey: field,
-                  label,
-                })}
+                actions={
+                  <CommissionAnchorTriggerMarkup
+                    anchorType="FIELD"
+                    anchorKey={field}
+                    label={label}
+                    canMutateCandidateFeedback={canMutateCandidateFeedback}
+                    canMutateInternalNotes={canMutateInternalNotes}
+                    candidateCount={getAnchorMeta("FIELD", field).candidateCount}
+                    internalCount={getAnchorMeta("FIELD", field).internalCount}
+                    hasCandidateDraft={getAnchorMeta("FIELD", field).hasCandidateDraft}
+                  />
+                }
               />
             );
           })}
@@ -346,14 +372,19 @@ export function CommissionApplicationTab({
       <SectionCard
         title={tApplications("steps.supervisor")}
         description={tCommission("workspace.application.supervisorDescription")}
-        actions={renderInlineActions(
-          {
-            anchorType: "SECTION",
-            anchorKey: "SUPERVISOR",
-            label: tCommission("anchors.sections.SUPERVISOR"),
-          },
-          { allowCandidateFeedback: false },
-        )}
+        actions={
+          <CommissionAnchorTriggerMarkup
+            anchorType="SECTION"
+            anchorKey="SUPERVISOR"
+            label={tCommission("anchors.sections.SUPERVISOR")}
+            allowCandidateFeedback={false}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("SECTION", "SUPERVISOR").candidateCount}
+            internalCount={getAnchorMeta("SECTION", "SUPERVISOR").internalCount}
+            hasCandidateDraft={getAnchorMeta("SECTION", "SUPERVISOR").hasCandidateDraft}
+          />
+        }
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {SUPERVISOR_FIELDS.map((field) => {
@@ -367,9 +398,7 @@ export function CommissionApplicationTab({
                 ? application.supervisorInstructorRank
                   ? (() => {
                       const key = degreeKey(application.supervisorInstructorRank);
-                      return key
-                        ? tApplications(key)
-                        : application.supervisorInstructorRank;
+                      return key ? tApplications(key) : application.supervisorInstructorRank;
                     })()
                   : null
                 : field === "supervisorInstructorFunction"
@@ -390,11 +419,18 @@ export function CommissionApplicationTab({
                 key={field}
                 label={label}
                 value={typeof value === "string" ? value : (value ?? null)}
-                actions={renderInlineActions({
-                  anchorType: "FIELD",
-                  anchorKey: field,
-                  label,
-                })}
+                actions={
+                  <CommissionAnchorTriggerMarkup
+                    anchorType="FIELD"
+                    anchorKey={field}
+                    label={label}
+                    canMutateCandidateFeedback={canMutateCandidateFeedback}
+                    canMutateInternalNotes={canMutateInternalNotes}
+                    candidateCount={getAnchorMeta("FIELD", field).candidateCount}
+                    internalCount={getAnchorMeta("FIELD", field).internalCount}
+                    hasCandidateDraft={getAnchorMeta("FIELD", field).hasCandidateDraft}
+                  />
+                }
               />
             );
           })}
@@ -404,14 +440,21 @@ export function CommissionApplicationTab({
       <SectionCard
         title={tCommission("workspace.application.serviceTitle")}
         description={tCommission("workspace.application.serviceDescription")}
-        actions={renderInlineActions(
-          {
-            anchorType: "SECTION",
-            anchorKey: "SERVICE_HISTORY",
-            label: tCommission("anchors.sections.SERVICE_HISTORY"),
-          },
-          { allowCandidateFeedback: false },
-        )}
+        actions={
+          <CommissionAnchorTriggerMarkup
+            anchorType="SECTION"
+            anchorKey="SERVICE_HISTORY"
+            label={tCommission("anchors.sections.SERVICE_HISTORY")}
+            allowCandidateFeedback={false}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("SECTION", "SERVICE_HISTORY").candidateCount}
+            internalCount={getAnchorMeta("SECTION", "SERVICE_HISTORY").internalCount}
+            hasCandidateDraft={
+              getAnchorMeta("SECTION", "SERVICE_HISTORY").hasCandidateDraft
+            }
+          />
+        }
       >
         <div className="grid gap-4 xl:grid-cols-2">
           {SERVICE_HISTORY_FIELDS.map((field) => {
@@ -427,11 +470,18 @@ export function CommissionApplicationTab({
                 label={label}
                 value={application[field]}
                 multiline
-                actions={renderInlineActions({
-                  anchorType: "FIELD",
-                  anchorKey: field,
-                  label,
-                })}
+                actions={
+                  <CommissionAnchorTriggerMarkup
+                    anchorType="FIELD"
+                    anchorKey={field}
+                    label={label}
+                    canMutateCandidateFeedback={canMutateCandidateFeedback}
+                    canMutateInternalNotes={canMutateInternalNotes}
+                    candidateCount={getAnchorMeta("FIELD", field).candidateCount}
+                    internalCount={getAnchorMeta("FIELD", field).internalCount}
+                    hasCandidateDraft={getAnchorMeta("FIELD", field).hasCandidateDraft}
+                  />
+                }
               />
             );
           })}
@@ -441,14 +491,25 @@ export function CommissionApplicationTab({
       <SectionCard
         title={tCommission("workspace.application.attachmentsTitle")}
         description={tCommission("workspace.application.attachmentsDescription")}
-        actions={renderInlineActions(
-          {
-            anchorType: "SECTION",
-            anchorKey: "GENERAL_ATTACHMENTS",
-            label: tCommission("anchors.sections.GENERAL_ATTACHMENTS"),
-          },
-          { allowCandidateFeedback: false },
-        )}
+        actions={
+          <CommissionAnchorTriggerMarkup
+            anchorType="SECTION"
+            anchorKey="GENERAL_ATTACHMENTS"
+            label={tCommission("anchors.sections.GENERAL_ATTACHMENTS")}
+            allowCandidateFeedback={false}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={
+              getAnchorMeta("SECTION", "GENERAL_ATTACHMENTS").candidateCount
+            }
+            internalCount={
+              getAnchorMeta("SECTION", "GENERAL_ATTACHMENTS").internalCount
+            }
+            hasCandidateDraft={
+              getAnchorMeta("SECTION", "GENERAL_ATTACHMENTS").hasCandidateDraft
+            }
+          />
+        }
       >
         <div className="grid gap-5 xl:grid-cols-2">
           <div className="space-y-4">

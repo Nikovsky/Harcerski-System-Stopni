@@ -4,20 +4,20 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { apiFetchValidated, ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
-import {
-  commissionReviewCandidateAnnotationCreateResponseSchema,
-  commissionReviewCandidateAnnotationUpdateResponseSchema,
-  commissionReviewInternalNoteCreateResponseSchema,
-  commissionReviewInternalNoteDeleteResponseSchema,
-  commissionReviewInternalNoteUpdateResponseSchema,
-  type CommissionReviewCandidateAnnotation,
-  type CommissionReviewInternalNote,
-  type InstructorReviewAnchorType,
+import type {
+  CommissionReviewCandidateAnnotationCreateResponse,
+  CommissionReviewCandidateAnnotation,
+  CommissionReviewCandidateAnnotationUpdateResponse,
+  CommissionReviewInternalNoteCreateResponse,
+  CommissionReviewInternalNoteDeleteResponse,
+  CommissionReviewInternalNote,
+  CommissionReviewInternalNoteUpdateResponse,
+  InstructorReviewAnchorType,
 } from "@hss/schemas";
 
 type AnnotationMode = "internal" | "candidate";
@@ -129,8 +129,7 @@ export function CommissionAnnotationDrawer({
 
     try {
       if (isEditingInternalNote && internalNote) {
-        await apiFetchValidated(
-          commissionReviewInternalNoteUpdateResponseSchema,
+        await apiFetch<CommissionReviewInternalNoteUpdateResponse>(
           `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/internal-notes/${internalNote.uuid}`,
           {
             method: "PATCH",
@@ -140,8 +139,7 @@ export function CommissionAnnotationDrawer({
           },
         );
       } else if (isEditingDraft && draftAnnotation) {
-        await apiFetchValidated(
-          commissionReviewCandidateAnnotationUpdateResponseSchema,
+        await apiFetch<CommissionReviewCandidateAnnotationUpdateResponse>(
           `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/candidate-annotations/${draftAnnotation.uuid}`,
           {
             method: "PATCH",
@@ -151,8 +149,7 @@ export function CommissionAnnotationDrawer({
           },
         );
       } else if (mode === "internal") {
-        await apiFetchValidated(
-          commissionReviewInternalNoteCreateResponseSchema,
+        await apiFetch<CommissionReviewInternalNoteCreateResponse>(
           `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/internal-notes`,
           {
             method: "POST",
@@ -164,8 +161,7 @@ export function CommissionAnnotationDrawer({
           },
         );
       } else {
-        await apiFetchValidated(
-          commissionReviewCandidateAnnotationCreateResponseSchema,
+        await apiFetch<CommissionReviewCandidateAnnotationCreateResponse>(
           `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/candidate-annotations`,
           {
             method: "POST",
@@ -206,8 +202,7 @@ export function CommissionAnnotationDrawer({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewCandidateAnnotationUpdateResponseSchema,
+      await apiFetch<CommissionReviewCandidateAnnotationUpdateResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/candidate-annotations/${draftAnnotation.uuid}`,
         {
           method: "PATCH",
@@ -240,8 +235,7 @@ export function CommissionAnnotationDrawer({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewInternalNoteDeleteResponseSchema,
+      await apiFetch<CommissionReviewInternalNoteDeleteResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/internal-notes/${internalNote.uuid}`,
         {
           method: "DELETE",

@@ -1,31 +1,27 @@
 // @file: apps/web/src/components/commission-review/CommissionRequirementsTab.tsx
-"use client";
 
-import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { CommissionAttachmentDownloadLink } from "@/components/commission-review/CommissionAttachmentDownloadLink";
+import { CommissionAnchorTriggerMarkup } from "@/components/commission-review/CommissionAnchorTriggerMarkup";
 import type {
   CommissionReviewApplicationDetail,
-  InstructorReviewAnchorType,
 } from "@hss/schemas";
-
-type InlineActionAnchor = {
-  anchorType: InstructorReviewAnchorType;
-  anchorKey: string;
-  label: string;
-};
 
 type Props = {
   locale: string;
   commissionUuid: string;
   applicationUuid: string;
   application: CommissionReviewApplicationDetail["application"];
-  renderInlineActions: (
-    anchor: InlineActionAnchor,
-    options?: {
-      allowCandidateFeedback?: boolean;
-    },
-  ) => React.ReactNode;
+  canMutateCandidateFeedback: boolean;
+  canMutateInternalNotes: boolean;
+  anchorInteractionMeta: Record<
+    string,
+    {
+      candidateCount: number;
+      internalCount: number;
+      hasCandidateDraft: boolean;
+    }
+  >;
 };
 
 function formatDateTime(
@@ -95,45 +91,51 @@ export function CommissionRequirementsTab({
   commissionUuid,
   applicationUuid,
   application,
-  renderInlineActions,
+  canMutateCandidateFeedback,
+  canMutateInternalNotes,
+  anchorInteractionMeta,
 }: Props) {
   const tCommission = useTranslations("commission");
   const tApplications = useTranslations("applications");
-  const groupedRequirements = useMemo(() => {
-    const sortedRequirements = [...application.requirements]
-      .filter((requirement) => !requirement.definition.isGroup)
-      .sort(
-        (left, right) => left.definition.sortOrder - right.definition.sortOrder,
-      );
-
-    const groups = [...(application.template.groupDefinitions ?? [])]
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((definition) => ({
-        id: definition.uuid,
-        title: `${definition.code}. ${definition.description}`,
-        requirements: sortedRequirements.filter(
-          (requirement) => requirement.definition.parentId === definition.uuid,
-        ),
-      }))
-      .filter((group) => group.requirements.length > 0);
-
-    const groupedIds = new Set(groups.map((group) => group.id));
-    const ungrouped = sortedRequirements.filter(
-      (requirement) =>
-        !requirement.definition.parentId ||
-        !groupedIds.has(requirement.definition.parentId),
+  const sortedRequirements = [...application.requirements]
+    .filter((requirement) => !requirement.definition.isGroup)
+    .sort(
+      (left, right) => left.definition.sortOrder - right.definition.sortOrder,
     );
+  const groupedRequirements = [...(application.template.groupDefinitions ?? [])]
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((definition) => ({
+      id: definition.uuid,
+      title: `${definition.code}. ${definition.description}`,
+      requirements: sortedRequirements.filter(
+        (requirement) => requirement.definition.parentId === definition.uuid,
+      ),
+    }))
+    .filter((group) => group.requirements.length > 0);
+  const groupedIds = new Set(groupedRequirements.map((group) => group.id));
+  const ungroupedRequirements = sortedRequirements.filter(
+    (requirement) =>
+      !requirement.definition.parentId ||
+      !groupedIds.has(requirement.definition.parentId),
+  );
 
-    if (ungrouped.length > 0) {
-      groups.push({
-        id: "ungrouped",
-        title: tCommission("workspace.requirements.ungroupedTitle"),
-        requirements: ungrouped,
-      });
-    }
+  if (ungroupedRequirements.length > 0) {
+    groupedRequirements.push({
+      id: "ungrouped",
+      title: tCommission("workspace.requirements.ungroupedTitle"),
+      requirements: ungroupedRequirements,
+    });
+  }
 
-    return groups;
-  }, [application.requirements, application.template.groupDefinitions, tCommission]);
+  function getAnchorMeta(anchorType: string, anchorKey: string) {
+    return (
+      anchorInteractionMeta[`${anchorType}:${anchorKey}`] ?? {
+        candidateCount: 0,
+        internalCount: 0,
+        hasCandidateDraft: false,
+      }
+    );
+  }
 
   function renderAttachmentCard(
     attachment: NonNullable<
@@ -168,11 +170,18 @@ export function CommissionRequirementsTab({
           />
         </div>
         <div className="mt-4">
-          {renderInlineActions({
-            anchorType: "ATTACHMENT",
-            anchorKey: attachment.uuid,
-            label: `${scopeLabel}: ${attachment.originalFilename}`,
-          })}
+          <CommissionAnchorTriggerMarkup
+            anchorType="ATTACHMENT"
+            anchorKey={attachment.uuid}
+            label={`${scopeLabel}: ${attachment.originalFilename}`}
+            canMutateCandidateFeedback={canMutateCandidateFeedback}
+            canMutateInternalNotes={canMutateInternalNotes}
+            candidateCount={getAnchorMeta("ATTACHMENT", attachment.uuid).candidateCount}
+            internalCount={getAnchorMeta("ATTACHMENT", attachment.uuid).internalCount}
+            hasCandidateDraft={
+              getAnchorMeta("ATTACHMENT", attachment.uuid).hasCandidateDraft
+            }
+          />
         </div>
       </article>
     );
@@ -218,11 +227,23 @@ export function CommissionRequirementsTab({
                             {tApplications(`requirementState.${requirement.state}`)}
                           </p>
                         </div>
-                        {renderInlineActions({
-                          anchorType: "REQUIREMENT",
-                          anchorKey: requirement.uuid,
-                          label: requirementLabel,
-                        })}
+                        <CommissionAnchorTriggerMarkup
+                          anchorType="REQUIREMENT"
+                          anchorKey={requirement.uuid}
+                          label={requirementLabel}
+                          canMutateCandidateFeedback={canMutateCandidateFeedback}
+                          canMutateInternalNotes={canMutateInternalNotes}
+                          candidateCount={
+                            getAnchorMeta("REQUIREMENT", requirement.uuid).candidateCount
+                          }
+                          internalCount={
+                            getAnchorMeta("REQUIREMENT", requirement.uuid).internalCount
+                          }
+                          hasCandidateDraft={
+                            getAnchorMeta("REQUIREMENT", requirement.uuid)
+                              .hasCandidateDraft
+                          }
+                        />
                       </div>
 
                       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">

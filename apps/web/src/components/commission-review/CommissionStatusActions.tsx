@@ -5,17 +5,17 @@ import { useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { statusKey } from "@/lib/applications-i18n";
-import { apiFetchValidated, ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
-import {
-  commissionReviewRevisionRequestCancelResponseSchema,
-  commissionReviewRevisionRequestPublishResponseSchema,
-  commissionReviewStatusTransitionResponseSchema,
-  type ApplicationStatus,
-  type CommissionReviewApplicationDetail,
+import type {
+  ApplicationStatus,
+  CommissionReviewApplicationDetail,
+  CommissionReviewRevisionRequestCancelResponse,
+  CommissionReviewRevisionRequestPublishResponse,
+  CommissionReviewStatusTransitionResponse,
 } from "@hss/schemas";
 
 type Props = {
@@ -108,8 +108,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewRevisionRequestCancelResponseSchema,
+      await apiFetch<CommissionReviewRevisionRequestCancelResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/revision-request/cancel`,
         {
           method: "POST",
@@ -149,8 +148,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewRevisionRequestPublishResponseSchema,
+      await apiFetch<CommissionReviewRevisionRequestPublishResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/revision-request/publish`,
         {
           method: "POST",
@@ -187,8 +185,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewStatusTransitionResponseSchema,
+      await apiFetch<CommissionReviewStatusTransitionResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/status`,
         {
           method: "PATCH",

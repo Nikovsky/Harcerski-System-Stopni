@@ -3,11 +3,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetchValidated, ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { canPreviewInline } from "@/lib/attachment-utils";
-import {
-  commissionReviewAttachmentDownloadResponseSchema,
-  type AttachmentResponse,
+import type {
+  AttachmentResponse,
+  CommissionReviewAttachmentDownloadResponse,
 } from "@hss/schemas";
 
 type Props = {
@@ -36,8 +36,7 @@ export function CommissionAttachmentDownloadLink({
 
     try {
       const qs = inline ? "?inline=true" : "";
-      const response = await apiFetchValidated(
-        commissionReviewAttachmentDownloadResponseSchema,
+      const response = await apiFetch<CommissionReviewAttachmentDownloadResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/attachments/${attachment.uuid}/download${qs}`,
       );
 
