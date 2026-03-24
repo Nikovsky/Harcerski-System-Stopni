@@ -62,6 +62,13 @@ export class InstructorAttachmentService {
     '[Content_Types].xml',
     'utf8',
   );
+  private static readonly ASF_HEADER_GUID = Buffer.from([
+    0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa,
+    0x00, 0x62, 0xce, 0x6c,
+  ]);
+  private static readonly ZIP_LOCAL_FILE_HEADER = Buffer.from([
+    0x50, 0x4b, 0x03, 0x04,
+  ]);
 
   private static readonly MAGIC_BYTES_ALLOWLIST = new Set([
     'application/pdf',
@@ -96,6 +103,26 @@ export class InstructorAttachmentService {
     name = name.replace(/_{2,}/g, '_').replace(/ {2,}/g, ' ').trim();
 
     return name || 'file';
+  }
+
+  private static startsWithAsfHeader(buffer: Buffer): boolean {
+    if (buffer.length < InstructorAttachmentService.ASF_HEADER_GUID.length) {
+      return false;
+    }
+    return buffer
+      .subarray(0, InstructorAttachmentService.ASF_HEADER_GUID.length)
+      .equals(InstructorAttachmentService.ASF_HEADER_GUID);
+  }
+
+  private static startsWithZipHeader(buffer: Buffer): boolean {
+    if (
+      buffer.length < InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER.length
+    ) {
+      return false;
+    }
+    return buffer
+      .subarray(0, InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER.length)
+      .equals(InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER);
   }
 
   async presignAttachment(
@@ -201,7 +228,16 @@ export class InstructorAttachmentService {
 
     const buffer = await this.storage.getObjectRange(dto.objectKey, 0, 4100);
     if (buffer) {
-      const detected = await fileTypeFromBuffer(buffer);
+      if (InstructorAttachmentService.startsWithAsfHeader(buffer)) {
+        this.logger.warn(
+          `Rejected ASF-like upload before file-type detection: objectKey=${dto.objectKey}, claimed=${dto.contentType}`,
+        );
+        await this.storage.deleteObject(dto.objectKey);
+        throw new BadRequestException('Format ASF/WMV/WMA nie jest dozwolony.');
+      }
+      const detected = InstructorAttachmentService.startsWithZipHeader(buffer)
+        ? { ext: 'zip', mime: 'application/zip' }
+        : await fileTypeFromBuffer(buffer);
       if (
         detected &&
         !InstructorAttachmentService.MAGIC_BYTES_ALLOWLIST.has(detected.mime)
