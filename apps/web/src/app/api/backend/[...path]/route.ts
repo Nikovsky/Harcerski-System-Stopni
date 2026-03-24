@@ -112,6 +112,7 @@ function filterDownstreamHeaders(upstream: Response): Headers {
 }
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const CHUNKED_BLOCKED_METHODS = new Set(["DELETE", "OPTIONS"]);
 
 function getRequestOrigin(req: NextRequest): string | null {
   const origin = req.headers.get("origin");
@@ -140,6 +141,20 @@ function enforceSameOriginCsrf(req: NextRequest, requestId: string): NextRespons
   }
 
   return null;
+}
+
+function enforceNoChunkedDeleteOrOptions(req: NextRequest, requestId: string): NextResponse | null {
+  const method = req.method.toUpperCase();
+  if (!CHUNKED_BLOCKED_METHODS.has(method)) return null;
+  const transferEncoding = req.headers.get("transfer-encoding")?.toLowerCase() ?? "";
+  if (!transferEncoding.includes("chunked")) return null;
+
+  dlog("blocked chunked request for sensitive method", {
+    method,
+    transferEncoding,
+    requestId,
+  });
+  return errorNoStore(400, "INVALID_REQUEST", "Chunked body is not allowed for this method.", requestId);
 }
 
 function parsePositiveInteger(value: string | null): number | null {
@@ -184,6 +199,9 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse
   const requestId = getOrCreateRequestId(req);
   const untrustedHost = requireTrustedHost(req, requestId);
   if (untrustedHost) return untrustedHost;
+
+  const chunkedBlocked = enforceNoChunkedDeleteOrOptions(req, requestId);
+  if (chunkedBlocked) return chunkedBlocked;
 
   const csrfFailure = enforceSameOriginCsrf(req, requestId);
   if (csrfFailure) return csrfFailure;
@@ -314,5 +332,8 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }
 export async function HEAD(req: NextRequest, ctx: RouteContext) {
+  return handle(req, ctx);
+}
+export async function OPTIONS(req: NextRequest, ctx: RouteContext) {
   return handle(req, ctx);
 }

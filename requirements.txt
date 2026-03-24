@@ -6,7 +6,6 @@ markdown-it-py==4.0.0
 mdurl==0.1.2
 orjson==3.11.7
 pathspec==1.0.4
-Pygments==2.19.2
 PyYAML==6.0.3
 regex==2026.2.19
 rich==14.3.3
