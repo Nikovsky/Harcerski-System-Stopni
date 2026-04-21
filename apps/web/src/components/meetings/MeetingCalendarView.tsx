@@ -874,7 +874,7 @@ export function MeetingCalendarView({
       <section className="rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/45">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/70">
               {headingEyebrow}
             </p>
             <h2 className="mt-1 text-2xl font-semibold capitalize text-card-foreground">
@@ -910,7 +910,7 @@ export function MeetingCalendarView({
           <div className="sticky top-3 z-10 rounded-2xl border border-border/80 bg-background/95 p-3 shadow-sm backdrop-blur lg:static lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-0">
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/45">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/70">
                   {t("filters.title")}
                 </p>
                 {filtersAreActive ? (

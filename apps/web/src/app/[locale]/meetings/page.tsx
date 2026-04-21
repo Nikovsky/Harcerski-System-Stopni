@@ -1,5 +1,6 @@
 // @file: apps/web/src/app/[locale]/meetings/page.tsx
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ZodError, z } from "zod";
 import {
@@ -9,12 +10,13 @@ import {
   type MyMeetingRegistrationListItem,
 } from "@hss/schemas";
 
-import {
-  BffServerFetchError,
-  bffServerFetchValidated,
-} from "@/app/[locale]/meetings/_server/bff-fetch";
+import { BffServerFetchError } from "@/app/[locale]/meetings/_server/bff-fetch";
 import { MeetingCalendarView } from "@/components/meetings/MeetingCalendarView";
 import { MyMeetingRegistrationsView } from "@/components/meetings/MyMeetingRegistrationsView";
+import {
+  bffServerFetchValidatedWithContext,
+  resolveBffServerContext,
+} from "@/server/bff-fetch";
 
 const MONTH_PARAM_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 const VIEW_PARAM_VALUES = new Set(["list", "calendar", "mine"]);
@@ -27,6 +29,15 @@ type MeetingsFilters = {
   available: boolean;
   commission: MeetingsCommissionFilter;
 };
+type MeetingsPageData = {
+  meetings: MeetingListItem[];
+  myRegistrations: MyMeetingRegistrationListItem[];
+};
+type MeetingsFetchErrorDebug = {
+  status: number;
+  code?: string;
+  requestId?: string;
+};
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -38,6 +49,25 @@ type Props = {
     commission?: string | string[];
   }>;
 };
+
+function clearInvalidSessionHref(locale: string): string {
+  const returnTo = `/${locale}/meetings`;
+  return `/api/auth/clear-invalid-session?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+function isBffAuthFailure(error: unknown): error is BffServerFetchError {
+  return error instanceof BffServerFetchError && error.status === 401;
+}
+
+function isBffTransientFailure(error: unknown): error is BffServerFetchError {
+  return error instanceof BffServerFetchError && (error.status === 502 || error.status === 503);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 function formatMonthParam(year: number, monthIndex: number): string {
   return `${year.toString().padStart(4, "0")}-${String(monthIndex + 1).padStart(2, "0")}`;
@@ -172,6 +202,61 @@ function buildViewToggleClass(isActive: boolean): string {
   ].join(" ");
 }
 
+async function fetchMeetingsPageData(params: {
+  view: MeetingsView;
+  monthStart: Date;
+  monthEnd: Date;
+}): Promise<MeetingsPageData> {
+  const context = await resolveBffServerContext();
+
+  if (params.view === "mine") {
+    const response = await bffServerFetchValidatedWithContext(
+      myMeetingRegistrationsResponseSchema,
+      context,
+      "meetings/my-registrations",
+    );
+
+    return {
+      meetings: [],
+      myRegistrations: response.registrations,
+    };
+  }
+
+  const meetings = await bffServerFetchValidatedWithContext(
+    z.array(meetingListItemSchema),
+    context,
+    `meetings?fromDate=${formatIsoDate(params.monthStart)}&toDate=${formatIsoDate(params.monthEnd)}&limit=100`,
+  );
+
+  return {
+    meetings,
+    myRegistrations: [],
+  };
+}
+
+async function loadMeetingsPageData(params: {
+  view: MeetingsView;
+  monthStart: Date;
+  monthEnd: Date;
+}): Promise<MeetingsPageData> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await fetchMeetingsPageData(params);
+    } catch (error) {
+      lastError = error;
+      if (!isBffTransientFailure(error) || attempt === 2) {
+        throw error;
+      }
+
+      await wait(350 * (attempt + 1));
+    }
+  }
+
+  throw lastError;
+}
+
 export default async function MeetingsPage({ params, searchParams }: Props) {
   const { locale } = await params;
   const resolvedSearchParams = await searchParams;
@@ -235,27 +320,31 @@ export default async function MeetingsPage({ params, searchParams }: Props) {
   let meetings: MeetingListItem[] = [];
   let myRegistrations: MyMeetingRegistrationListItem[] = [];
   let fetchError: string | null = null;
+  let fetchErrorDebug: MeetingsFetchErrorDebug | null = null;
 
   try {
-    if (view === "mine") {
-      const response = await bffServerFetchValidated(
-        myMeetingRegistrationsResponseSchema,
-        "meetings/my-registrations",
-      );
-      myRegistrations = response.registrations;
-    } else {
-      meetings = await bffServerFetchValidated(
-        z.array(meetingListItemSchema),
-        `meetings?fromDate=${formatIsoDate(monthStart)}&toDate=${formatIsoDate(monthEnd)}&limit=100`,
-      );
-    }
+    ({ meetings, myRegistrations } = await loadMeetingsPageData({
+      view,
+      monthStart,
+      monthEnd,
+    }));
   } catch (error) {
+    if (isBffAuthFailure(error)) {
+      redirect(clearInvalidSessionHref(locale));
+    }
+
     if (error instanceof BffServerFetchError) {
+      fetchErrorDebug = {
+        status: error.status,
+        code: error.code,
+        requestId: error.requestId,
+      };
+
       if (error.status === 401) {
         fetchError = t("errors.authRequired");
       } else if (error.status === 403) {
         fetchError = t("errors.forbidden");
-      } else if (error.status === 503) {
+      } else if (error.status === 502 || error.status === 503) {
         fetchError = t("errors.serviceUnavailable");
       } else {
         fetchError = t("errors.loadFailed");
@@ -303,6 +392,9 @@ export default async function MeetingsPage({ params, searchParams }: Props) {
       {fetchError ? (
         <div
           role="alert"
+          data-fetch-error-status={fetchErrorDebug?.status}
+          data-fetch-error-code={fetchErrorDebug?.code}
+          data-fetch-request-id={fetchErrorDebug?.requestId}
           className="rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800"
         >
           <p>{fetchError}</p>
