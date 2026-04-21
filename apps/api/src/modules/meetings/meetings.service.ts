@@ -468,6 +468,7 @@ export class MeetingsService {
               where: { uuid: meetingUuid },
               select: {
                 uuid: true,
+                date: true,
                 status: true,
                 slotMode: true,
                 commission: {
@@ -486,6 +487,13 @@ export class MeetingsService {
             }
 
             if (meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+              throw new ConflictException({
+                code: 'MEETING_NOT_OPEN',
+                message: 'Meeting is not open for registration.',
+              });
+            }
+
+            if (!this.isBookingAllowedByMeetingDate(meeting.date, new Date())) {
               throw new ConflictException({
                 code: 'MEETING_NOT_OPEN',
                 message: 'Meeting is not open for registration.',
@@ -564,17 +572,20 @@ export class MeetingsService {
                 },
               });
 
-              await this.auditService.log({
-                principal,
-                action: 'SLOT_BOOKED',
-                targetType: 'MEETING_REGISTRATION',
-                targetUuid: registration.uuid,
-                requestId,
-                metadata: {
-                  meetingUuid: registration.meetingUuid,
-                  slotUuid: registration.slotUuid,
+              await this.auditService.log(
+                {
+                  principal,
+                  action: 'SLOT_BOOKED',
+                  targetType: 'MEETING_REGISTRATION',
+                  targetUuid: registration.uuid,
+                  requestId,
+                  metadata: {
+                    meetingUuid: registration.meetingUuid,
+                    slotUuid: registration.slotUuid,
+                  },
                 },
-              });
+                tx,
+              );
 
               return registration;
             }
@@ -598,17 +609,20 @@ export class MeetingsService {
               },
             });
 
-            await this.auditService.log({
-              principal,
-              action: 'SLOT_BOOKED',
-              targetType: 'MEETING_REGISTRATION',
-              targetUuid: registration.uuid,
-              requestId,
-              metadata: {
-                meetingUuid: registration.meetingUuid,
-                slotUuid: registration.slotUuid,
+            await this.auditService.log(
+              {
+                principal,
+                action: 'SLOT_BOOKED',
+                targetType: 'MEETING_REGISTRATION',
+                targetUuid: registration.uuid,
+                requestId,
+                metadata: {
+                  meetingUuid: registration.meetingUuid,
+                  slotUuid: registration.slotUuid,
+                },
               },
-            });
+              tx,
+            );
 
             return registration;
           },
@@ -714,17 +728,20 @@ export class MeetingsService {
             select: CREATED_REGISTRATION_SELECT,
           });
 
-          await this.auditService.log({
-            principal,
-            action: 'SLOT_CANCELED',
-            targetType: 'MEETING_REGISTRATION',
-            targetUuid: updated.uuid,
-            requestId,
-            metadata: {
-              meetingUuid: updated.meetingUuid,
-              slotUuid: updated.slotUuid,
+          await this.auditService.log(
+            {
+              principal,
+              action: 'SLOT_CANCELED',
+              targetType: 'MEETING_REGISTRATION',
+              targetUuid: updated.uuid,
+              requestId,
+              metadata: {
+                meetingUuid: updated.meetingUuid,
+                slotUuid: updated.slotUuid,
+              },
             },
-          });
+            tx,
+          );
 
           return this.toMeetingRegistrationSummary(updated);
         },
@@ -766,18 +783,21 @@ export class MeetingsService {
         },
       });
 
-      await this.auditService.log({
-        principal,
-        action: 'MEETING_CREATED',
-        targetType: 'MEETING',
-        targetUuid: meeting.uuid,
-        requestId,
-        metadata: {
-          commissionUuid: meeting.commissionUuid,
-          slotMode: meeting.slotMode,
-          date: formatDateOnly(meeting.date),
+      await this.auditService.log(
+        {
+          principal,
+          action: 'MEETING_CREATED',
+          targetType: 'MEETING',
+          targetUuid: meeting.uuid,
+          requestId,
+          metadata: {
+            commissionUuid: meeting.commissionUuid,
+            slotMode: meeting.slotMode,
+            date: formatDateOnly(meeting.date),
+          },
         },
-      });
+        tx,
+      );
 
       return meeting;
     });
@@ -895,16 +915,19 @@ export class MeetingsService {
           orderBy: [{ sortOrder: 'asc' }, { startTime: 'asc' }],
         });
 
-        await this.auditService.log({
-          principal,
-          action: 'SLOTS_CREATED',
-          targetType: 'MEETING',
-          targetUuid: meetingUuid,
-          requestId,
-          metadata: {
-            createdSlotsCount: slotsToCreate.length,
+        await this.auditService.log(
+          {
+            principal,
+            action: 'SLOTS_CREATED',
+            targetType: 'MEETING',
+            targetUuid: meetingUuid,
+            requestId,
+            metadata: {
+              createdSlotsCount: slotsToCreate.length,
+            },
           },
-        });
+          tx,
+        );
 
         return {
           meetingUuid,
@@ -1074,17 +1097,20 @@ export class MeetingsService {
           select: CREATED_REGISTRATION_SELECT,
         });
 
-        await this.auditService.log({
-          principal,
-          action: 'SLOT_CANCELED',
-          targetType: 'MEETING_REGISTRATION',
-          targetUuid: updated.uuid,
-          requestId,
-          metadata: {
-            meetingUuid: updated.meetingUuid,
-            slotUuid: updated.slotUuid,
+        await this.auditService.log(
+          {
+            principal,
+            action: 'SLOT_CANCELED',
+            targetType: 'MEETING_REGISTRATION',
+            targetUuid: updated.uuid,
+            requestId,
+            metadata: {
+              meetingUuid: updated.meetingUuid,
+              slotUuid: updated.slotUuid,
+            },
           },
-        });
+          tx,
+        );
 
         return this.toMeetingRegistrationSummary(updated);
       },
@@ -1222,18 +1248,21 @@ export class MeetingsService {
               });
             }
 
-            await this.auditService.log({
-              principal,
-              action: 'SLOT_REASSIGNED',
-              targetType: 'MEETING_REGISTRATION',
-              targetUuid: updated.uuid,
-              requestId,
-              metadata: {
-                meetingUuid: updated.meetingUuid,
-                previousSlotUuid: registration.slotUuid,
-                newSlotUuid: updated.slotUuid,
+            await this.auditService.log(
+              {
+                principal,
+                action: 'SLOT_REASSIGNED',
+                targetType: 'MEETING_REGISTRATION',
+                targetUuid: updated.uuid,
+                requestId,
+                metadata: {
+                  meetingUuid: updated.meetingUuid,
+                  previousSlotUuid: registration.slotUuid,
+                  newSlotUuid: updated.slotUuid,
+                },
               },
-            });
+              tx,
+            );
 
             return this.toMeetingRegistrationSummary(updated);
           },
@@ -1479,6 +1508,10 @@ export class MeetingsService {
     hasApprovedApplication: boolean,
     hasMatchingApprovedApplication: boolean,
   ): MeetingListItem {
+    const isBookableByDate = this.isBookingAllowedByMeetingDate(
+      meeting.date,
+      new Date(),
+    );
     const canCancelMyRegistration =
       Boolean(myRegistration) &&
       meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
@@ -1491,6 +1524,7 @@ export class MeetingsService {
     const canBook =
       hasMatchingApprovedApplication &&
       meeting.status === MeetingStatus.OPEN_FOR_REGISTRATION &&
+      isBookableByDate &&
       !myRegistration &&
       hasAnyFreeSlot;
 
@@ -1499,7 +1533,10 @@ export class MeetingsService {
       bookingBlockedReasonCode = 'NOT_APPROVED_APPLICATION';
     } else if (!hasMatchingApprovedApplication) {
       bookingBlockedReasonCode = 'NO_MATCHING_APPROVED_APPLICATION';
-    } else if (meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION) {
+    } else if (
+      meeting.status !== MeetingStatus.OPEN_FOR_REGISTRATION ||
+      !isBookableByDate
+    ) {
       bookingBlockedReasonCode = 'MEETING_NOT_OPEN';
     } else if (myRegistration) {
       bookingBlockedReasonCode = 'ALREADY_REGISTERED';
@@ -1533,6 +1570,10 @@ export class MeetingsService {
       -SELF_CANCELLATION_BLOCK_START_DAYS_BEFORE_MEETING,
     );
     return now < cancellationBlockedFrom;
+  }
+
+  private isBookingAllowedByMeetingDate(meetingDate: Date, now: Date): boolean {
+    return now < meetingDate;
   }
 
   private async listActiveRegistrationsForCandidate(
