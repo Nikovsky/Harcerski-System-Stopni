@@ -6,7 +6,7 @@ import { AuthNav } from "@/components/ui/AuthNav";
 import { LocaleSwitcher } from "@/components/ui/LocaleSwitcher";
 import { NavbarLinks } from "@/components/layout/NavbarLinks";
 import type { NavItem, NavbarProps } from "@/components/props/layout";
-import { canAccess, resolveVerifiedPrincipal } from "@/server/rbac";
+import { buildSessionPrincipal, canAccess } from "@/server/rbac";
 import { ROLE_RANK } from "@hss/schemas";
 
 function withLocaleHref(locale: string, href: string): string {
@@ -15,12 +15,8 @@ function withLocaleHref(locale: string, href: string): string {
 
 export async function Navbar({ locale, session }: NavbarProps) {
   const t = await getTranslations("common.nav");
-  const resolvedPrincipal = await resolveVerifiedPrincipal(session);
-  const principal =
-    resolvedPrincipal.status === "authenticated"
-      ? resolvedPrincipal.principal
-      : null;
-  const isAuthenticated = resolvedPrincipal.status === "authenticated";
+  const principal = buildSessionPrincipal(session);
+  const isAuthenticated = Boolean(session?.user && principal);
   const canSeeApplications = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeMeetings = canAccess(principal, ROLE_RANK.SCOUT);
   const canSeeDashboard = canAccess(principal, ROLE_RANK.SCOUT);
