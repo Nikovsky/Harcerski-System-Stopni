@@ -1,7 +1,8 @@
 // @file: apps/web/src/lib/instructor-application-editability.ts
-import type {
-  EditableInstructorApplicationField,
-  InstructorApplicationCandidateEditScope,
+import {
+  isOptionalInstructorRequirement,
+  type EditableInstructorApplicationField,
+  type InstructorApplicationCandidateEditScope,
 } from "@hss/schemas/instructor-application";
 
 export const EDITABLE_INSTRUCTOR_APPLICATION_FIELDS = [
@@ -30,11 +31,6 @@ export const EDITABLE_INSTRUCTOR_APPLICATION_STATUSES = [
 
 export type EditableInstructorApplicationStatus =
   (typeof EDITABLE_INSTRUCTOR_APPLICATION_STATUSES)[number];
-
-const OPTIONAL_REQUIREMENTS_BY_DEGREE: Readonly<Record<string, ReadonlySet<string>>> = {
-  PWD: new Set(["10"]),
-  PHM: new Set(["11"]),
-};
 
 export function isInstructorApplicationEditable(
   status: string | null | undefined,
@@ -135,20 +131,4 @@ export function canEditInstructorHufcowyPresenceAttachment(
   return scope.allowHufcowyPresenceAttachment;
 }
 
-export function isOptionalInstructorRequirement(
-  degreeCode: string | null | undefined,
-  requirementCode: string | null | undefined,
-): boolean {
-  const normalizedDegreeCode = degreeCode?.trim().toUpperCase();
-  const normalizedRequirementCode = requirementCode?.trim().toUpperCase();
-
-  if (!normalizedDegreeCode || !normalizedRequirementCode) {
-    return false;
-  }
-
-  return (
-    OPTIONAL_REQUIREMENTS_BY_DEGREE[normalizedDegreeCode]?.has(
-      normalizedRequirementCode,
-    ) ?? false
-  );
-}
+export { isOptionalInstructorRequirement };

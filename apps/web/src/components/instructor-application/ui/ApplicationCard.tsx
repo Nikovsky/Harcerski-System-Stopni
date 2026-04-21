@@ -35,8 +35,8 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
             </h3>
             <ApplicationStatusBadge status={app.status} label={statusLabel} />
           </div>
-          <p className="mt-2 text-xs text-foreground/50">
-            {t("createdAt")}: {new Date(app.createdAt).toLocaleDateString("pl-PL")}
+          <p className="mt-2 text-xs text-foreground/70">
+            {t("createdAt")}: {new Date(app.createdAt).toLocaleDateString(locale)}
           </p>
         </div>
         <div className="flex gap-2">

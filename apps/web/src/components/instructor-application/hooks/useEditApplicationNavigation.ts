@@ -2,10 +2,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { apiFetch, ApiError } from "@/lib/api";
 import {
-  EDITABLE_INSTRUCTOR_APPLICATION_FIELDS,
   canEditInstructorApplicationField,
   canEditInstructorHufcowyPresenceAttachment,
   canEditInstructorRequirement,
@@ -15,6 +15,8 @@ import {
   RequirementValidationError,
   type RequirementFlushHandler,
 } from "@/components/instructor-application/requirements/requirement-form.types";
+import { CANDIDATE_FIX_STEPS } from "@/components/instructor-application/revision/candidate-fix-targets";
+import { useInstructorApplicationDraftState } from "@/components/instructor-application/hooks/useInstructorApplicationDraftState";
 import {
   BASIC_DEGREES,
   INSTRUCTOR_RANK_VALUES,
@@ -22,8 +24,6 @@ import {
   SCOUT_RANK_VALUES,
 } from "@/components/instructor-application/instructor-application.constants";
 import type {
-  AttachmentResponse,
-  EditableInstructorApplicationField,
   InstructorApplicationDetail,
   RequirementRowResponse,
   UpdateInstructorApplication,
@@ -38,12 +38,6 @@ type NavigateToOptions = {
   focusTargetId?: string | null;
   skipCompletionValidation?: boolean;
 };
-
-function isEditableInstructorApplicationFieldKey(
-  value: string,
-): value is EditableInstructorApplicationField {
-  return (EDITABLE_INSTRUCTOR_APPLICATION_FIELDS as readonly string[]).includes(value);
-}
 
 function includes<const T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -335,47 +329,34 @@ function extractStepDataFromDraft(
   currentStep: number,
   draft: InstructorApplicationDetail,
 ): Partial<UpdateInstructorApplication> | null {
-  const filterPatchByEditableFields = (
-    patch: Partial<UpdateInstructorApplication>,
-  ): Partial<UpdateInstructorApplication> =>
-    Object.fromEntries(
-      Object.entries(patch).filter(([key]) => {
-        if (!isEditableInstructorApplicationFieldKey(key)) {
-          return false;
-        }
-
-        return canEditInstructorApplicationField(draft.candidateEditScope, key);
-      }),
-    ) as Partial<UpdateInstructorApplication>;
-
   if (currentStep > 2) return null;
 
   if (currentStep === 0) {
     const openTrialForRank = getOptionalString(draft.openTrialForRank ?? undefined);
     const hufcowyPresence = getOptionalString(draft.hufcowyPresence ?? undefined);
 
-    return filterPatchByEditableFields({
+    return {
       teamFunction: getNullableOptionalString(draft.teamFunction ?? undefined),
       hufiecFunction: getNullableOptionalString(draft.hufiecFunction ?? undefined),
       plannedFinishAt: getNullableOptionalString(draft.plannedFinishAt ?? undefined),
       openTrialForRank: getNullableEnumValue(SCOUT_RANK_VALUES, openTrialForRank),
       openTrialDeadline: getNullableOptionalString(draft.openTrialDeadline ?? undefined),
       hufcowyPresence: getNullableEnumValue(PRESENCE_VALUES, hufcowyPresence),
-    });
+    };
   }
   if (currentStep === 1) {
-    return filterPatchByEditableFields({
+    return {
       functionsHistory: getNullableOptionalString(draft.functionsHistory ?? undefined),
       coursesHistory: getNullableOptionalString(draft.coursesHistory ?? undefined),
       campsHistory: getNullableOptionalString(draft.campsHistory ?? undefined),
       successes: getNullableOptionalString(draft.successes ?? undefined),
       failures: getNullableOptionalString(draft.failures ?? undefined),
-    });
+    };
   }
   if (currentStep === 2) {
     const supervisorInstructorRank = getOptionalString(draft.supervisorInstructorRank ?? undefined);
 
-    return filterPatchByEditableFields({
+    return {
       supervisorFirstName: getNullableOptionalString(draft.supervisorFirstName ?? undefined),
       supervisorSurname: getNullableOptionalString(draft.supervisorSurname ?? undefined),
       supervisorInstructorRank: getNullableEnumValue(
@@ -385,25 +366,66 @@ function extractStepDataFromDraft(
       supervisorInstructorFunction: getNullableOptionalString(
         draft.supervisorInstructorFunction ?? undefined,
       ),
-    });
+    };
   }
   return null;
 }
 
+function getStepIndexFromSearchParam(stepId: string | null): number {
+  if (!stepId) {
+    return 0;
+  }
+
+  const index = CANDIDATE_FIX_STEPS.indexOf(
+    stepId as (typeof CANDIDATE_FIX_STEPS)[number],
+  );
+
+  return index >= 0 ? index : 0;
+}
+
+function buildStepHref(
+  pathname: string,
+  searchParamsString: string,
+  stepIndex: number,
+): string {
+  const params = new URLSearchParams(searchParamsString);
+  const stepId = CANDIDATE_FIX_STEPS[stepIndex] ?? CANDIDATE_FIX_STEPS[0];
+
+  if (stepId === CANDIDATE_FIX_STEPS[0]) {
+    params.delete("step");
+  } else {
+    params.set("step", stepId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${pathname}?${query}` : pathname;
+}
+
 export function useEditApplicationNavigation({ initialApp, id }: Params) {
   const t = useTranslations("applications");
-  const [step, setStep] = useState(0);
-  const [app, setApp] = useState(initialApp);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlStep = getStepIndexFromSearchParam(searchParams.get("step"));
+  const [step, setStep] = useState(urlStep);
   const [isSaving, setIsSaving] = useState(false);
   const [navigationMissingFields, setNavigationMissingFields] = useState<string[]>(
     [],
   );
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  const {
+    app,
+    appRef,
+    replaceDraftFromServer,
+    updateDraft: updateDraftState,
+    persistDraftPatch: persistDraftStatePatch,
+    replaceHufcowyPresenceAttachments: replaceHufcowyPresenceAttachmentsState,
+    replaceTopLevelAttachments: replaceTopLevelAttachmentsState,
+    replaceRequirementAttachments: replaceRequirementAttachmentsState,
+  } = useInstructorApplicationDraftState({ initialApp, id });
 
   const requirementFlushRef = useRef<RequirementFlushHandler | null>(null);
   const stepRef = useRef(step);
-  const appRef = useRef(app);
-  const persistedAppRef = useRef(initialApp);
   const isSavingRef = useRef(isSaving);
   const pendingFocusTargetRef = useRef<string | null>(null);
   const pendingFocusAttemptRef = useRef(0);
@@ -414,12 +436,22 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
   }, [step]);
 
   useEffect(() => {
-    appRef.current = app;
-  }, [app]);
-
-  useEffect(() => {
     isSavingRef.current = isSaving;
   }, [isSaving]);
+
+  useEffect(() => {
+    if (urlStep === stepRef.current) {
+      return;
+    }
+
+    stepRef.current = urlStep;
+    setStep(urlStep);
+  }, [urlStep]);
+
+  const clearNavigationFeedback = useCallback(() => {
+    setNavigationMissingFields([]);
+    setNavigationError(null);
+  }, []);
 
   const clearPendingFocusTarget = useCallback(() => {
     if (focusRetryTimeoutRef.current) {
@@ -430,6 +462,21 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     pendingFocusTargetRef.current = null;
     pendingFocusAttemptRef.current = 0;
   }, []);
+
+  const syncStepWithUrl = useCallback(
+    (nextStep: number) => {
+      const nextHref = buildStepHref(pathname, searchParams.toString(), nextStep);
+      const currentQuery = searchParams.toString();
+      const currentHref = currentQuery.length > 0 ? `${pathname}?${currentQuery}` : pathname;
+
+      if (nextHref === currentHref) {
+        return;
+      }
+
+      router.replace(nextHref, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const scheduleFixTargetFocus = useCallback(
     (targetId: string | null | undefined) => {
@@ -476,162 +523,44 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
     };
   }, [clearPendingFocusTarget]);
 
-  const updateDraft = useCallback((patch: Partial<UpdateInstructorApplication>) => {
-    setApp((prev) => {
-      const editablePatch = Object.fromEntries(
-        Object.entries(patch).filter(([key]) => {
-          if (!isEditableInstructorApplicationFieldKey(key)) {
-            return false;
-          }
-
-          return canEditInstructorApplicationField(prev.candidateEditScope, key);
-        }),
-      ) as Partial<UpdateInstructorApplication>;
-
-      if (Object.keys(editablePatch).length === 0) {
-        return prev;
-      }
-
-      const next = { ...prev, ...editablePatch };
-      appRef.current = next;
-      return next;
-    });
-    setNavigationMissingFields([]);
-    setNavigationError(null);
-  }, []);
-
-  const replaceHufcowyPresenceAttachments = useCallback(
-    (attachments: AttachmentResponse[]) => {
-      setApp((prev) => {
-        const nextHufcowyAttachment =
-          attachments.length > 0 ? attachments[attachments.length - 1] : null;
-        const previousHufcowyAttachmentUuid = prev.hufcowyPresenceAttachmentUuid;
-        const preservedAttachments = prev.attachments.filter(
-          (attachment) => attachment.uuid !== previousHufcowyAttachmentUuid,
-        );
-        const nextAttachments = nextHufcowyAttachment
-          ? [
-              ...preservedAttachments.filter(
-                (attachment) => attachment.uuid !== nextHufcowyAttachment.uuid,
-              ),
-              nextHufcowyAttachment,
-            ]
-          : preservedAttachments;
-        const next = {
-          ...prev,
-          attachments: nextAttachments,
-          hufcowyPresenceAttachmentUuid: nextHufcowyAttachment?.uuid ?? null,
-        };
-
-        appRef.current = next;
-        persistedAppRef.current = next;
-        return next;
-      });
-      setNavigationMissingFields([]);
-      setNavigationError(null);
+  const updateDraft = useCallback(
+    (patch: Partial<UpdateInstructorApplication>) => {
+      updateDraftState(patch);
+      clearNavigationFeedback();
     },
-    [],
-  );
-
-  const replaceTopLevelAttachments = useCallback(
-    (attachments: AttachmentResponse[]) => {
-      setApp((prev) => {
-        const currentHufcowyAttachment = prev.hufcowyPresenceAttachmentUuid
-          ? prev.attachments.find(
-              (attachment) => attachment.uuid === prev.hufcowyPresenceAttachmentUuid,
-            ) ?? null
-          : null;
-        const next = {
-          ...prev,
-          attachments: currentHufcowyAttachment
-            ? [...attachments, currentHufcowyAttachment]
-            : attachments,
-        };
-
-        appRef.current = next;
-        persistedAppRef.current = next;
-        return next;
-      });
-      setNavigationMissingFields([]);
-      setNavigationError(null);
-    },
-    [],
-  );
-
-  const replaceRequirementAttachments = useCallback(
-    (requirementUuid: string, attachments: AttachmentResponse[]) => {
-      setApp((prev) => {
-        const next = {
-          ...prev,
-          requirements: prev.requirements.map((requirement) =>
-            requirement.uuid === requirementUuid
-              ? {
-                  ...requirement,
-                  attachments,
-                }
-              : requirement,
-          ),
-        };
-
-        appRef.current = next;
-        persistedAppRef.current = next;
-        return next;
-      });
-      setNavigationMissingFields([]);
-      setNavigationError(null);
-    },
-    [],
-  );
-
-  const getChangedPatchData = useCallback(
-    (
-      data: Partial<UpdateInstructorApplication>,
-      currentApp: InstructorApplicationDetail,
-    ): Partial<UpdateInstructorApplication> => {
-      const filtered = Object.fromEntries(
-        Object.entries(data).filter(([, value]) => value !== undefined),
-      ) as Record<string, unknown>;
-
-      const changedEntries = Object.entries(filtered).filter(([key, value]) => {
-        const currentValue = (currentApp as unknown as Record<string, unknown>)[key];
-        return currentValue !== value;
-      });
-
-      return Object.fromEntries(changedEntries) as Partial<UpdateInstructorApplication>;
-    },
-    [],
+    [clearNavigationFeedback, updateDraftState],
   );
 
   const persistDraftPatch = useCallback(
     async (patch: Partial<UpdateInstructorApplication>) => {
-      const editablePatch = Object.fromEntries(
-        Object.entries(patch).filter(([key, value]) => {
-          if (value === undefined || !isEditableInstructorApplicationFieldKey(key)) {
-            return false;
-          }
-
-          return canEditInstructorApplicationField(appRef.current.candidateEditScope, key);
-        }),
-      ) as Partial<UpdateInstructorApplication>;
-
-      if (Object.keys(editablePatch).length === 0) {
-        return;
-      }
-
-      const changed = getChangedPatchData(editablePatch, persistedAppRef.current);
-      if (Object.keys(changed).length === 0) {
-        return;
-      }
-
-      await apiFetch(`instructor-applications/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(changed),
-      });
-
-      persistedAppRef.current = { ...persistedAppRef.current, ...changed };
+      await persistDraftStatePatch(patch);
       setNavigationError(null);
     },
-    [getChangedPatchData, id],
+    [persistDraftStatePatch],
+  );
+
+  const replaceHufcowyPresenceAttachments = useCallback(
+    (attachments: InstructorApplicationDetail["attachments"]) => {
+      replaceHufcowyPresenceAttachmentsState(attachments);
+      clearNavigationFeedback();
+    },
+    [clearNavigationFeedback, replaceHufcowyPresenceAttachmentsState],
+  );
+
+  const replaceTopLevelAttachments = useCallback(
+    (attachments: InstructorApplicationDetail["attachments"]) => {
+      replaceTopLevelAttachmentsState(attachments);
+      clearNavigationFeedback();
+    },
+    [clearNavigationFeedback, replaceTopLevelAttachmentsState],
+  );
+
+  const replaceRequirementAttachments = useCallback(
+    (requirementUuid: string, attachments: InstructorApplicationDetail["attachments"]) => {
+      replaceRequirementAttachmentsState(requirementUuid, attachments);
+      clearNavigationFeedback();
+    },
+    [clearNavigationFeedback, replaceRequirementAttachmentsState],
   );
 
   const navigateTo = useCallback(
@@ -661,6 +590,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
         if (invalidStep !== stepRef.current) {
           stepRef.current = invalidStep;
           setStep(invalidStep);
+          syncStepWithUrl(invalidStep);
           if (typeof window !== "undefined") {
             window.setTimeout(() => {
               focusFirstMissingField(missingFields);
@@ -679,14 +609,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
         if (currentStep <= 2) {
           const data = extractStepDataFromDraft(currentStep, appRef.current);
           if (data) {
-            const changed = getChangedPatchData(data, persistedAppRef.current);
-            if (Object.keys(changed).length > 0) {
-              await apiFetch(`instructor-applications/${id}`, {
-                method: "PATCH",
-                body: JSON.stringify(changed),
-              });
-              persistedAppRef.current = { ...persistedAppRef.current, ...changed };
-            }
+            await persistDraftStatePatch(data);
           }
           if (currentStep === 0 && movingForward) {
             // Attachment in step 0 is updated through a separate endpoint.
@@ -706,9 +629,7 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
           const fresh = await apiFetch<InstructorApplicationDetail>(
             `instructor-applications/${id}`,
           );
-          persistedAppRef.current = fresh;
-          appRef.current = fresh;
-          setApp(fresh);
+          replaceDraftFromServer(fresh);
         }
         if (movingForward && !skipCompletionValidation) {
           const firstInvalid = findFirstInvalidStepInRange(
@@ -747,11 +668,21 @@ export function useEditApplicationNavigation({ initialApp, id }: Params) {
 
       stepRef.current = targetStep;
       setStep(targetStep);
+      syncStepWithUrl(targetStep);
       if (options.focusTargetId) {
         scheduleFixTargetFocus(options.focusTargetId);
       }
     },
-    [clearPendingFocusTarget, getChangedPatchData, id, scheduleFixTargetFocus, t],
+    [
+      appRef,
+      clearPendingFocusTarget,
+      id,
+      persistDraftStatePatch,
+      replaceDraftFromServer,
+      scheduleFixTargetFocus,
+      syncStepWithUrl,
+      t,
+    ],
   );
 
   return {
