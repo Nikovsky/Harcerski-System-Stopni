@@ -20,11 +20,13 @@ const e2eEnvSchema = z.object({
   HSS_E2E_IGNORE_HTTPS_ERRORS: booleanStringSchema,
   HSS_E2E_COMMISSION_USERNAME: z.string().trim().min(1).optional(),
   HSS_E2E_COMMISSION_PASSWORD: z.string().min(1).optional(),
+  HSS_E2E_MEETINGS_USERNAME: z.string().trim().min(1).optional(),
+  HSS_E2E_MEETINGS_PASSWORD: z.string().min(1).optional(),
   HSS_E2E_READONLY_USERNAME: z.string().trim().min(1).optional(),
   HSS_E2E_READONLY_PASSWORD: z.string().min(1).optional(),
 });
 
-export type E2eProfile = "commission" | "readonly";
+export type E2eProfile = "commission" | "meetings" | "readonly";
 
 type E2eCredentials = {
   username: string;
@@ -36,6 +38,7 @@ type E2eEnv = {
   locale: string;
   ignoreHttpsErrors: boolean;
   commission: E2eCredentials | null;
+  meetings: E2eCredentials | null;
   readonly: E2eCredentials | null;
 };
 
@@ -67,6 +70,10 @@ export function getE2eEnv(): E2eEnv {
       parsed.HSS_E2E_COMMISSION_USERNAME,
       parsed.HSS_E2E_COMMISSION_PASSWORD,
     ),
+    meetings: buildCredentials(
+      parsed.HSS_E2E_MEETINGS_USERNAME,
+      parsed.HSS_E2E_MEETINGS_PASSWORD,
+    ),
     readonly: buildCredentials(
       parsed.HSS_E2E_READONLY_USERNAME,
       parsed.HSS_E2E_READONLY_PASSWORD,
@@ -84,20 +91,29 @@ export function getProfileCredentials(
   profile: E2eProfile,
 ): E2eCredentials | null {
   const env = getE2eEnv();
-  return profile === "commission" ? env.commission : env.readonly;
+
+  switch (profile) {
+    case "commission":
+      return env.commission;
+    case "meetings":
+      return env.meetings;
+    case "readonly":
+      return env.readonly;
+  }
 }
 
 export function requireProfileCredentials(profile: E2eProfile): E2eCredentials {
   const credentials = getProfileCredentials(profile);
 
   if (!credentials) {
-    const variablePrefix =
-      profile === "commission"
-        ? "HSS_E2E_COMMISSION"
-        : "HSS_E2E_READONLY";
+    const variablePrefixByProfile: Record<E2eProfile, string> = {
+      commission: "HSS_E2E_COMMISSION",
+      meetings: "HSS_E2E_MEETINGS",
+      readonly: "HSS_E2E_READONLY",
+    };
 
     throw new Error(
-      `Missing browser test credentials for profile "${profile}". Set ${variablePrefix}_USERNAME and ${variablePrefix}_PASSWORD.`,
+      `Missing browser test credentials for profile "${profile}". Set ${variablePrefixByProfile[profile]}_USERNAME and ${variablePrefixByProfile[profile]}_PASSWORD.`,
     );
   }
 
