@@ -3,12 +3,10 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetchValidated, ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { canPreviewInline } from "@/lib/attachment-utils";
-import {
-  commissionReviewAttachmentDownloadResponseSchema,
-  type AttachmentResponse,
-} from "@hss/schemas";
+import type { CommissionReviewAttachmentDownloadResponse } from "@hss/schemas/commission-review";
+import type { AttachmentResponse } from "@hss/schemas/instructor-application";
 
 type Props = {
   commissionUuid: string;
@@ -36,8 +34,7 @@ export function CommissionAttachmentDownloadLink({
 
     try {
       const qs = inline ? "?inline=true" : "";
-      const response = await apiFetchValidated(
-        commissionReviewAttachmentDownloadResponseSchema,
+      const response = await apiFetch<CommissionReviewAttachmentDownloadResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/attachments/${attachment.uuid}/download${qs}`,
       );
 
@@ -65,7 +62,7 @@ export function CommissionAttachmentDownloadLink({
         <button
           type="button"
           onClick={() => handleAction(previewable)}
-          className="text-primary hover:underline"
+          className="font-medium text-foreground hover:text-primary hover:underline"
         >
           {showFilename
             ? attachment.originalFilename
@@ -77,7 +74,7 @@ export function CommissionAttachmentDownloadLink({
           <button
             type="button"
             onClick={() => handleAction(false)}
-            className="text-foreground/40 hover:underline"
+            className="text-foreground/75 hover:text-foreground hover:underline"
           >
             {showFilename
               ? `(${downloadLabel ?? t("actions.download")})`

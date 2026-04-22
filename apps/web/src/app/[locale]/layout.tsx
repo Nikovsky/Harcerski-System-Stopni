@@ -1,4 +1,5 @@
 // @file: apps/web/src/app/[locale]/layout.tsx
+import type { Metadata } from "next";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import type { Session } from "next-auth";
 import { notFound, redirect } from "next/navigation";
@@ -16,6 +17,13 @@ type AppTheme = "dark" | "light";
 type Props = {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
+};
+
+export const metadata: Metadata = {
+  title: {
+    default: "Harcerski System Stopni",
+    template: "%s | Harcerski System Stopni",
+  },
 };
 
 function pickTheme(v: string | undefined): AppTheme {
@@ -71,14 +79,14 @@ export default async function LocaleLayout({ children, params }: Props) {
     redirect(clearInvalidSessionHref(locale));
   }
 
-  const isAuthenticated = !!session?.user;
+  const isAuthenticated = Boolean(session?.user && session.accessToken);
 
   return (
     <html lang={locale} data-theme={theme}>
       <body className="flex min-h-screen flex-col">
         <NextIntlClientProvider messages={messages}>
           <Navbar locale={locale} session={session} />
-          {isAuthenticated && <IdleTimeoutGuard />}
+          {isAuthenticated && <IdleTimeoutGuard locale={locale} />}
           <main className="grow mx-auto max-w-6xl w-full">{children}</main>
           <Footer />
         </NextIntlClientProvider>

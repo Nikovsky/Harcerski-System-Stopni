@@ -119,7 +119,7 @@ export function HomePageClient({ messages }: HomePageClientProps) {
         <div className="flex flex-wrap items-center gap-3">
           <Button>{messages.buttons.clickMe}</Button>
 
-          <Button colorClass="bg-green-600 text-white border-green-700">
+          <Button colorClass="bg-green-700 text-white border-green-800">
             {messages.buttons.deploy}
           </Button>
 

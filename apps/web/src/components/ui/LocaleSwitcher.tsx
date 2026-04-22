@@ -32,6 +32,7 @@ const LOCALES: readonly LocaleDefinition[] = [
 const LOCALE_SET = new Set<string>(LOCALES.map((locale) => locale.code));
 const MENU_ITEM_ESTIMATED_HEIGHT_PX = 38;
 const MENU_VERTICAL_PADDING_PX = 10;
+const MENU_ITEM_SELECTOR = '[role="menuitem"]';
 
 function normalizePath(pathname: string): string {
   const value = pathname.trim() || "/";
@@ -110,6 +111,20 @@ export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
     setOpen(false);
   }, []);
 
+  const focusMenuItem = useCallback((index: number) => {
+    const menuItems = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>(MENU_ITEM_SELECTOR) ?? [],
+    );
+
+    if (menuItems.length === 0) {
+      return;
+    }
+
+    const normalizedIndex =
+      ((index % menuItems.length) + menuItems.length) % menuItems.length;
+    menuItems[normalizedIndex]?.focus();
+  }, []);
+
   const toggleMenu = useCallback(() => {
     if (isPending) return;
     setOpen((previous) => {
@@ -144,14 +159,32 @@ export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
   useEffect(() => {
     if (!open) return;
 
+    const animationFrameId = window.requestAnimationFrame(() => {
+      updateMenuDirection();
+      focusMenuItem(0);
+    });
+
     function onDocumentClick(event: MouseEvent) {
       const target = event.target as Node;
       if (containerRef.current?.contains(target)) return;
       closeMenu();
     }
 
+    function onDocumentFocusIn(event: FocusEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (containerRef.current?.contains(target)) return;
+      closeMenu();
+    }
+
     function onDocumentKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeMenu();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu();
+        window.requestAnimationFrame(() => {
+          buttonRef.current?.focus();
+        });
+      }
     }
 
     function onViewportChange() {
@@ -159,17 +192,20 @@ export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
     }
 
     document.addEventListener("mousedown", onDocumentClick);
+    document.addEventListener("focusin", onDocumentFocusIn);
     document.addEventListener("keydown", onDocumentKeyDown);
     window.addEventListener("resize", onViewportChange);
     window.addEventListener("scroll", onViewportChange, true);
 
     return () => {
+      window.cancelAnimationFrame(animationFrameId);
       document.removeEventListener("mousedown", onDocumentClick);
+      document.removeEventListener("focusin", onDocumentFocusIn);
       document.removeEventListener("keydown", onDocumentKeyDown);
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
     };
-  }, [closeMenu, open, updateMenuDirection]);
+  }, [closeMenu, focusMenuItem, open, updateMenuDirection]);
 
   useEffect(() => {
     if (!open) return;
@@ -182,6 +218,26 @@ export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
         ref={buttonRef}
         type="button"
         onClick={toggleMenu}
+        onKeyDown={(event) => {
+          if (isPending) return;
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setOpen(true);
+            window.requestAnimationFrame(() => {
+              focusMenuItem(0);
+            });
+            return;
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+            window.requestAnimationFrame(() => {
+              focusMenuItem(availableLocales.length - 1);
+            });
+          }
+        }}
         disabled={isPending}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -220,6 +276,42 @@ export function LocaleSwitcher({ variant = "full" }: LocaleSwitcherProps) {
             variant === "icon" ? "right-0 min-w-44" : "left-0 right-0",
             dropUp ? "bottom-full mb-1" : "top-full mt-1",
           ].join(" ")}
+          onKeyDown={(event) => {
+            const menuItems = Array.from(
+              menuRef.current?.querySelectorAll<HTMLButtonElement>(MENU_ITEM_SELECTOR) ?? [],
+            );
+
+            if (menuItems.length === 0) {
+              return;
+            }
+
+            const currentIndex = menuItems.findIndex(
+              (item) => item === document.activeElement,
+            );
+
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              focusMenuItem(currentIndex + 1);
+              return;
+            }
+
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              focusMenuItem(currentIndex <= 0 ? menuItems.length - 1 : currentIndex - 1);
+              return;
+            }
+
+            if (event.key === "Home") {
+              event.preventDefault();
+              focusMenuItem(0);
+              return;
+            }
+
+            if (event.key === "End") {
+              event.preventDefault();
+              focusMenuItem(menuItems.length - 1);
+            }
+          }}
         >
           {availableLocales.map((item) => (
             <li key={item.code} role="none">

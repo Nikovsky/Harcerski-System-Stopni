@@ -2,19 +2,32 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import type { SignOutButtonProps } from "@/components/props/ui";
 import { Button } from "./Button";
 import { Popup } from "./Popup";
+
+function resolveLocaleRoot(pathname: string | null): string {
+  if (!pathname) {
+    return "/pl";
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  const locale = segments[0] === "en" ? "en" : "pl";
+  return `/${locale}`;
+}
 
 export function SignOutButton({
   label,
   className = "",
 }: SignOutButtonProps) {
   const t = useTranslations("common.signOutPopup");
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const localeRoot = useMemo(() => resolveLocaleRoot(pathname), [pathname]);
 
   const closePopup = () => {
     if (isLoggingOut) return;
@@ -28,7 +41,8 @@ export function SignOutButton({
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/auth/logout", {
+      const logoutUrl = `/api/auth/logout?returnTo=${encodeURIComponent(localeRoot)}`;
+      const res = await fetch(logoutUrl, {
         method: "POST",
         credentials: "include",
       });
@@ -37,7 +51,7 @@ export function SignOutButton({
         throw new Error("Logout failed");
       }
 
-      window.location.href = "/";
+      window.location.href = localeRoot;
     } catch {
       setIsLoggingOut(false);
       setErrorMessage(t("error"));
@@ -46,13 +60,13 @@ export function SignOutButton({
 
   return (
     <>
-      <Button
-        type="button"
-        className={[
-          "bg-red-500 text-white border-red-600",
-          className,
-        ]
-          .filter(Boolean)
+        <Button
+          type="button"
+          className={[
+            "bg-red-700 text-white border-red-800",
+            className,
+          ]
+            .filter(Boolean)
           .join(" ")}
         onClick={() => {
           setOpen(true);

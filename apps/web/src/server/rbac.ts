@@ -1,5 +1,6 @@
 // @file: apps/web/src/server/rbac.ts
 import "server-only";
+import { cache } from "react";
 import type { Session } from "next-auth";
 import {
   AuthPrincipalSchema,
@@ -72,7 +73,7 @@ function decodeJwtClaims(token: string | null): KeycloakTokenClaims | null {
   }
 }
 
-function buildFallbackPrincipal(session: Session | null): AuthPrincipal | null {
+export function buildSessionPrincipal(session: Session | null): AuthPrincipal | null {
   const userId = session?.user?.id;
   if (typeof userId !== "string" || !userId.trim()) {
     return null;
@@ -104,40 +105,44 @@ function buildFallbackPrincipal(session: Session | null): AuthPrincipal | null {
   return parsed.success ? parsed.data : null;
 }
 
-async function fetchVerifiedPrincipalByAccessToken(accessToken: string): Promise<VerifiedPrincipalState> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/profile/principal`, {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${accessToken}`,
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
+const fetchVerifiedPrincipalByAccessToken = cache(
+  async (accessToken: string): Promise<VerifiedPrincipalState> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/principal`, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${accessToken}`,
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
 
-    if (res.status === 401 || res.status === 403) {
-      return { status: "unauthenticated", principal: null };
-    }
-    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        return { status: "unauthenticated", principal: null };
+      }
+      if (!res.ok) {
+        return { status: "unavailable", principal: null };
+      }
+
+      const payload = await res.json().catch(() => null);
+      const parsed = AuthPrincipalSchema.safeParse(payload);
+      if (!parsed.success) {
+        return { status: "unavailable", principal: null };
+      }
+
+      return { status: "authenticated", principal: parsed.data };
+    } catch {
       return { status: "unavailable", principal: null };
     }
+  },
+);
 
-    const payload = await res.json().catch(() => null);
-    const parsed = AuthPrincipalSchema.safeParse(payload);
-    if (!parsed.success) {
-      return { status: "unavailable", principal: null };
-    }
-
-    return { status: "authenticated", principal: parsed.data };
-  } catch {
-    return { status: "unavailable", principal: null };
-  }
-}
-
-export async function resolveVerifiedPrincipal(session: Session | null): Promise<VerifiedPrincipalState> {
+export async function resolveVerifiedPrincipal(
+  session: Session | null,
+): Promise<VerifiedPrincipalState> {
   const accessToken = getSessionAccessToken(session);
-  const fallbackPrincipal = buildFallbackPrincipal(session);
+  const fallbackPrincipal = buildSessionPrincipal(session);
 
   if (!accessToken) {
     return fallbackPrincipal
@@ -145,15 +150,12 @@ export async function resolveVerifiedPrincipal(session: Session | null): Promise
       : { status: "unauthenticated", principal: null };
   }
 
-  const resolved = await fetchVerifiedPrincipalByAccessToken(accessToken);
-  if (resolved.status === "unavailable" && fallbackPrincipal) {
-    return { status: "authenticated", principal: fallbackPrincipal };
-  }
-
-  return resolved;
+  return fetchVerifiedPrincipalByAccessToken(accessToken);
 }
 
-export async function getVerifiedPrincipal(session: Session | null): Promise<AuthPrincipal | null> {
+export async function getVerifiedPrincipal(
+  session: Session | null,
+): Promise<AuthPrincipal | null> {
   const resolved = await resolveVerifiedPrincipal(session);
   return resolved.status === "authenticated" ? resolved.principal : null;
 }

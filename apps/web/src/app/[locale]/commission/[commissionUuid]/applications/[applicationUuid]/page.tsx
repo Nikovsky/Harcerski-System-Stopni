@@ -1,6 +1,8 @@
 // @file: apps/web/src/app/[locale]/commission/[commissionUuid]/applications/[applicationUuid]/page.tsx
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import type { CommissionWorkspaceTabId } from "@/components/commission-review/CommissionWorkspaceTabs";
 import { AccessDenied } from "@/components/ui/AccessDenied";
 import { CommissionApplicationDetail } from "@/components/commission-review/CommissionApplicationDetail";
 import {
@@ -18,21 +20,94 @@ type Props = {
     commissionUuid: string;
     applicationUuid: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const COMMISSION_WORKSPACE_TAB_IDS: readonly CommissionWorkspaceTabId[] = [
+  "application",
+  "requirements",
+  "candidateFeedback",
+  "internalNotes",
+  "history",
+];
+
+function parseActiveTab(
+  rawValue: string | string[] | undefined,
+): CommissionWorkspaceTabId {
+  const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+
+  return COMMISSION_WORKSPACE_TAB_IDS.includes(value as CommissionWorkspaceTabId)
+    ? (value as CommissionWorkspaceTabId)
+    : "application";
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const tCommission = await getTranslations({ locale, namespace: "commission" });
+
+  return {
+    title: tCommission("seo.detailTitle"),
+    description: tCommission("seo.detailDescription"),
+  };
+}
+
+function renderServiceUnavailable(
+  locale: string,
+  tCommon: Awaited<ReturnType<typeof getTranslations>>,
+): React.ReactNode {
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="text-2xl font-semibold">{tCommon("nav.commission")}</h1>
+      <AccessDenied
+        code="503"
+        codeLabel={tCommon("accessDenied.codeLabel", { code: "503" })}
+        title={tCommon("accessDenied.serviceUnavailableTitle")}
+        message={tCommon("accessDenied.serviceUnavailableMessage")}
+        actions={[
+          { label: tCommon("nav.commission"), href: `/${locale}/commission` },
+          { label: tCommon("nav.home"), href: `/${locale}/` },
+        ]}
+      />
+    </main>
+  );
+}
 
 export default async function CommissionApplicationDetailPage({
   params,
+  searchParams,
 }: Props) {
   const { locale, commissionUuid, applicationUuid } = await params;
+  const rawSearchParams = await searchParams;
   const tCommon = await getTranslations("common");
   const tCommission = await getTranslations("commission");
-  const membershipsResponse = await bffServerFetchValidated(
-    commissionReviewMembershipListResponseSchema,
-    "commission-review/memberships",
-  );
-  const membership = membershipsResponse.memberships.find(
-    (item) => item.commissionUuid === commissionUuid,
-  );
+  const activeTab = parseActiveTab(rawSearchParams.tab);
+  const membership = await (async () => {
+    try {
+      const membershipsResponse = await bffServerFetchValidated(
+        commissionReviewMembershipListResponseSchema,
+        "commission-review/memberships",
+      );
+
+      return (
+        membershipsResponse.memberships.find(
+          (item) => item.commissionUuid === commissionUuid,
+        ) ?? null
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof BffServerFetchError &&
+        (error.status === 502 || error.status === 503)
+      ) {
+        return undefined;
+      }
+
+      throw error;
+    }
+  })();
+
+  if (membership === undefined) {
+    return renderServiceUnavailable(locale, tCommon);
+  }
 
   if (!membership) {
     return (
@@ -94,6 +169,13 @@ export default async function CommissionApplicationDetailPage({
       notFound();
     }
 
+    if (
+      error instanceof BffServerFetchError &&
+      (error.status === 502 || error.status === 503)
+    ) {
+      return renderServiceUnavailable(locale, tCommon);
+    }
+
     if (error instanceof BffServerFetchError && error.status === 403) {
       return (
         <main className="mx-auto max-w-4xl px-6 py-10">
@@ -128,6 +210,7 @@ export default async function CommissionApplicationDetailPage({
       locale={locale}
       commissionUuid={commissionUuid}
       applicationUuid={applicationUuid}
+      activeTab={activeTab}
       detail={detail}
     />
   );

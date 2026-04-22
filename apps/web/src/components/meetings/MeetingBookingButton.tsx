@@ -19,6 +19,7 @@ type BookingErrorKey =
   | "errors.alreadyRegistered"
   | "errors.bookingNotAllowedStatus"
   | "errors.bookingNotAllowedApplicationType"
+  | "blocked.MEETING_NOT_OPEN"
   | "errors.generic";
 
 function mapBookingError(
@@ -34,6 +35,8 @@ function mapBookingError(
       return "errors.bookingNotAllowedStatus";
     case "BOOKING_NOT_ALLOWED_APPLICATION_TYPE":
       return "errors.bookingNotAllowedApplicationType";
+    case "MEETING_NOT_OPEN":
+      return "blocked.MEETING_NOT_OPEN";
     default:
       return fallback;
   }

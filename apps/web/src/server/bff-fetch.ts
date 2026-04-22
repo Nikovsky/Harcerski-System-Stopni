@@ -14,6 +14,11 @@ type BffErrorPayload = {
   requestId?: string;
 };
 
+export type BffServerContext = Readonly<{
+  accessToken: string;
+  requestId?: string;
+}>;
+
 function normalizePath(path: string): string {
   return path.replace(/^\/+/, "");
 }
@@ -88,37 +93,63 @@ export class BffServerFetchError extends Error {
   }
 }
 
-export async function bffServerFetch<T = unknown>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+function createAuthFailure(requestId: string | null, sessionError: unknown): BffServerFetchError {
+  const refreshTokenExpired = sessionError === "RefreshTokenExpired";
+
+  return new BffServerFetchError(
+    401,
+    refreshTokenExpired
+      ? "Session expired. Please log in again."
+      : "Authentication required.",
+    refreshTokenExpired ? "SESSION_EXPIRED" : "AUTHENTICATION_REQUIRED",
+    requestId ?? undefined,
+  );
+}
+
+export async function resolveBffServerContext(): Promise<BffServerContext> {
   const incomingHeaders = await headers();
   const requestId = normalizeRequestId(incomingHeaders.get("x-request-id"));
   const session = await auth();
   const accessToken = getSessionAccessToken(session?.accessToken);
+
   if (!accessToken) {
-    throw new BffServerFetchError(
-      401,
-      session?.error === "RefreshTokenExpired"
-        ? "Session expired. Please log in again."
-        : "Authentication required.",
-      session?.error === "RefreshTokenExpired" ? "SESSION_EXPIRED" : "AUTHENTICATION_REQUIRED",
-      requestId ?? undefined,
-    );
+    throw createAuthFailure(requestId, session?.error);
   }
+
+  return {
+    accessToken,
+    requestId: requestId ?? undefined,
+  };
+}
+
+async function executeBffServerFetch<T = unknown>(
+  path: string,
+  context: BffServerContext,
+  init?: RequestInit,
+): Promise<T> {
   const upstreamHeaders = buildUpstreamHeaders(
     init?.headers,
-    requestId,
-    accessToken,
+    context.requestId ?? null,
+    context.accessToken,
   );
   const targetUrl = buildApiUrl(path);
 
-  const res = await fetch(targetUrl, {
-    ...init,
-    headers: upstreamHeaders,
-    cache: "no-store",
-    signal: init?.signal ?? AbortSignal.timeout(30_000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(targetUrl, {
+      ...init,
+      headers: upstreamHeaders,
+      cache: "no-store",
+      signal: init?.signal ?? AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new BffServerFetchError(
+      502,
+      "Bad gateway.",
+      "BAD_GATEWAY",
+      context.requestId,
+    );
+  }
 
   const body = (await res.json().catch(() => null)) as unknown;
   const payload = toBffErrorPayload(body);
@@ -135,11 +166,37 @@ export async function bffServerFetch<T = unknown>(
   return body as T;
 }
 
+export async function bffServerFetchWithContext<T = unknown>(
+  context: BffServerContext,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  return executeBffServerFetch(path, context, init);
+}
+
+export async function bffServerFetch<T = unknown>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const context = await resolveBffServerContext();
+  return executeBffServerFetch(path, context, init);
+}
+
 export async function bffServerFetchValidated<T>(
   schema: ZodType<T>,
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const body = await bffServerFetch<unknown>(path, init);
+  return schema.parse(body);
+}
+
+export async function bffServerFetchValidatedWithContext<T>(
+  schema: ZodType<T>,
+  context: BffServerContext,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const body = await bffServerFetchWithContext<unknown>(context, path, init);
   return schema.parse(body);
 }

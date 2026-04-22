@@ -10,19 +10,19 @@ import {
   scoutRankKey,
   supervisorFunctionKey,
 } from "@/lib/applications-i18n";
-import { ApiError, apiFetchValidated } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { getFieldLabel } from "@/lib/instructor-application-fields";
-import {
-  commissionReviewResolvedRevisionRequestDetailResponseSchema,
-  commissionReviewResolvedRevisionRequestListResponseSchema,
-  type CommissionReviewCandidateAnnotation,
-  type CommissionReviewResolvedAnnotationChange,
-  type CommissionReviewResolvedChangeValue,
-  type CommissionReviewResolvedRevisionRequestDetailResponse,
-  type CommissionReviewResolvedRevisionRequestListResponse,
-  type EditableInstructorApplicationField,
-  type RequirementRowResponse,
-} from "@hss/schemas";
+import type {
+  CommissionReviewCandidateAnnotation,
+  CommissionReviewResolvedAnnotationChange,
+  CommissionReviewResolvedChangeValue,
+  CommissionReviewResolvedRevisionRequestDetailResponse,
+  CommissionReviewResolvedRevisionRequestListResponse,
+} from "@hss/schemas/commission-review";
+import type {
+  EditableInstructorApplicationField,
+  RequirementRowResponse,
+} from "@hss/schemas/instructor-application";
 
 type Props = {
   locale: string;
@@ -142,8 +142,7 @@ export function CommissionRevisionAuditPanel({
   useEffect(() => {
     let isActive = true;
 
-    void apiFetchValidated(
-      commissionReviewResolvedRevisionRequestListResponseSchema,
+    void apiFetch<CommissionReviewResolvedRevisionRequestListResponse>(
       buildRevisionAuditListPath(commissionUuid, applicationUuid, page),
     )
       .then((response) => {
@@ -228,8 +227,7 @@ export function CommissionRevisionAuditPanel({
 
     let isActive = true;
 
-    void apiFetchValidated(
-      commissionReviewResolvedRevisionRequestDetailResponseSchema,
+    void apiFetch<CommissionReviewResolvedRevisionRequestDetailResponse>(
       buildRevisionAuditDetailPath(
         commissionUuid,
         applicationUuid,

@@ -22,6 +22,7 @@ import {
   canEditInstructorRequirementAttachments,
   canEditInstructorTopLevelAttachments,
   isInstructorApplicationEditable,
+  ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE,
 } from '@hss/schemas';
 import type {
@@ -62,13 +63,6 @@ export class InstructorAttachmentService {
     '[Content_Types].xml',
     'utf8',
   );
-  private static readonly ASF_HEADER_GUID = Buffer.from([
-    0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa,
-    0x00, 0x62, 0xce, 0x6c,
-  ]);
-  private static readonly ZIP_LOCAL_FILE_HEADER = Buffer.from([
-    0x50, 0x4b, 0x03, 0x04,
-  ]);
 
   private static readonly MAGIC_BYTES_ALLOWLIST = new Set([
     'application/pdf',
@@ -83,6 +77,27 @@ export class InstructorAttachmentService {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ]);
+  private static readonly GENERIC_STORAGE_CONTENT_TYPE =
+    'application/octet-stream';
+  private static readonly DIRECTLY_DETECTABLE_CONTENT_TYPES = new Set([
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'application/msword',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ] satisfies readonly string[]);
+  private static readonly OOXML_CONTENT_TYPE_BY_EXTENSION = {
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  } as const;
+  private static readonly LEGACY_OFFICE_CONTENT_TYPE_BY_EXTENSION = {
+    doc: 'application/msword',
+    ppt: 'application/vnd.ms-powerpoint',
+  } as const;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -103,26 +118,6 @@ export class InstructorAttachmentService {
     name = name.replace(/_{2,}/g, '_').replace(/ {2,}/g, ' ').trim();
 
     return name || 'file';
-  }
-
-  private static startsWithAsfHeader(buffer: Buffer): boolean {
-    if (buffer.length < InstructorAttachmentService.ASF_HEADER_GUID.length) {
-      return false;
-    }
-    return buffer
-      .subarray(0, InstructorAttachmentService.ASF_HEADER_GUID.length)
-      .equals(InstructorAttachmentService.ASF_HEADER_GUID);
-  }
-
-  private static startsWithZipHeader(buffer: Buffer): boolean {
-    if (
-      buffer.length < InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER.length
-    ) {
-      return false;
-    }
-    return buffer
-      .subarray(0, InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER.length)
-      .equals(InstructorAttachmentService.ZIP_LOCAL_FILE_HEADER);
   }
 
   async presignAttachment(
@@ -159,8 +154,13 @@ export class InstructorAttachmentService {
       attachmentCount >=
       InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION
     ) {
-      throw new BadRequestException(
+      throw this.buildBadRequestException(
+        'ATTACHMENT_LIMIT_REACHED',
         `Osiągnięto limit ${InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION} załączników na wniosek`,
+        {
+          maxAttachments:
+            InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION,
+        },
       );
     }
 
@@ -211,66 +211,39 @@ export class InstructorAttachmentService {
 
     const expectedPrefix = `instructor-applications/${applicationId}/`;
     if (!dto.objectKey.startsWith(expectedPrefix)) {
-      throw new BadRequestException(
+      throw this.buildBadRequestException(
+        'ATTACHMENT_OBJECT_KEY_MISMATCH',
         'Object key does not match this application',
+        {
+          applicationId,
+        },
       );
     }
 
     const headResult = await this.storage.headObject(dto.objectKey);
     if (!headResult) {
-      throw new BadRequestException('File not found in storage');
+      throw this.buildBadRequestException(
+        'ATTACHMENT_OBJECT_MISSING',
+        'File not found in storage',
+      );
     }
     if (headResult.contentLength > MAX_FILE_SIZE) {
-      throw new BadRequestException(
+      await this.deleteObjectQuietly(
+        dto.objectKey,
+        'oversized confirmed attachment cleanup',
+      );
+      throw this.buildBadRequestException(
+        'ATTACHMENT_TOO_LARGE',
         `File exceeds maximum size of ${InstructorAttachmentService.MAX_FILE_SIZE_MB_LABEL} MB`,
+        {
+          maxSizeBytes: MAX_FILE_SIZE,
+          storedSizeBytes: headResult.contentLength,
+        },
       );
     }
 
-    const buffer = await this.storage.getObjectRange(dto.objectKey, 0, 4100);
-    if (buffer) {
-      if (InstructorAttachmentService.startsWithAsfHeader(buffer)) {
-        this.logger.warn(
-          `Rejected ASF-like upload before file-type detection: objectKey=${dto.objectKey}, claimed=${dto.contentType}`,
-        );
-        await this.storage.deleteObject(dto.objectKey);
-        throw new BadRequestException('Format ASF/WMV/WMA nie jest dozwolony.');
-      }
-      const detected = InstructorAttachmentService.startsWithZipHeader(buffer)
-        ? { ext: 'zip', mime: 'application/zip' }
-        : await fileTypeFromBuffer(buffer);
-      if (
-        detected &&
-        !InstructorAttachmentService.MAGIC_BYTES_ALLOWLIST.has(detected.mime)
-      ) {
-        this.logger.warn(
-          `Magic bytes mismatch: objectKey=${dto.objectKey}, detected=${detected.mime}, claimed=${dto.contentType}`,
-        );
-        await this.storage.deleteObject(dto.objectKey);
-        throw new BadRequestException(
-          `Typ pliku (${detected.mime}) nie jest dozwolony. Dozwolone: PDF, obrazy, wideo, dokumenty Office.`,
-        );
-      }
-      if (detected?.mime === 'application/zip') {
-        const officeZipExtensions = /\.(docx|pptx)$/i;
-        if (!officeZipExtensions.test(dto.originalFilename)) {
-          await this.storage.deleteObject(dto.objectKey);
-          throw new BadRequestException(
-            `Pliki ZIP nie są dozwolone. Dozwolone formaty Office: docx, pptx.`,
-          );
-        }
-
-        const hasOfficeXmlStructure = await this.hasOfficeXmlStructure(
-          dto.objectKey,
-          headResult.contentLength,
-        );
-        if (!hasOfficeXmlStructure) {
-          await this.storage.deleteObject(dto.objectKey);
-          throw new BadRequestException(
-            'Archiwum ZIP nie ma poprawnej struktury Office Open XML ([Content_Types].xml).',
-          );
-        }
-      }
-    }
+    const persistedContentType =
+      await this.resolveValidatedContentTypeOrReject(dto, headResult);
 
     const sanitizedFilename = InstructorAttachmentService.sanitizeFilename(
       dto.originalFilename,
@@ -317,8 +290,13 @@ export class InstructorAttachmentService {
           attachmentCount >=
           InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION
         ) {
-          throw new BadRequestException(
+          throw this.buildBadRequestException(
+            'ATTACHMENT_LIMIT_REACHED',
             `Osiągnięto limit ${InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION} załączników na wniosek`,
+            {
+              maxAttachments:
+                InstructorAttachmentService.MAX_ATTACHMENTS_PER_APPLICATION,
+            },
           );
         }
 
@@ -328,7 +306,7 @@ export class InstructorAttachmentService {
             instructorRequirementUuid: dto.requirementUuid ?? null,
             objectKey: dto.objectKey,
             originalFilename: sanitizedFilename,
-            contentType: headResult.contentType,
+            contentType: persistedContentType,
             sizeBytes: BigInt(headResult.contentLength),
             checksum: dto.checksum ?? null,
           },
@@ -464,7 +442,10 @@ export class InstructorAttachmentService {
         attachment.instructorApplicationUuid !== applicationId ||
         attachment.status !== 'ACTIVE'
       ) {
-        throw new NotFoundException('Attachment not found');
+        throw this.buildNotFoundException(
+          'ATTACHMENT_NOT_FOUND',
+          'Attachment not found',
+        );
       }
       this.ensureAttachmentEditAllowed(
         app.status,
@@ -535,9 +516,17 @@ export class InstructorAttachmentService {
         },
       },
     });
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) {
+      throw this.buildNotFoundException(
+        'APPLICATION_NOT_FOUND',
+        'Application not found',
+      );
+    }
     if (app.candidate.keycloakUuid !== principal.sub)
-      throw new ForbiddenException();
+      throw this.buildForbiddenException(
+        'APPLICATION_ACCESS_FORBIDDEN',
+        'You do not have access to this application.',
+      );
 
     const attachment = await this.prisma.attachment.findUnique({
       where: { uuid: attachmentId },
@@ -554,7 +543,10 @@ export class InstructorAttachmentService {
       attachment.instructorApplicationUuid !== applicationId ||
       attachment.status !== 'ACTIVE'
     ) {
-      throw new NotFoundException('Attachment not found');
+      throw this.buildNotFoundException(
+        'ATTACHMENT_NOT_FOUND',
+        'Attachment not found',
+      );
     }
 
     const url = await this.storage.presignDownload(
@@ -617,9 +609,17 @@ export class InstructorAttachmentService {
         },
       },
     });
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) {
+      throw this.buildNotFoundException(
+        'APPLICATION_NOT_FOUND',
+        'Application not found',
+      );
+    }
     if (app.candidate.keycloakUuid !== principal.sub)
-      throw new ForbiddenException();
+      throw this.buildForbiddenException(
+        'APPLICATION_ACCESS_FORBIDDEN',
+        'You do not have access to this application.',
+      );
     if (!isInstructorApplicationEditable(app.status)) {
       throw new BadRequestException({
         code: 'APPLICATION_NOT_EDITABLE',
@@ -753,10 +753,242 @@ export class InstructorAttachmentService {
         },
       });
     if (!requirement || requirement.applicationUuid !== applicationId) {
-      throw new BadRequestException(
+      throw this.buildBadRequestException(
+        'ATTACHMENT_REQUIREMENT_MISMATCH',
         'Requirement does not belong to this application',
+        {
+          applicationId,
+          requirementUuid,
+        },
       );
     }
+  }
+
+  private async resolveValidatedContentTypeOrReject(
+    dto: ConfirmUploadRequest,
+    headResult: { contentLength: number; contentType: string },
+  ): Promise<string> {
+    const declaredContentType = this.normalizeContentType(dto.contentType);
+    const storedContentType = this.normalizeContentType(headResult.contentType);
+
+    if (dto.sizeBytes !== headResult.contentLength) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_SIZE_MISMATCH',
+          'Declared file size does not match the stored object size.',
+          {
+            declaredSizeBytes: dto.sizeBytes,
+            storedSizeBytes: headResult.contentLength,
+          },
+        ),
+        'attachment size mismatch cleanup',
+      );
+    }
+
+    if (
+      storedContentType &&
+      storedContentType !==
+        InstructorAttachmentService.GENERIC_STORAGE_CONTENT_TYPE &&
+      storedContentType !== declaredContentType
+    ) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_CONTENT_TYPE_MISMATCH',
+          'Stored object content type does not match the declared upload type.',
+          {
+            declaredContentType,
+            storedContentType,
+          },
+        ),
+        'attachment content type mismatch cleanup',
+      );
+    }
+
+    const buffer = await this.storage.getObjectRange(dto.objectKey, 0, 8192);
+    if (!buffer || buffer.length === 0) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_SIGNATURE_UNAVAILABLE',
+          'Unable to verify the uploaded file signature.',
+        ),
+        'attachment signature unavailable cleanup',
+      );
+    }
+
+    const verifiedBuffer = buffer!;
+    const detectedMime = this.normalizeContentType(
+      (await fileTypeFromBuffer(verifiedBuffer))?.mime,
+    );
+    if (!detectedMime) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_TYPE_UNDETERMINED',
+          'Unable to determine the uploaded file type from its binary signature.',
+          {
+            allowedContentTypes: [...ALLOWED_MIME_TYPES],
+          },
+        ),
+        'attachment type undetermined cleanup',
+      );
+    }
+
+    if (
+      !InstructorAttachmentService.MAGIC_BYTES_ALLOWLIST.has(detectedMime)
+    ) {
+      this.logger.warn(
+        `Magic bytes mismatch: objectKey=${dto.objectKey}, detected=${detectedMime}, claimed=${declaredContentType}`,
+      );
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_TYPE_NOT_ALLOWED',
+          `Typ pliku (${detectedMime}) nie jest dozwolony. Dozwolone: PDF, obrazy, wideo, dokumenty Office.`,
+          {
+            declaredContentType,
+            detectedContentType: detectedMime,
+          },
+        ),
+        'attachment type not allowed cleanup',
+      );
+    }
+
+    const extension = this.getFilenameExtension(dto.originalFilename);
+
+    if (detectedMime === 'application/zip') {
+      const expectedContentType = extension
+        ? InstructorAttachmentService.OOXML_CONTENT_TYPE_BY_EXTENSION[
+            extension as keyof typeof InstructorAttachmentService.OOXML_CONTENT_TYPE_BY_EXTENSION
+          ] ?? null
+        : null;
+
+      if (!expectedContentType) {
+        return this.rejectConfirmedObject(
+          dto.objectKey,
+          this.buildBadRequestException(
+            'ATTACHMENT_ZIP_NOT_ALLOWED',
+            'Pliki ZIP nie są dozwolone. Dozwolone formaty Office: docx, pptx.',
+          ),
+          'attachment zip cleanup',
+        );
+      }
+
+      if (declaredContentType !== expectedContentType) {
+        await this.rejectConfirmedObject(
+          dto.objectKey,
+          this.buildBadRequestException(
+            'ATTACHMENT_CONTENT_TYPE_MISMATCH',
+            'Declared upload type does not match the detected Office file signature.',
+            {
+              declaredContentType,
+              detectedContentType: detectedMime,
+              expectedContentType,
+              extension,
+            },
+          ),
+          'attachment office content type mismatch cleanup',
+        );
+      }
+
+      const hasOfficeXmlStructure = await this.hasOfficeXmlStructure(
+        dto.objectKey,
+        headResult.contentLength,
+      );
+      if (!hasOfficeXmlStructure) {
+        await this.rejectConfirmedObject(
+          dto.objectKey,
+          this.buildBadRequestException(
+            'ATTACHMENT_INVALID_OOXML_STRUCTURE',
+            'Archiwum ZIP nie ma poprawnej struktury Office Open XML ([Content_Types].xml).',
+          ),
+          'attachment invalid ooxml cleanup',
+        );
+      }
+
+      const resolvedContentType = expectedContentType;
+      return resolvedContentType;
+    }
+
+    if (detectedMime === 'application/x-cfb') {
+      const expectedContentType = extension
+        ? InstructorAttachmentService.LEGACY_OFFICE_CONTENT_TYPE_BY_EXTENSION[
+            extension as keyof typeof InstructorAttachmentService.LEGACY_OFFICE_CONTENT_TYPE_BY_EXTENSION
+          ] ?? null
+        : null;
+
+      if (!expectedContentType) {
+        return this.rejectConfirmedObject(
+          dto.objectKey,
+          this.buildBadRequestException(
+            'ATTACHMENT_LEGACY_OFFICE_EXTENSION_MISMATCH',
+            'Plik legacy Office musi mieć rozszerzenie doc albo ppt.',
+            {
+              extension,
+            },
+          ),
+          'attachment legacy office extension mismatch cleanup',
+        );
+      }
+
+      if (declaredContentType !== expectedContentType) {
+        await this.rejectConfirmedObject(
+          dto.objectKey,
+          this.buildBadRequestException(
+            'ATTACHMENT_CONTENT_TYPE_MISMATCH',
+            'Declared upload type does not match the detected legacy Office signature.',
+            {
+              declaredContentType,
+              detectedContentType: detectedMime,
+              expectedContentType,
+              extension,
+            },
+          ),
+          'attachment legacy office content type mismatch cleanup',
+        );
+      }
+
+      const resolvedContentType = expectedContentType;
+      return resolvedContentType;
+    }
+
+    if (
+      !InstructorAttachmentService.DIRECTLY_DETECTABLE_CONTENT_TYPES.has(
+        detectedMime,
+      )
+    ) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_CONTENT_TYPE_UNSUPPORTED',
+          'The detected file signature is not supported for instructor application uploads.',
+          {
+            declaredContentType,
+            detectedContentType: detectedMime,
+          },
+        ),
+        'attachment unsupported content type cleanup',
+      );
+    }
+
+    if (declaredContentType !== detectedMime) {
+      await this.rejectConfirmedObject(
+        dto.objectKey,
+        this.buildBadRequestException(
+          'ATTACHMENT_CONTENT_TYPE_MISMATCH',
+          'Declared upload type does not match the detected file signature.',
+          {
+            declaredContentType,
+            detectedContentType: detectedMime,
+          },
+        ),
+        'attachment direct content type mismatch cleanup',
+      );
+    }
+
+    return declaredContentType;
   }
 
   private async lockApplicationRow(
@@ -851,6 +1083,74 @@ export class InstructorAttachmentService {
           `Failed to clean orphaned upload ${object.key}: ${error}`,
         );
       }
+    }
+  }
+
+  private normalizeContentType(value: string | null | undefined): string {
+    return value?.trim().toLowerCase() ?? '';
+  }
+
+  private getFilenameExtension(filename: string): string | null {
+    const normalized = filename.trim().toLowerCase();
+    const match = /\.([a-z0-9]+)$/.exec(normalized);
+    return match?.[1] ?? null;
+  }
+
+  private buildBadRequestException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): BadRequestException {
+    return new BadRequestException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
+  }
+
+  private buildForbiddenException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): ForbiddenException {
+    return new ForbiddenException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
+  }
+
+  private buildNotFoundException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): NotFoundException {
+    return new NotFoundException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
+  }
+
+  private async rejectConfirmedObject(
+    objectKey: string,
+    exception: BadRequestException,
+    context: string,
+  ): Promise<never> {
+    await this.deleteObjectQuietly(objectKey, context);
+    throw exception;
+  }
+
+  private async deleteObjectQuietly(
+    objectKey: string,
+    context: string,
+  ): Promise<void> {
+    try {
+      await this.storage.deleteObject(objectKey);
+    } catch (cleanupError) {
+      this.logger.warn(
+        `Failed to remove object during ${context} for ${objectKey}: ${cleanupError}`,
+      );
     }
   }
 }

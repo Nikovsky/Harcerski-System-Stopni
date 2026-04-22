@@ -1,4 +1,5 @@
 // @file: apps/web/src/app/[locale]/commission/[commissionUuid]/page.tsx
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { AccessDenied } from "@/components/ui/AccessDenied";
 import { CommissionApplicationInbox } from "@/components/commission-review/CommissionApplicationInbox";
@@ -16,6 +17,16 @@ type Props = {
   params: Promise<{ locale: string; commissionUuid: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const tCommission = await getTranslations({ locale, namespace: "commission" });
+
+  return {
+    title: tCommission("seo.inboxTitle"),
+    description: tCommission("seo.inboxDescription"),
+  };
+}
 
 function renderServiceUnavailable(
   locale: string,

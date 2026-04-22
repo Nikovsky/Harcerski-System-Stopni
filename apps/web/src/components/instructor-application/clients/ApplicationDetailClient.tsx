@@ -1,12 +1,13 @@
 // @file: apps/web/src/components/instructor-application/clients/ApplicationDetailClient.tsx
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
+import { isInstructorApplicationEditable } from "@/lib/instructor-application-editability";
 import { ApplicationStatusBadge } from "@/components/instructor-application/ui/ApplicationStatusBadge";
-import { RequirementForm } from "@/components/instructor-application/requirements/RequirementForm";
+import { RequirementReadonlyList } from "@/components/instructor-application/requirements/RequirementReadonlyList";
 import {
   buildCandidateFixTargets,
   countCandidateFixSteps,
@@ -26,29 +27,85 @@ import { TabServiceHistory } from "@/components/instructor-application/detail-ta
 import { TabSupervisor } from "@/components/instructor-application/detail-tabs/TabSupervisor";
 import { TabAttachments } from "@/components/instructor-application/detail-tabs/TabAttachments";
 import { useApplicationPdfDownload } from "@/components/instructor-application/hooks/useApplicationPdfDownload";
-import { isInstructorApplicationEditable } from "@hss/schemas";
-import type { InstructorApplicationDetail } from "@hss/schemas";
+import type { InstructorApplicationDetail } from "@hss/schemas/instructor-application";
 
 type Props = { app: InstructorApplicationDetail; id: string };
+
+const DETAIL_TABS = [
+  "basicInfo",
+  "serviceHistory",
+  "supervisor",
+  "requirements",
+  "attachments",
+] as const satisfies readonly ApplicationDetailTab[];
+
+function isApplicationDetailTab(value: string | null): value is ApplicationDetailTab {
+  return value !== null && (DETAIL_TABS as readonly string[]).includes(value);
+}
+
+function buildTabHref(
+  pathname: string,
+  searchParamsString: string,
+  tab: ApplicationDetailTab,
+): string {
+  const params = new URLSearchParams(searchParamsString);
+
+  if (tab === "basicInfo") {
+    params.delete("tab");
+  } else {
+    params.set("tab", tab);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${pathname}?${query}` : pathname;
+}
+
+function mapDetailTabToEditStep(tab: ApplicationDetailTab): string | null {
+  switch (tab) {
+    case "basicInfo":
+    case "serviceHistory":
+    case "supervisor":
+    case "requirements":
+      return tab;
+    case "attachments":
+      return "summary";
+    default:
+      return null;
+  }
+}
 
 export function ApplicationDetailClient({ app, id }: Props) {
   const t = useTranslations("applications");
   const locale = useLocale();
-  const [tab, setTab] = useState<ApplicationDetailTab>("basicInfo");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { generatingPdf, pdfError, handleDownloadPdf } = useApplicationPdfDownload(app);
 
   const isEditable = isInstructorApplicationEditable(app.status);
   const canDownloadPdf = app.status !== "DRAFT";
+  const tabParam = searchParams.get("tab");
+  const tab = isApplicationDetailTab(tabParam) ? tabParam : "basicInfo";
   const translatedDegreeKey = degreeKey(app.template.degreeCode);
   const degreeTitle = translatedDegreeKey ? t(translatedDegreeKey) : app.template.degreeCode;
   const translatedStatusKey = statusKey(app.status);
   const statusLabel = translatedStatusKey ? t(translatedStatusKey) : app.status;
   const panelId = applicationDetailPanelId(tab);
   const tabId = applicationDetailTabId(tab);
-  const fixTargets = buildCandidateFixTargets(app, app, t);
-  const stepsWithFixes = countCandidateFixSteps(fixTargets);
+  const fixTargets =
+    app.status === "TO_FIX" && app.candidateEditScope.requestUuid
+      ? buildCandidateFixTargets(app, app, t)
+      : [];
+  const stepsWithFixes =
+    fixTargets.length > 0 ? countCandidateFixSteps(fixTargets) : 0;
   const editActionLabel =
     app.status === "TO_FIX" ? t("actions.openFixes") : t("actions.edit");
+  const mappedEditStep = mapDetailTabToEditStep(tab);
+  const editHref = mappedEditStep
+    ? `/${locale}/applications/${id}/edit${
+        mappedEditStep === "basicInfo" ? "" : `?step=${mappedEditStep}`
+      }`
+    : `/${locale}/applications/${id}/edit`;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -80,7 +137,7 @@ export function ApplicationDetailClient({ app, id }: Props) {
           )}
           {isEditable && (
             <Link
-              href={`/${locale}/applications/${id}/edit`}
+              href={editHref}
               className={IA_BUTTON_PRIMARY_MD}
             >
               {editActionLabel}
@@ -108,7 +165,7 @@ export function ApplicationDetailClient({ app, id }: Props) {
               </p>
             </div>
             <Link
-              href={`/${locale}/applications/${id}/edit`}
+              href={editHref}
               className={IA_BUTTON_PRIMARY_MD}
             >
               {t("actions.openFixes")}
@@ -176,7 +233,19 @@ export function ApplicationDetailClient({ app, id }: Props) {
         </section>
       )}
 
-      <ApplicationDetailTabsNav tab={tab} onChange={setTab} />
+      <ApplicationDetailTabsNav
+        tab={tab}
+        onChange={(nextTab) => {
+          const nextHref = buildTabHref(pathname, searchParams.toString(), nextTab);
+          const currentHref = buildTabHref(pathname, searchParams.toString(), tab);
+
+          if (nextHref === currentHref) {
+            return;
+          }
+
+          router.replace(nextHref, { scroll: false });
+        }}
+      />
 
       <div role="tabpanel" id={panelId} aria-labelledby={tabId} tabIndex={0} className="outline-none">
         {/* Tab content */}
@@ -184,12 +253,10 @@ export function ApplicationDetailClient({ app, id }: Props) {
         {tab === "serviceHistory" && <TabServiceHistory app={app} />}
         {tab === "supervisor" && <TabSupervisor app={app} />}
         {tab === "requirements" && (
-          <RequirementForm
+          <RequirementReadonlyList
             applicationId={id}
-            degreeCode={app.template.degreeCode}
             requirements={app.requirements}
             groupDefinitions={app.template.groupDefinitions}
-            readOnly
           />
         )}
         {tab === "attachments" && <TabAttachments app={app} applicationId={id} />}
