@@ -1,5 +1,5 @@
 ```yaml
-title: "91-START"
+title: "0309-start"
 language: "pl"
 document_type: "start-guide"
 project:
@@ -10,7 +10,7 @@ last_updated: "2026-02-05"
 
 requirements:
   node: ">=24.12.0"
-  pnpm: ">=10.26.0"
+  pnpm: ">=11.8.0"
   docker: "required for infra stack"
 ```
 - [Cold start](#cold-start)

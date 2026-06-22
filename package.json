@@ -46,31 +46,13 @@
     "Nikolas Jerzy Feduniewicz <https://github.com/Nikovsky>"
   ],
   "license": "AGPL-3.0-only",
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@11.8.0",
   "devDependencies": {
     "cross-env": "^10.1.0",
     "dotenv": "^17.2.3",
-    "turbo": "^2.8.10"
+    "turbo": "^2.9.14"
   },
   "dependencies": {
     "dotenv": "^17.2.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "@angular-devkit/core>ajv": "8.18.0",
-      "@nestjs/platform-express>multer": "2.1.1",
-      "@typescript-eslint/typescript-estree>minimatch": "9.0.8",
-      "terser-webpack-plugin>serialize-javascript": "7.0.3",
-      "minio>fast-xml-parser": "5.5.7",
-      "glob@10.5.0": "13.0.6",
-      "glob@7.2.3": "13.0.6",
-      "hono@<4.12.7": "4.12.7",
-      "@hono/node-server@<1.19.10": "1.19.10",
-      "lodash": "4.17.23",
-      "minimatch@3.1.2": "3.1.5",
-      "minimatch@9.0.5": "9.0.8",
-      "qs": "6.15.0",
-      "test-exclude": "8.0.0"
-    }
   }
 }

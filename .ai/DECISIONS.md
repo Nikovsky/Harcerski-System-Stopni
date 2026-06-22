@@ -103,7 +103,7 @@
 ### D-TECH-02: API style
 
 - API jest **REST** (nie GraphQL).
-- Endpointy wg `docs/07-API-Spec.md` (Bierz pod uwagę korzystanie z ngnix).
+- Endpointy wg `docs/0203-api-spec.pl.md` (bierz pod uwagę korzystanie z nginx).
 
 ### D-TECH-03: Dane formularza (MVP)
 

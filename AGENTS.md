@@ -5,7 +5,7 @@ HSS (Harcerski System Stopni) is a Turborepo monorepo (`pnpm`) with enterprise s
 Primary goal: keep `apps/web` and `apps/api` horizontally scalable and stateless by default.
 
 ## Requirements & Structure
-- Runtime: Node `>=24.12.0`, pnpm `>=10.26.0`, Docker required.
+- Runtime: Node `>=24.12.0`, pnpm `>=11.8.0`, Docker required.
 - Apps:
   - `apps/web` - Next.js (SSR + `next-intl`)
   - `apps/api` - NestJS API

@@ -12,7 +12,7 @@ corepack enable pnpm
 node -v
 # v24.12.0
 pnpm -v
-# 10.26.0
+# 11.8.0
 ```
 
 ## Inicializacja monorepo
@@ -36,16 +36,16 @@ Dodanie plików: `turbo.json`
 mkdir apps
 ```
 
-## [NEXT.JS](./10-NEXT-init.pl.md)
+## [NEXT.JS](./0302-next-init.pl.md)
 
-## [NEST.JS](./20-NEST-init.pl.md)
+## [NEST.JS](./0303-nest-init.pl.md)
 
 ## Utworzenie folderu `packages`
 ```powershell
 mkdir packages
 ```
 
-## [PRISMA](./70-PRISMA-init.pl.md)
+## [PRISMA](./0308-prisma-init.pl.md)
 
 ## SCHEMAS
 ```powershell

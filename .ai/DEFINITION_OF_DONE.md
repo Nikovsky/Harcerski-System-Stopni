@@ -12,7 +12,7 @@ Task jest DONE, gdy spełnia wszystkie punkty:
 
 ### A) Funkcjonalność
 
-- Zaimplementowana zgodnie z `docs/` oraz `ai/DECISIONS.md`.
+- Zaimplementowana zgodnie z `docs/` oraz `.ai/DECISIONS.md`.
 - Ma kompletne kryteria akceptacji (AC) w opisie taska (lub w dokumentacji).
 - Nie wprowadza funkcji poza scope MVP bez jawnego taska.
 
@@ -47,8 +47,8 @@ Task jest DONE, gdy spełnia wszystkie punkty:
 ### E) Dokumentacja
 
 - Jeśli task zmienia API/kontrakt/flow:
-  - aktualizacja `docs/07-API-Spec.md` / `docs/04-UX-Flows.md` / `docs/06-Architecture.md` (zależnie od zmiany).
-- Jeśli task zmienia decyzje: aktualizacja `ai/DECISIONS.md`.
+  - aktualizacja `docs/0203-api-spec.pl.md` / `docs/0105-ux-flows.pl.md` / `docs/0201-architecture-mvp.pl.md` (zależnie od zmiany).
+- Jeśli task zmienia decyzje: aktualizacja `.ai/DECISIONS.md`.
 
 ### F) Backward compatibility / migracje
 
@@ -71,7 +71,7 @@ Feature jest DONE, gdy:
 
 ---
 
-## 3) DoD dla iteracji (zgodnie z `ai/TASKS.md`)
+## 3) DoD dla iteracji (zgodnie z `.ai/TASKS.md`)
 
 Iteracja jest DONE, gdy:
 

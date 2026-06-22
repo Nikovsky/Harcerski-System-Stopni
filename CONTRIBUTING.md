@@ -15,7 +15,7 @@ repository:
 
 requirements:
   node: ">=24.12.0"
-  pnpm: ">=10.26.0"
+  pnpm: ">=11.8.0"
   docker: "required for infra stack"
 
 quality_gates:

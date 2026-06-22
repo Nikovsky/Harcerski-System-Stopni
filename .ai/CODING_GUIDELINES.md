@@ -18,7 +18,7 @@ Ustalić spójne zasady kodowania dla HSS, tak aby:
 - Repo: **monorepo** (tooling: **turborepo**)
 - Package manager: **pnpm**
 - Node: `>= 24.12.0`
-- pnpm: `>= 10.26.0`
+- pnpm: `>= 11.8.0`
 - Docker: wymagany do stacku infra (compose)
 
 **Quality gates (wymagane na PR)**
@@ -49,7 +49,7 @@ Ustalić spójne zasady kodowania dla HSS, tak aby:
 ## 2) Język w kodzie i komunikacji
 
 - **Kod, komentarze, logi, nazwy, commit messages, PR descriptions — po angielsku.**
-- Dokumentacja w `docs/` i `ai/` może być po polsku (jak w tym repo), ale w kodzie trzymamy angielski.
+- Dokumentacja w `docs/` i `.ai/` może być po polsku (jak w tym repo), ale w kodzie trzymamy angielski.
 
 ---
 
@@ -209,11 +209,11 @@ Każdy moduł:
 
 - Jeśli zasób ma ownera (Trial/Attachment/Booking):
   - sprawdź `sub` z tokena vs `ownerUserId` (lub rola komisji/admin).
-- Zwracaj spójne kody (401/403/404) zgodnie z `docs/07`.
+- Zwracaj spójne kody (401/403/404) zgodnie z `docs/0203-api-spec.pl.md`.
 
 ### 9.4 Błędy (spójny envelope)
 
-- Używamy jednolitego formatu błędu jak w `docs/07-API-Spec.md`.
+- Używamy jednolitego formatu błędu jak w `docs/0203-api-spec.pl.md`.
 - Nie wyciekamy stack trace do klienta.
 - Nie ujawniamy szczegółów bezpieczeństwa w komunikatach.
 
@@ -237,7 +237,7 @@ Operacje krytyczne zawsze generują `AuditEvent`:
 ## 10) Prisma / DB — standardy
 
 - Każda zmiana schematu = migracja.
-- Trzymaj indeksy wg `docs/05-Data-Model.md`.
+- Trzymaj indeksy wg `docs/0202-data-model.pl.md`.
 - Unikalność (np. booking slotu) egzekwuj constraintem/unique tam gdzie to możliwe.
 - “Single active trial” — w MVP logika w serwisie; jeśli dodamy constraint w DB, dokumentujemy.
 

@@ -17,7 +17,7 @@
   <img alt="NestJS" src="https://img.shields.io/badge/NestJS-API-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
   <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D24.12.0-339933?style=for-the-badge&logo=node.js&logoColor=white" />
-  <img alt="pnpm" src="https://img.shields.io/badge/pnpm-%3E%3D10.26.0-F69220?style=for-the-badge&logo=pnpm&logoColor=white" />
+  <img alt="pnpm" src="https://img.shields.io/badge/pnpm-%3E%3D11.8.0-F69220?style=for-the-badge&logo=pnpm&logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/docker-required-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
   <img alt="Status" src="https://img.shields.io/badge/status-in%20development-2563EB?style=for-the-badge" />
 </p>
@@ -76,7 +76,7 @@ flowchart LR
 ## Wymagania lokalne
 
 - Node.js `>= 24.12.0`
-- pnpm `>= 10.26.0`
+- pnpm `>= 11.8.0`
 - Docker + Docker Compose
 
 ## Szybki start

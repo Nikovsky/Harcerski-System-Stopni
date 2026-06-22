@@ -29,7 +29,7 @@ function formatText(
 
 export function HomePageClient({ messages }: HomePageClientProps) {
   const [backend, setBackend] = useState<BackendState>({
-    loading: true,
+    loading: false,
     status: null,
     ok: null,
     data: null,
@@ -83,13 +83,7 @@ export function HomePageClient({ messages }: HomePageClientProps) {
   }, [messages.status]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void load();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
+    void load();
   }, [load]);
 
   // Prefer payload message if available; otherwise fall back to HTTP ok.

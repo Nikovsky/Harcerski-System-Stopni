@@ -108,7 +108,7 @@
 ### Wymagania twarde
 
 - Kod modułowy (NestJS modules), czytelne granice domen.
-- Kontrakty API stabilne i udokumentowane (docs/07).
+- Kontrakty API stabilne i udokumentowane w `docs/0203-api-spec.pl.md`.
 - Testy:
   - unit: state machine statusów, reguła “jedna aktywna próba”
   - integration: RBAC/IDOR, booking, attachments

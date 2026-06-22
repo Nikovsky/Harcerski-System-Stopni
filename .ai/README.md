@@ -1,6 +1,6 @@
 # AI Workspace — HSS (Harcerki System Stopni)
 
-## Cel katalogu `ai/`
+## Cel katalogu `.ai/`
 
 Ten katalog służy do pracy z agentami AI (np. do generowania kodu, testów, tasków, refactorów) w sposób:
 
@@ -18,25 +18,26 @@ Agent AI ma traktować `docs/` jako nadrzędne względem własnych założeń.
 ### 1) Zawsze zaczynaj od kontekstu
 
 1. Przeczytaj:
-   - `docs/00-Overview.md`
-   - `docs/02-Scope-MVP-vs-Next.md`
-   - `docs/06-Architecture.md`
-   - `docs/07-API-Spec.md`
+   - `docs/0000-overview.md`
+   - `docs/0101-product-overview.pl.md`
+   - `docs/0103-scope-mvp-next.pl.md`
+   - `docs/0201-architecture-mvp.pl.md`
+   - `docs/0203-api-spec.pl.md`
 2. Następnie przeczytaj:
-   - `ai/CONTEXT.md`
-   - `ai/DECISIONS.md`
-   - `ai/DEFINITION_OF_DONE.md`
-   - `ai/CODING_GUIDELINES.md`
-   - `ai/TEST_GUIDELINES.md`
-   - `ai/TASKS.md`
+   - `.ai/CONTEXT.md`
+   - `.ai/DECISIONS.md`
+   - `.ai/DEFINITION_OF_DONE.md`
+   - `.ai/CODING_GUIDELINES.md`
+   - `.ai/TEST_GUIDELINES.md`
+   - `.ai/TASKS.md`
 
-**Jeśli coś jest sprzeczne:** priorytet ma `docs/`, potem `ai/DECISIONS.md`.
+**Jeśli coś jest sprzeczne:** priorytet ma `docs/`, potem `.ai/DECISIONS.md`.
 
 ---
 
 ### 2) Praca w iteracjach
 
-Agent pracuje w iteracjach zgodnie z `ai/TASKS.md`.
+Agent pracuje w iteracjach zgodnie z `.ai/TASKS.md`.
 
 Zasady iteracji:
 
