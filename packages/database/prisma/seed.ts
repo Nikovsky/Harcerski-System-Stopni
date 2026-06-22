@@ -33,6 +33,79 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  async function ensureUser(data: {
+    keycloakUuid: string;
+    firstName: string;
+    secondName?: string | null;
+    surname: string;
+    email: string;
+    phone: string;
+    birthDate: Date;
+    role: UserRole;
+    status: Status;
+    hufiecCode?: string | null;
+    druzynaCode?: string | null;
+    scoutRank?: ScoutRank | null;
+    scoutRankAwardedAt?: Date | null;
+    instructorRank?: InstructorRank | null;
+    instructorRankAwardedAt?: Date | null;
+    inScoutingSince?: Date | null;
+    inZhrSince?: Date | null;
+    oathDate?: Date | null;
+  }) {
+    const matches = await prisma.user.findMany({
+      where: {
+        OR: [{ keycloakUuid: data.keycloakUuid }, { email: data.email }],
+      },
+      select: {
+        uuid: true,
+        keycloakUuid: true,
+        email: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (matches.length > 1) {
+      throw new Error(
+        `Ambiguous seeded user match for ${data.email} / ${data.keycloakUuid}. Resolve duplicate local rows first.`,
+      );
+    }
+
+    const userData = {
+      keycloakUuid: data.keycloakUuid,
+      firstName: data.firstName,
+      secondName: data.secondName ?? null,
+      surname: data.surname,
+      email: data.email,
+      phone: data.phone,
+      birthDate: data.birthDate,
+      role: data.role,
+      status: data.status,
+      hufiecCode: data.hufiecCode ?? null,
+      druzynaCode: data.druzynaCode ?? null,
+      scoutRank: data.scoutRank ?? null,
+      scoutRankAwardedAt: data.scoutRankAwardedAt ?? null,
+      instructorRank: data.instructorRank ?? null,
+      instructorRankAwardedAt: data.instructorRankAwardedAt ?? null,
+      inScoutingSince: data.inScoutingSince ?? null,
+      inZhrSince: data.inZhrSince ?? null,
+      oathDate: data.oathDate ?? null,
+    };
+
+    const existingUser = matches[0];
+
+    if (existingUser) {
+      return prisma.user.update({
+        where: { uuid: existingUser.uuid },
+        data: userData,
+      });
+    }
+
+    return prisma.user.create({
+      data: userData,
+    });
+  }
+
   async function ensureActiveCommissionMembership(data: {
     commissionUuid: string;
     userUuid: string;
@@ -138,126 +211,102 @@ async function main() {
   // =========================================================
   console.log('👤 Seeding users...');
 
-  const janKowalski = await prisma.user.upsert({
-    where: { keycloakUuid: '11111111-1111-1111-1111-111111111111' },
-    update: {},
-    create: {
-      keycloakUuid: '11111111-1111-1111-1111-111111111111',
-      firstName: 'Jan',
-      secondName: 'Marian',
-      surname: 'Kowalski',
-      email: 'jan.kowalski@zhr.pl',
-      phone: '+48123456789',
-      birthDate: new Date('2000-01-01'),
-      role: UserRole.SCOUT,
-      status: Status.ACTIVE,
-      hufiecCode: hufiec1.code,
-      druzynaCode: druzyna1.code,
-      scoutRank: ScoutRank.HARCERZ_ORLI,
-      instructorRank: null,
-      instructorRankAwardedAt: null,
-      inScoutingSince: new Date('2010-09-01'),
-      inZhrSince: new Date('2010-09-01'),
-      oathDate: new Date('2011-07-28'),
-    }
+  const janKowalski = await ensureUser({
+    keycloakUuid: '11111111-1111-1111-1111-111111111111',
+    firstName: 'Jan',
+    secondName: 'Marian',
+    surname: 'Kowalski',
+    email: 'jan.kowalski@zhr.pl',
+    phone: '+48123456789',
+    birthDate: new Date('2000-01-01'),
+    role: UserRole.SCOUT,
+    status: Status.ACTIVE,
+    hufiecCode: hufiec1.code,
+    druzynaCode: druzyna1.code,
+    scoutRank: ScoutRank.HARCERZ_ORLI,
+    instructorRank: null,
+    instructorRankAwardedAt: null,
+    inScoutingSince: new Date('2010-09-01'),
+    inZhrSince: new Date('2010-09-01'),
+    oathDate: new Date('2011-07-28'),
   });
 
-  const piotrNowak = await prisma.user.upsert({
-    where: { keycloakUuid: '22222222-2222-2222-2222-222222222222' },
-    update: {},
-    create: {
-      keycloakUuid: '22222222-2222-2222-2222-222222222222',
-      firstName: 'Piotr',
-      secondName: 'Paweł',
-      surname: 'Nowak',
-      email: 'piotr.nowak@zhr.pl',
-      phone: '+48676767676',
-      birthDate: new Date('2007-12-21'),
-      role: UserRole.USER,
-      status: Status.ACTIVE,
-      hufiecCode: hufiec2.code,
-      druzynaCode: druzyna2.code,
-      scoutRank: ScoutRank.CWIK,
-      inScoutingSince: new Date('2018-09-01'),
-      inZhrSince: new Date('2018-09-01'),
-      oathDate: new Date('2019-07-28'),
-    }
+  const piotrNowak = await ensureUser({
+    keycloakUuid: '22222222-2222-2222-2222-222222222222',
+    firstName: 'Piotr',
+    secondName: 'Paweł',
+    surname: 'Nowak',
+    email: 'piotr.nowak@zhr.pl',
+    phone: '+48676767676',
+    birthDate: new Date('2007-12-21'),
+    role: UserRole.USER,
+    status: Status.ACTIVE,
+    hufiecCode: hufiec2.code,
+    druzynaCode: druzyna2.code,
+    scoutRank: ScoutRank.CWIK,
+    inScoutingSince: new Date('2018-09-01'),
+    inZhrSince: new Date('2018-09-01'),
+    oathDate: new Date('2019-07-28'),
   });
 
-  const piotrKrajewski = await prisma.user.upsert({
-    where: { keycloakUuid: '33333333-3333-3333-3333-333333333333' },
-    update: {},
-    create: {
-      keycloakUuid: '33333333-3333-3333-3333-333333333333',
-      firstName: 'Piotr',
-      secondName: 'Adam',
-      surname: 'Krajewski',
-      email: 'piotr.krajewski@zhr.pl',
-      phone: '+48987654321',
-      birthDate: new Date('1995-05-15'),
-      role: UserRole.COMMISSION_MEMBER,
-      status: Status.ACTIVE,
-      scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
-      instructorRank: InstructorRank.HARCMISTRZ,
-      instructorRankAwardedAt: new Date('2020-01-01'),
-    }
+  const piotrKrajewski = await ensureUser({
+    keycloakUuid: '33333333-3333-3333-3333-333333333333',
+    firstName: 'Piotr',
+    secondName: 'Adam',
+    surname: 'Krajewski',
+    email: 'piotr.krajewski@zhr.pl',
+    phone: '+48987654321',
+    birthDate: new Date('1995-05-15'),
+    role: UserRole.COMMISSION_MEMBER,
+    status: Status.ACTIVE,
+    scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
+    instructorRank: InstructorRank.HARCMISTRZ,
+    instructorRankAwardedAt: new Date('2020-01-01'),
   });
 
-  const adamNowakowski = await prisma.user.upsert({
-    where: { keycloakUuid: '44444444-4444-4444-4444-444444444444' },
-    update: {},
-    create: {
-      keycloakUuid: '44444444-4444-4444-4444-444444444444',
-      firstName: 'Adam',
-      secondName: 'Nowakowski',
-      surname: 'Nowakowski',
-      email: 'adam.nowakowski@zhr.pl',
-      phone: '+48564887123',
-      birthDate: new Date('1998-05-15'),
-      role: UserRole.COMMISSION_MEMBER,
-      status: Status.ACTIVE,
-      scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
-      instructorRank: InstructorRank.PODHARCMISTRZ,
-      instructorRankAwardedAt: new Date('2021-12-01'),
-    }
+  const adamNowakowski = await ensureUser({
+    keycloakUuid: '44444444-4444-4444-4444-444444444444',
+    firstName: 'Adam',
+    secondName: 'Nowakowski',
+    surname: 'Nowakowski',
+    email: 'adam.nowakowski@zhr.pl',
+    phone: '+48564887123',
+    birthDate: new Date('1998-05-15'),
+    role: UserRole.COMMISSION_MEMBER,
+    status: Status.ACTIVE,
+    scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
+    instructorRank: InstructorRank.PODHARCMISTRZ,
+    instructorRankAwardedAt: new Date('2021-12-01'),
   });
 
-  const krzysztofKier = await prisma.user.upsert({
-    where: { keycloakUuid: '55555555-5555-5555-5555-555555555555' },
-    update: {},
-    create: {
-      keycloakUuid: '55555555-5555-5555-5555-555555555555',
-      firstName: 'Krzysztof',
-      secondName: 'Adam',
-      surname: 'Kier',
-      email: 'krzysztof.kier@zhr.pl',
-      phone: '+487789906676',
-      birthDate: new Date('1995-05-15'),
-      role: UserRole.COMMISSION_MEMBER,
-      status: Status.ACTIVE,
-      scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
-      instructorRank: InstructorRank.HARCMISTRZ,
-      instructorRankAwardedAt: new Date('2018-11-21'),
-    }
+  const krzysztofKier = await ensureUser({
+    keycloakUuid: '55555555-5555-5555-5555-555555555555',
+    firstName: 'Krzysztof',
+    secondName: 'Adam',
+    surname: 'Kier',
+    email: 'krzysztof.kier@zhr.pl',
+    phone: '+487789906676',
+    birthDate: new Date('1995-05-15'),
+    role: UserRole.COMMISSION_MEMBER,
+    status: Status.ACTIVE,
+    scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
+    instructorRank: InstructorRank.HARCMISTRZ,
+    instructorRankAwardedAt: new Date('2018-11-21'),
   });
 
-  const michalRenke = await prisma.user.upsert({
-    where: { keycloakUuid: '66666666-6666-6666-6666-666666666666' },
-    update: {},
-    create: {
-      keycloakUuid: '66666666-6666-6666-6666-666666666666',
-      firstName: 'Michał',
-      secondName: 'Renke',
-      surname: 'Renke',
-      email: 'michal.renke@zhr.pl',
-      phone: '+48564887123',
-      birthDate: new Date('2000-07-15'),
-      role: UserRole.COMMISSION_MEMBER,
-      status: Status.ACTIVE,
-      scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
-      instructorRank: InstructorRank.PODHARCMISTRZ,
-      instructorRankAwardedAt: new Date('2024-12-15'),
-    }
+  const michalRenke = await ensureUser({
+    keycloakUuid: '66666666-6666-6666-6666-666666666666',
+    firstName: 'Michał',
+    secondName: 'Renke',
+    surname: 'Renke',
+    email: 'michal.renke@zhr.pl',
+    phone: '+48564887123',
+    birthDate: new Date('2000-07-15'),
+    role: UserRole.COMMISSION_MEMBER,
+    status: Status.ACTIVE,
+    scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
+    instructorRank: InstructorRank.PODHARCMISTRZ,
+    instructorRankAwardedAt: new Date('2024-12-15'),
   });
 
   // =========================================================
@@ -801,6 +850,33 @@ async function main() {
     isGroup: false,
     sortOrder: 15,
   });
+
+  // =========================================================
+  // 6. DETERMINISTIC E2E DATA
+  // =========================================================
+  console.log('🧪 Seeding deterministic E2E candidate data...');
+
+  const existingMeetingsE2eApprovedApplication =
+    await prisma.instructorApplication.findFirst({
+      where: {
+        candidateUuid: janKowalski.uuid,
+        templateUuid: pwdTemplate.uuid,
+        status: ApplicationStatus.APPROVED,
+      },
+      select: { uuid: true },
+    });
+
+  if (!existingMeetingsE2eApprovedApplication) {
+    await prisma.instructorApplication.create({
+      data: {
+        candidateUuid: janKowalski.uuid,
+        templateUuid: pwdTemplate.uuid,
+        status: ApplicationStatus.APPROVED,
+        lastSubmittedAt: new Date('2026-03-01T12:00:00.000Z'),
+        approvedAt: new Date('2026-03-05T12:00:00.000Z'),
+      },
+    });
+  }
 
   console.log('✅ Database seeded successfully!');
 }

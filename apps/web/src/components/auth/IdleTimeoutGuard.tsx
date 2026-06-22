@@ -27,6 +27,10 @@ type SessionStatus = {
   absoluteExpiresAtMs: number | null;
 };
 
+type IdleTimeoutGuardProps = {
+  locale: string;
+};
+
 function parseExtendOptions(csv: string): number[] {
   const values = csv
     .split(",")
@@ -122,9 +126,10 @@ async function touchSession(extendSeconds?: number): Promise<SessionStatus | nul
   }
 }
 
-export function IdleTimeoutGuard() {
+export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
   const t = useTranslations("common.idleTimeout");
   const pathname = usePathname();
+  const localeRoot = locale === "en" ? "/en" : "/pl";
 
   const sessionTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
   const promptBeforeExpirySec = envPublic.NEXT_PUBLIC_SESSION_PROMPT_BEFORE_EXPIRY_SECONDS;
@@ -217,10 +222,13 @@ export function IdleTimeoutGuard() {
     try {
       broadcast({ type: "logout" });
       clearStoredExpiresAt();
-      const logoutUrl =
-        reason === "timeout"
-          ? "/api/auth/logout?reason=timeout"
-          : "/api/auth/logout";
+      const logoutParams = new URLSearchParams({
+        returnTo: localeRoot,
+      });
+      if (reason === "timeout") {
+        logoutParams.set("reason", "timeout");
+      }
+      const logoutUrl = `/api/auth/logout?${logoutParams.toString()}`;
       await fetch(logoutUrl, {
         method: "POST",
         credentials: "include",
@@ -230,8 +238,8 @@ export function IdleTimeoutGuard() {
       // Ignore network errors and proceed with redirect.
     }
 
-    window.location.href = "/";
-  }, [broadcast]);
+    window.location.href = localeRoot;
+  }, [broadcast, localeRoot]);
 
   const touchServerSession = useCallback(
     async (extendSeconds?: number) => {

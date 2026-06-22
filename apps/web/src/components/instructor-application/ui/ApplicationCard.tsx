@@ -4,14 +4,14 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { degreeKey, statusKey } from "@/lib/applications-i18n";
+import { isInstructorApplicationEditable } from "@/lib/instructor-application-editability";
 import { ApplicationStatusBadge } from "./ApplicationStatusBadge";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
 import { DeleteDraftButton } from "@/components/instructor-application/ui/DeleteDraftButton";
-import { isInstructorApplicationEditable } from "@hss/schemas";
-import type { InstructorApplicationListItem } from "@hss/schemas";
+import type { InstructorApplicationListItem } from "@hss/schemas/instructor-application";
 
 export function ApplicationCard({ app }: { app: InstructorApplicationListItem }) {
   const t = useTranslations("applications");
@@ -35,8 +35,8 @@ export function ApplicationCard({ app }: { app: InstructorApplicationListItem })
             </h3>
             <ApplicationStatusBadge status={app.status} label={statusLabel} />
           </div>
-          <p className="mt-2 text-xs text-foreground/50">
-            {t("createdAt")}: {new Date(app.createdAt).toLocaleDateString("pl-PL")}
+          <p className="mt-2 text-xs text-foreground/70">
+            {t("createdAt")}: {new Date(app.createdAt).toLocaleDateString(locale)}
           </p>
         </div>
         <div className="flex gap-2">

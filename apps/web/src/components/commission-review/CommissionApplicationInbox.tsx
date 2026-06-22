@@ -102,7 +102,7 @@ export async function CommissionApplicationInbox({
           <header className="rounded-3xl border border-border bg-gradient-to-br from-background via-background to-muted/50 p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-foreground/45">
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-foreground/75">
                   {membership.commissionType
                     ? tCommission(`types.${membership.commissionType}`)
                     : tCommission("types.UNKNOWN")}
@@ -110,7 +110,7 @@ export async function CommissionApplicationInbox({
                 <h1 className="mt-3 text-3xl font-semibold tracking-tight">
                   {membership.commissionName ?? tCommission("membership.fallbackNameShort")}
                 </h1>
-                <p className="mt-2 text-sm text-foreground/60">
+                <p className="mt-2 text-sm text-foreground/75">
                   {tCommission("membership.roleLabel")}:{" "}
                   <span className="font-medium text-foreground">
                     {tCommission(`roles.${membership.commissionRole}`)}
@@ -128,15 +128,15 @@ export async function CommissionApplicationInbox({
 
           <section className="grid gap-4 md:grid-cols-3">
             <article className="rounded-3xl border border-border bg-background p-5">
-              <p className="text-sm text-foreground/55">{tCommission("inbox.stats.total")}</p>
+              <p className="text-sm text-foreground/75">{tCommission("inbox.stats.total")}</p>
               <p className="mt-2 text-3xl font-semibold">{response.total}</p>
             </article>
             <article className="rounded-3xl border border-border bg-background p-5">
-              <p className="text-sm text-foreground/55">{tCommission("inbox.stats.onPage")}</p>
+              <p className="text-sm text-foreground/75">{tCommission("inbox.stats.onPage")}</p>
               <p className="mt-2 text-3xl font-semibold">{response.items.length}</p>
             </article>
             <article className="rounded-3xl border border-border bg-background p-5">
-              <p className="text-sm text-foreground/55">
+              <p className="text-sm text-foreground/75">
                 {tCommission("inbox.stats.openFixRequests")}
               </p>
               <p className="mt-2 text-3xl font-semibold">{openFixCount}</p>
@@ -147,7 +147,7 @@ export async function CommissionApplicationInbox({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">{tCommission("inbox.filtersTitle")}</h2>
-                <p className="text-sm text-foreground/60">
+                <p className="text-sm text-foreground/75">
                   {tCommission("inbox.filtersDescription")}
                 </p>
               </div>
@@ -256,7 +256,7 @@ export async function CommissionApplicationInbox({
             {response.items.length === 0 ? (
               <article className="rounded-3xl border border-dashed border-border bg-background px-6 py-12 text-center">
                 <h2 className="text-lg font-semibold">{tCommission("inbox.emptyTitle")}</h2>
-                <p className="mt-2 text-sm text-foreground/60">
+                <p className="mt-2 text-sm text-foreground/75">
                   {tCommission("inbox.emptyDescription")}
                 </p>
               </article>
@@ -280,13 +280,13 @@ export async function CommissionApplicationInbox({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-3">
                         <div>
-                          <p className="text-sm font-medium uppercase tracking-[0.2em] text-foreground/45">
+                          <p className="text-sm font-medium uppercase tracking-[0.2em] text-foreground/75">
                             {degreeLabel}
                           </p>
                           <h2 className="mt-2 text-xl font-semibold tracking-tight">
                             {getCandidateLabel(item, tCommission)}
                           </h2>
-                          <p className="mt-1 text-sm text-foreground/60">
+                          <p className="mt-1 text-sm text-foreground/75">
                             {item.candidateEmail ?? tCommission("inbox.noCandidateEmail")}
                           </p>
                         </div>
@@ -306,20 +306,22 @@ export async function CommissionApplicationInbox({
                         </div>
                       </div>
 
-                      <div className="min-w-[220px] space-y-2 text-sm text-foreground/60">
+                      <div className="min-w-[220px] space-y-2 text-sm text-foreground/75">
                         <p>
-                          <span className="font-medium text-foreground/80">
+                            <span className="font-medium text-foreground">
                             {tCommission("inbox.meta.updatedAt")}:
                           </span>{" "}
                           {formatDate(locale, item.updatedAt)}
                         </p>
                         <p>
-                          <span className="font-medium text-foreground/80">
+                            <span className="font-medium text-foreground">
                             {tCommission("inbox.meta.lastSubmittedAt")}:
                           </span>{" "}
                           {formatDate(locale, item.lastSubmittedAt)}
                         </p>
-                        <p className="text-primary">{tCommission("actions.openApplication")}</p>
+                        <p className="font-medium text-foreground">
+                          {tCommission("actions.openApplication")}
+                        </p>
                       </div>
                     </div>
                   </Link>
@@ -330,7 +332,7 @@ export async function CommissionApplicationInbox({
 
           {response.total > query.pageSize && (
             <nav className="flex items-center justify-between rounded-3xl border border-border bg-background p-4">
-              <div className="text-sm text-foreground/60">
+              <div className="text-sm text-foreground/75">
                 {tCommission("inbox.pagination", {
                   page: response.page,
                   total: Math.max(1, Math.ceil(response.total / response.pageSize)),
@@ -363,7 +365,7 @@ export async function CommissionApplicationInbox({
         <aside className="space-y-4">
           <section className="rounded-3xl border border-border bg-background p-5">
             <h2 className="text-lg font-semibold">{tCommission("inbox.sidebar.title")}</h2>
-            <p className="mt-2 text-sm leading-6 text-foreground/60">
+            <p className="mt-2 text-sm leading-6 text-foreground/75">
               {tCommission("inbox.sidebar.description")}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -400,7 +402,7 @@ export async function CommissionApplicationInbox({
                     className="flex items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm transition hover:bg-muted"
                   >
                     <span>{label}</span>
-                    <span className="text-foreground/35">→</span>
+                    <span className="text-foreground/75">→</span>
                   </Link>
                 );
               })}

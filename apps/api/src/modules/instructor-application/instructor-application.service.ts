@@ -184,7 +184,13 @@ export class InstructorApplicationService {
       },
     });
     if (!template || template.degreeType !== 'INSTRUCTOR') {
-      throw new BadRequestException('Invalid instructor template');
+      throw this.buildBadRequestException(
+        'INVALID_INSTRUCTOR_TEMPLATE',
+        'Invalid instructor template',
+        {
+          templateUuid: dto.templateUuid,
+        },
+      );
     }
 
     let application: { uuid: string };
@@ -388,9 +394,17 @@ export class InstructorApplicationService {
       },
     });
 
-    if (!app) throw new NotFoundException('Application not found');
+    if (!app) {
+      throw this.buildNotFoundException(
+        'APPLICATION_NOT_FOUND',
+        'Application not found',
+      );
+    }
     if (app.candidate.keycloakUuid !== principal.sub)
-      throw new ForbiddenException();
+      throw this.buildForbiddenException(
+        'APPLICATION_ACCESS_FORBIDDEN',
+        'You do not have access to this application.',
+      );
 
     const attachmentRequirementByUuid = buildAttachmentRequirementMap(
       app.attachments,
@@ -524,10 +538,16 @@ export class InstructorApplicationService {
       });
 
       if (!app) {
-        throw new NotFoundException('Application not found');
+        throw this.buildNotFoundException(
+          'APPLICATION_NOT_FOUND',
+          'Application not found',
+        );
       }
       if (app.candidate.keycloakUuid !== principal.sub) {
-        throw new ForbiddenException();
+        throw this.buildForbiddenException(
+          'APPLICATION_ACCESS_FORBIDDEN',
+          'You do not have access to this application.',
+        );
       }
 
       return this.markCandidateRevisionRequestViewed(tx, applicationId);
@@ -581,10 +601,16 @@ export class InstructorApplicationService {
           },
         });
         if (!ownedApp) {
-          throw new NotFoundException('Application not found');
+          throw this.buildNotFoundException(
+            'APPLICATION_NOT_FOUND',
+            'Application not found',
+          );
         }
         if (ownedApp.candidate.keycloakUuid !== principal.sub) {
-          throw new ForbiddenException();
+          throw this.buildForbiddenException(
+            'APPLICATION_ACCESS_FORBIDDEN',
+            'You do not have access to this application.',
+          );
         }
         if (!isInstructorApplicationEditable(ownedApp.status)) {
           throw new BadRequestException({
@@ -606,7 +632,10 @@ export class InstructorApplicationService {
           select: INSTRUCTOR_APPLICATION_AUDIT_SELECT,
         });
         if (!beforeAuditSnapshot) {
-          throw new NotFoundException('Application not found');
+          throw this.buildNotFoundException(
+            'APPLICATION_NOT_FOUND',
+            'Application not found',
+          );
         }
 
         const updated = await tx.instructorApplication.update({
@@ -721,9 +750,17 @@ export class InstructorApplicationService {
           attachments: { where: { status: 'ACTIVE' } },
         },
       });
-      if (!fullApp) throw new NotFoundException('Application not found');
+      if (!fullApp) {
+        throw this.buildNotFoundException(
+          'APPLICATION_NOT_FOUND',
+          'Application not found',
+        );
+      }
       if (fullApp.candidate.keycloakUuid !== principal.sub)
-        throw new ForbiddenException();
+        throw this.buildForbiddenException(
+          'APPLICATION_ACCESS_FORBIDDEN',
+          'You do not have access to this application.',
+        );
       if (!isInstructorApplicationEditable(fullApp.status)) {
         throw new BadRequestException({
           code: 'APPLICATION_NOT_EDITABLE',
@@ -935,10 +972,16 @@ export class InstructorApplicationService {
         },
       });
       if (!ownedApp) {
-        throw new NotFoundException('Application not found');
+        throw this.buildNotFoundException(
+          'APPLICATION_NOT_FOUND',
+          'Application not found',
+        );
       }
       if (ownedApp.candidate.keycloakUuid !== principal.sub) {
-        throw new ForbiddenException();
+        throw this.buildForbiddenException(
+          'APPLICATION_ACCESS_FORBIDDEN',
+          'You do not have access to this application.',
+        );
       }
       if (ownedApp.status !== ApplicationStatus.DRAFT) {
         throw new BadRequestException({
@@ -1045,10 +1088,16 @@ export class InstructorApplicationService {
           },
         });
         if (!ownedApp) {
-          throw new NotFoundException('Application not found');
+          throw this.buildNotFoundException(
+            'APPLICATION_NOT_FOUND',
+            'Application not found',
+          );
         }
         if (ownedApp.candidate.keycloakUuid !== principal.sub) {
-          throw new ForbiddenException();
+          throw this.buildForbiddenException(
+            'APPLICATION_ACCESS_FORBIDDEN',
+            'You do not have access to this application.',
+          );
         }
         if (!isInstructorApplicationEditable(ownedApp.status)) {
           throw new BadRequestException({
@@ -1081,7 +1130,14 @@ export class InstructorApplicationService {
           },
         });
         if (!req || req.applicationUuid !== applicationId) {
-          throw new NotFoundException('Requirement not found');
+          throw this.buildNotFoundException(
+            'REQUIREMENT_NOT_FOUND',
+            'Requirement not found',
+            {
+              applicationId,
+              requirementId,
+            },
+          );
         }
 
         const actionDescription = dto.actionDescription.trim();
@@ -1092,13 +1148,27 @@ export class InstructorApplicationService {
         );
 
         if (!isOptionalRequirement && actionDescription.length === 0) {
-          throw new BadRequestException(
+          throw this.buildBadRequestException(
+            'REQUIREMENT_ACTION_DESCRIPTION_REQUIRED',
             'Opis realizacji zadania jest wymagany.',
+            {
+              applicationId,
+              requirementId,
+              requirementCode: req.requirementDefinition.code,
+            },
           );
         }
 
         if (!isOptionalRequirement && verificationText.length === 0) {
-          throw new BadRequestException('Opis załącznika jest wymagany.');
+          throw this.buildBadRequestException(
+            'REQUIREMENT_VERIFICATION_REQUIRED',
+            'Opis załącznika jest wymagany.',
+            {
+              applicationId,
+              requirementId,
+              requirementCode: req.requirementDefinition.code,
+            },
+          );
         }
 
         const updatedRequirement =
@@ -1260,6 +1330,42 @@ export class InstructorApplicationService {
     >[0],
   ) {
     this.validationService.ensureProfileCompleteForWrite(user);
+  }
+
+  private buildBadRequestException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): BadRequestException {
+    return new BadRequestException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
+  }
+
+  private buildForbiddenException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): ForbiddenException {
+    return new ForbiddenException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
+  }
+
+  private buildNotFoundException(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): NotFoundException {
+    return new NotFoundException({
+      code,
+      message,
+      ...(details ? { details } : {}),
+    });
   }
 
   private buildApplicationFieldChanges(

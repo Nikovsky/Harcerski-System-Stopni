@@ -18,6 +18,24 @@
     "test": {
       "outputs": []
     },
+    "test:e2e": {
+      "cache": false,
+      "outputs": [
+        "generated/**"
+      ]
+    },
+    "test:a11y": {
+      "cache": false,
+      "outputs": [
+        "generated/**"
+      ]
+    },
+    "test:perf": {
+      "cache": false,
+      "outputs": [
+        "generated/**"
+      ]
+    },
     "db:generate": {
       "cache": false
     },

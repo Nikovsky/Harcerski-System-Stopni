@@ -1,9 +1,31 @@
 // @file: apps/web/src/components/ui/Popup.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { X } from "react-bootstrap-icons";
 import type { PopupProps } from "@/components/props/ui";
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(", ");
+
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) =>
+      !element.hasAttribute("disabled") &&
+      element.tabIndex !== -1 &&
+      element.getAttribute("aria-hidden") !== "true",
+  );
+}
 
 export function Popup({
   children,
@@ -19,6 +41,9 @@ export function Popup({
   showCloseButton = true,
 }: PopupProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const contentId = useId();
   const isStructured =
     title !== undefined || content !== undefined || actions !== undefined;
   const canClose = !disableClose;
@@ -28,21 +53,75 @@ export function Popup({
   const shouldShowCloseButton = canClose && showCloseButton;
 
   useEffect(() => {
-    // focus for accessibility
-    dialogRef.current?.focus();
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    // lock scroll
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const dialogElement = dialogRef.current;
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && canCloseWithEscape) onClose();
+    const focusInitialTarget = () => {
+      const focusableElements = getFocusableElements(dialogElement);
+      const firstFocusable = focusableElements[0];
+
+      if (firstFocusable) {
+        firstFocusable.focus();
+        return;
+      }
+
+      dialogElement?.focus();
     };
 
-    window.addEventListener("keydown", onKeyDown);
+    const animationFrameId = window.requestAnimationFrame(focusInitialTarget);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && canCloseWithEscape) {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(dialogElement);
+      if (focusableElements.length === 0) {
+        e.preventDefault();
+        dialogElement?.focus();
+        return;
+      }
+
+      const firstFocusable = focusableElements[0];
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (e.shiftKey) {
+        if (activeElement === firstFocusable || activeElement === dialogElement) {
+          e.preventDefault();
+          lastFocusable.focus();
+        }
+        return;
+      }
+
+      if (activeElement === lastFocusable) {
+        e.preventDefault();
+        firstFocusable.focus();
+      }
+    };
+
+    dialogElement?.addEventListener("keydown", onKeyDown);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
+      window.cancelAnimationFrame(animationFrameId);
+      dialogElement?.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = prevOverflow;
+
+      const previouslyFocused = previouslyFocusedRef.current;
+      if (previouslyFocused && previouslyFocused.isConnected) {
+        window.requestAnimationFrame(() => {
+          previouslyFocused.focus();
+        });
+      }
     };
   }, [canCloseWithEscape, onClose]);
 
@@ -50,7 +129,9 @@ export function Popup({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={ariaLabel}
+      aria-label={title === undefined ? ariaLabel : undefined}
+      aria-labelledby={title !== undefined ? titleId : undefined}
+      aria-describedby={content !== undefined ? contentId : undefined}
       onClick={(e) => {
         // Close only when clicking the backdrop.
         if (e.target === e.currentTarget && canCloseWithBackdrop) onClose();
@@ -70,7 +151,10 @@ export function Popup({
           <div className="flex flex-col">
             {shouldShowHeader ? (
               <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-1">
-                <div className="min-w-0 text-base font-semibold text-foreground">
+                <div
+                  id={title !== undefined ? titleId : undefined}
+                  className="min-w-0 text-base font-semibold text-foreground"
+                >
                   {title}
                 </div>
 
@@ -88,7 +172,10 @@ export function Popup({
             ) : null}
 
             {content !== undefined ? (
-              <div className="px-5 py-4 text-sm leading-6 text-muted-foreground">
+              <div
+                id={contentId}
+                className="px-5 py-4 text-sm leading-6 text-muted-foreground"
+              >
                 {content}
               </div>
             ) : null}

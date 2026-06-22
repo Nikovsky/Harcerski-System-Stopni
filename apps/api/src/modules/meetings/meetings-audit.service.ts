@@ -1,5 +1,5 @@
 // @file: apps/api/src/modules/meetings/meetings-audit.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@hss/database';
 import { randomUUID } from 'node:crypto';
 import type { AuthPrincipal } from '@hss/schemas';
@@ -24,6 +24,7 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 type MeetingAuditMetadata = Record<string, JsonValue>;
 
 const AUDIT_METADATA_SCHEMA_VERSION = 1;
+type MeetingAuditExecutor = Prisma.TransactionClient | PrismaService;
 
 export type LogMeetingAuditParams = {
   principal: AuthPrincipal;
@@ -36,11 +37,12 @@ export type LogMeetingAuditParams = {
 
 @Injectable()
 export class MeetingsAuditService {
-  private readonly logger = new Logger(MeetingsAuditService.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
-  async log(params: LogMeetingAuditParams): Promise<void> {
+  async log(
+    params: LogMeetingAuditParams,
+    executor: MeetingAuditExecutor = this.prisma,
+  ): Promise<void> {
     const requestId = sanitizeRequestId(params.requestId);
     const metadataJson = JSON.stringify({
       ...(params.metadata ?? {}),
@@ -49,35 +51,27 @@ export class MeetingsAuditService {
     } satisfies MeetingAuditMetadata);
     const targetUuid = params.targetUuid ?? null;
 
-    try {
-      await this.prisma.$executeRaw(
-        Prisma.sql`
-          INSERT INTO "AuditEvent" (
-            "uuid",
-            "actorKeycloakUuid",
-            "action",
-            "targetType",
-            "targetUuid",
-            "metadata",
-            "createdAt"
-          )
-          VALUES (
-            ${randomUUID()}::uuid,
-            ${params.principal.sub}::uuid,
-            ${params.action},
-            ${params.targetType},
-            ${targetUuid}::uuid,
-            ${metadataJson}::jsonb,
-            NOW()
-          )
-        `,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Meetings audit log write failed for action=${params.action}, targetType=${params.targetType}, targetUuid=${targetUuid ?? 'null'}: ${String(
-          error,
-        )}`,
-      );
-    }
+    await executor.$executeRaw(
+      Prisma.sql`
+        INSERT INTO "AuditEvent" (
+          "uuid",
+          "actorKeycloakUuid",
+          "action",
+          "targetType",
+          "targetUuid",
+          "metadata",
+          "createdAt"
+        )
+        VALUES (
+          ${randomUUID()}::uuid,
+          ${params.principal.sub}::uuid,
+          ${params.action},
+          ${params.targetType},
+          ${targetUuid}::uuid,
+          ${metadataJson}::jsonb,
+          NOW()
+        )
+      `,
+    );
   }
 }

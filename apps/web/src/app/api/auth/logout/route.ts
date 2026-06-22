@@ -36,6 +36,13 @@ function parseOriginFromReferer(referer: string | null): string | null {
   }
 }
 
+function sanitizeReturnTo(value: string | null): string {
+  if (!value) return "/";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/";
+  if (value.startsWith("/api/auth/logout")) return "/";
+  return value;
+}
+
 function serviceUnavailableResponse(requestId: string): NextResponse {
   const res = NextResponse.json(
     {
@@ -175,7 +182,8 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   const cookiesToClear = getAuthCookieNames(req);
   const logoutReason = req.nextUrl.searchParams.get("reason");
   const shouldForceReauthOnce = logoutReason === "timeout";
-  const redirectTo = `${appOrigin}/`;
+  const returnTo = sanitizeReturnTo(req.nextUrl.searchParams.get("returnTo"));
+  const redirectTo = new URL(returnTo, appOrigin).toString();
   const html = [
     "<!DOCTYPE html>",
     "<html><head>",

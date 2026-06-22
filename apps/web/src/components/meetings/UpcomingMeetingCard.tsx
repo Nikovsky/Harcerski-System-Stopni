@@ -77,7 +77,7 @@ export function UpcomingMeetingCard({
   if (loadFailed) {
     return (
       <section className="rounded-3xl border border-amber-400/35 bg-amber-500/10 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/55">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/70">
           {tCommon("eyebrow")}
         </p>
         <h2 className="mt-2 text-xl font-semibold text-card-foreground">
@@ -99,7 +99,7 @@ export function UpcomingMeetingCard({
   if (!registration) {
     return (
       <section className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/55">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/70">
           {tCommon("eyebrow")}
         </p>
         <h2 className="mt-2 text-xl font-semibold text-card-foreground">
@@ -142,7 +142,7 @@ export function UpcomingMeetingCard({
   return (
     <section className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm">
       <header className="border-b border-border/70 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/55">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-foreground/70">
           {tCommon("eyebrow")}
         </p>
         <h2 className="mt-2 text-xl font-semibold text-card-foreground">

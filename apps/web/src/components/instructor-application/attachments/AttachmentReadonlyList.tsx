@@ -1,7 +1,7 @@
 // @file: apps/web/src/components/instructor-application/attachments/AttachmentReadonlyList.tsx
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AttachmentDownloadLink } from "@/components/instructor-application/attachments/AttachmentDownloadLink";
 import type { AttachmentResponse } from "@hss/schemas";
 
@@ -21,6 +21,7 @@ export function AttachmentReadonlyList({
   downloadLabel,
 }: Props) {
   const t = useTranslations("applications");
+  const locale = useLocale();
   const effectiveViewLabel = viewLabel ?? t("actions.view");
   const effectiveDownloadLabel = downloadLabel ?? t("actions.download");
 
@@ -38,7 +39,7 @@ export function AttachmentReadonlyList({
               <p className="truncate font-medium">{attachment.originalFilename}</p>
               <p className="text-xs text-foreground/40">
                 {(attachment.sizeBytes / 1024).toFixed(0)} KB &middot;{" "}
-                {new Date(attachment.uploadedAt).toLocaleDateString("pl-PL")}
+                {new Date(attachment.uploadedAt).toLocaleDateString(locale)}
               </p>
             </div>
             <div className="ml-4 flex shrink-0 gap-2 text-xs">

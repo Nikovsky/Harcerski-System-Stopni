@@ -5,18 +5,18 @@ import { useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { statusKey } from "@/lib/applications-i18n";
-import { apiFetchValidated, ApiError } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import {
   IA_BUTTON_PRIMARY_SM,
   IA_BUTTON_SECONDARY_SM,
 } from "@/components/instructor-application/ui/button-classnames";
-import {
-  commissionReviewRevisionRequestCancelResponseSchema,
-  commissionReviewRevisionRequestPublishResponseSchema,
-  commissionReviewStatusTransitionResponseSchema,
-  type ApplicationStatus,
-  type CommissionReviewApplicationDetail,
-} from "@hss/schemas";
+import type {
+  CommissionReviewApplicationDetail,
+  CommissionReviewRevisionRequestCancelResponse,
+  CommissionReviewRevisionRequestPublishResponse,
+  CommissionReviewStatusTransitionResponse,
+} from "@hss/schemas/commission-review";
+import type { ApplicationStatus } from "@hss/schemas/enums";
 
 type Props = {
   commissionUuid: string;
@@ -108,8 +108,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewRevisionRequestCancelResponseSchema,
+      await apiFetch<CommissionReviewRevisionRequestCancelResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/revision-request/cancel`,
         {
           method: "POST",
@@ -149,8 +148,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewRevisionRequestPublishResponseSchema,
+      await apiFetch<CommissionReviewRevisionRequestPublishResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/revision-request/publish`,
         {
           method: "POST",
@@ -187,8 +185,7 @@ export function CommissionStatusActions({
     setIsSubmitting(true);
 
     try {
-      await apiFetchValidated(
-        commissionReviewStatusTransitionResponseSchema,
+      await apiFetch<CommissionReviewStatusTransitionResponse>(
         `commission-review/commissions/${commissionUuid}/instructor-applications/${applicationUuid}/status`,
         {
           method: "PATCH",
@@ -239,11 +236,11 @@ export function CommissionStatusActions({
           <h2 className="text-lg font-semibold">
             {tCommission("workflow.title")}
           </h2>
-          <p className="mt-1 text-sm text-foreground/60">
+          <p className="mt-1 text-sm text-foreground/75">
             {tCommission("workflow.description")}
           </p>
         </div>
-        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+        <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
           {getStatusLabel(currentStatus)}
         </span>
       </div>
@@ -251,14 +248,14 @@ export function CommissionStatusActions({
       <div className="mt-5 rounded-2xl border border-border/70 bg-muted/20 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/45">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/80">
               {tCommission("workflow.feedback.title")}
             </p>
-            <p className="mt-2 text-sm text-foreground/70">
+            <p className="mt-2 text-sm text-foreground/75">
               {renderRevisionRequestMeta()}
             </p>
           </div>
-          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/60">
+          <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground/75">
             {activeRevisionRequest?.status
               ? tCommission(`feedback.status.${activeRevisionRequest.status}`)
               : tCommission("feedback.status.NONE")}
@@ -297,10 +294,10 @@ export function CommissionStatusActions({
 
       {canChangeStatus && nonFixTransitions.length > 0 && (
         <div className="mt-5 rounded-2xl border border-border/70 bg-muted/10 p-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/45">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground/80">
             {tCommission("workflow.controlTitle")}
           </h3>
-          <p className="mt-2 text-sm text-foreground/60">
+          <p className="mt-2 text-sm text-foreground/75">
             {tCommission("workflow.controlDescription")}
           </p>
 
@@ -358,7 +355,7 @@ export function CommissionStatusActions({
       {!canChangeStatus &&
         !canDraftCandidateFeedback &&
         !canModerateCandidateFeedback && (
-          <p className="mt-4 text-sm text-foreground/60">
+          <p className="mt-4 text-sm text-foreground/75">
             {tCommission("workflow.noActions")}
           </p>
         )}

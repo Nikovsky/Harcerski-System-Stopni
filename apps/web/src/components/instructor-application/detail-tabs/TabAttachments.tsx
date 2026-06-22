@@ -42,7 +42,7 @@ export function TabAttachments({ app, applicationId }: Props) {
             downloadLabel={t("actions.download")}
           />
         ) : (
-          <p className="text-sm text-foreground/40">{t("messages.noAttachments")}</p>
+          <p className="text-sm text-foreground/70">{t("messages.noAttachments")}</p>
         )}
       </Section>
     </div>

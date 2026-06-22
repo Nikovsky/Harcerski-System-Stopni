@@ -2,7 +2,8 @@
 "use client";
 
 import { Fragment } from "react";
-import { Link, usePathname } from "@/i18n/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { NavbarLinksProps } from "@/components/props/layout";
 
 function isActive(pathname: string, href: string): boolean {

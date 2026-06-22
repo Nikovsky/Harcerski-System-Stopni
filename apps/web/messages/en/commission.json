@@ -33,6 +33,14 @@
     "openPanel": "Open panel",
     "switchCommission": "Switch commission"
   },
+  "seo": {
+    "landingTitle": "Commission panel",
+    "landingDescription": "Choose the active commission and enter the correct workspace for queue triage and application workflow.",
+    "inboxTitle": "Commission inbox",
+    "inboxDescription": "Review the commission queue, filter cases, and open the candidate application workspace.",
+    "detailTitle": "Commission application detail",
+    "detailDescription": "Work on application details, candidate feedback, change history, and commission workflow in one place."
+  },
   "accessDenied": {
     "membershipMessage": "You do not have an active membership in the selected commission or the URL points to an invalid commission context.",
     "applicationMessage": "You cannot open this application in the selected commission context."

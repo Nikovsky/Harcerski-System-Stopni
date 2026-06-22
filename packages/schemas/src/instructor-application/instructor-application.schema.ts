@@ -160,38 +160,44 @@ export type InstructorApplicationCandidateRevisionActivityResponse = z.infer<
 >;
 
 // ── Create ─────────────────────────────────────────────────────────────────
-export const createInstructorApplicationSchema = z.object({
-  templateUuid: z.string().uuid(),
-});
+export const createInstructorApplicationSchema = z
+  .object({
+    templateUuid: z.string().uuid(),
+  })
+  .strict();
 export type CreateInstructorApplication = z.infer<typeof createInstructorApplicationSchema>;
 
 // ── Update (PATCH) ─────────────────────────────────────────────────────────
-export const updateInstructorApplicationSchema = z.object({
-  plannedFinishAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  teamFunction: z.string().max(64).nullable().optional(),
-  hufiecFunction: z.string().max(64).nullable().optional(),
-  openTrialForRank: scoutRankSchema.nullable().optional(),
-  openTrialDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  hufcowyPresence: presenceTypeSchema.nullable().optional(),
-  functionsHistory: z.string().max(10000).nullable().optional(),
-  coursesHistory: z.string().max(10000).nullable().optional(),
-  campsHistory: z.string().max(10000).nullable().optional(),
-  successes: z.string().max(10000).nullable().optional(),
-  failures: z.string().max(10000).nullable().optional(),
-  supervisorFirstName: z.string().max(32).nullable().optional(),
-  supervisorSecondName: z.string().max(32).nullable().optional(),
-  supervisorSurname: z.string().max(32).nullable().optional(),
-  supervisorInstructorRank: instructorRankSchema.nullable().optional(),
-  supervisorInstructorFunction: z.string().max(64).nullable().optional(),
-});
+export const updateInstructorApplicationSchema = z
+  .object({
+    plannedFinishAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    teamFunction: z.string().max(64).nullable().optional(),
+    hufiecFunction: z.string().max(64).nullable().optional(),
+    openTrialForRank: scoutRankSchema.nullable().optional(),
+    openTrialDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    hufcowyPresence: presenceTypeSchema.nullable().optional(),
+    functionsHistory: z.string().max(10000).nullable().optional(),
+    coursesHistory: z.string().max(10000).nullable().optional(),
+    campsHistory: z.string().max(10000).nullable().optional(),
+    successes: z.string().max(10000).nullable().optional(),
+    failures: z.string().max(10000).nullable().optional(),
+    supervisorFirstName: z.string().max(32).nullable().optional(),
+    supervisorSecondName: z.string().max(32).nullable().optional(),
+    supervisorSurname: z.string().max(32).nullable().optional(),
+    supervisorInstructorRank: instructorRankSchema.nullable().optional(),
+    supervisorInstructorFunction: z.string().max(64).nullable().optional(),
+  })
+  .strict();
 export type UpdateInstructorApplication = z.infer<typeof updateInstructorApplicationSchema>;
 
 // ── Update Requirement ─────────────────────────────────────────────────────
-export const updateInstructorRequirementSchema = z.object({
-  state: requirementStateSchema,
-  actionDescription: z.string().trim().max(5000),
-  verificationText: z.string().trim().max(5000),
-});
+export const updateInstructorRequirementSchema = z
+  .object({
+    state: requirementStateSchema,
+    actionDescription: z.string().trim().max(5000),
+    verificationText: z.string().trim().max(5000),
+  })
+  .strict();
 export type UpdateInstructorRequirement = z.infer<typeof updateInstructorRequirementSchema>;
 
 // ── Response: Attachment ───────────────────────────────────────────────────
@@ -328,26 +334,30 @@ export const instructorApplicationDetailSchema = z.object({
 export type InstructorApplicationDetail = z.infer<typeof instructorApplicationDetailSchema>;
 
 // ── Presign request ────────────────────────────────────────────────────────
-export const presignUploadRequestSchema = z.object({
-  filename: z.string().min(1).max(255)
-    .regex(ALLOWED_EXTENSIONS_REGEX, "Niedozwolone rozszerzenie pliku"),
-  contentType: z.string().min(1).max(255)
-    .refine((v) => (ALLOWED_MIME_TYPES as readonly string[]).includes(v), "Niedozwolony typ pliku"),
-  sizeBytes: z.number().int().min(1).max(MAX_FILE_SIZE),
-  requirementUuid: z.string().uuid().optional(),
-});
+export const presignUploadRequestSchema = z
+  .object({
+    filename: z.string().min(1).max(255)
+      .regex(ALLOWED_EXTENSIONS_REGEX, "Niedozwolone rozszerzenie pliku"),
+    contentType: z.string().min(1).max(255)
+      .refine((v) => (ALLOWED_MIME_TYPES as readonly string[]).includes(v), "Niedozwolony typ pliku"),
+    sizeBytes: z.number().int().min(1).max(MAX_FILE_SIZE),
+    requirementUuid: z.string().uuid().optional(),
+  })
+  .strict();
 export type PresignUploadRequest = z.infer<typeof presignUploadRequestSchema>;
 
 // ── Confirm upload ─────────────────────────────────────────────────────────
-export const confirmUploadRequestSchema = z.object({
-  objectKey: z.string().min(1)
-    .regex(/^instructor-applications\/[a-f0-9-]+\/[a-f0-9-]+\.(pdf|jpe?g|png|webp|docx?|mp4|pptx?)$/, "Nieprawidłowy klucz obiektu"),
-  originalFilename: z.string().min(1).max(255),
-  contentType: z.string().min(1).max(255)
-    .refine((v) => (ALLOWED_MIME_TYPES as readonly string[]).includes(v), "Niedozwolony typ pliku"),
-  sizeBytes: z.number().int().min(1).max(MAX_FILE_SIZE),
-  checksum: z.string().max(128).optional(),
-  requirementUuid: z.string().uuid().optional(),
-  isHufcowyPresence: z.boolean().optional(),
-});
+export const confirmUploadRequestSchema = z
+  .object({
+    objectKey: z.string().min(1)
+      .regex(/^instructor-applications\/[a-f0-9-]+\/[a-f0-9-]+\.(pdf|jpe?g|png|webp|docx?|mp4|pptx?)$/, "Nieprawidłowy klucz obiektu"),
+    originalFilename: z.string().min(1).max(255),
+    contentType: z.string().min(1).max(255)
+      .refine((v) => (ALLOWED_MIME_TYPES as readonly string[]).includes(v), "Niedozwolony typ pliku"),
+    sizeBytes: z.number().int().min(1).max(MAX_FILE_SIZE),
+    checksum: z.string().max(128).optional(),
+    requirementUuid: z.string().uuid().optional(),
+    isHufcowyPresence: z.boolean().optional(),
+  })
+  .strict();
 export type ConfirmUploadRequest = z.infer<typeof confirmUploadRequestSchema>;

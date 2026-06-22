@@ -316,6 +316,7 @@ describe('MeetingsService', () => {
         targetUuid: MEETING_UUID,
         requestId: 'req-123',
       }),
+      tx,
     );
   });
 
@@ -494,6 +495,36 @@ describe('MeetingsService', () => {
     });
   });
 
+  it('marks past meetings as not bookable even when the status remains open', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+
+    try {
+      const { service, prisma } = createService();
+      prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+      prisma.instructorApplication.findFirst.mockResolvedValue({
+        uuid: INSTRUCTOR_APPLICATION_UUID,
+      });
+      prisma.scoutApplication.findFirst.mockResolvedValue(null);
+      prisma.commissionMeeting.findMany.mockResolvedValue([
+        createMeetingListRow(CommissionType.INSTRUCTOR, {
+          date: new Date('2026-05-12T00:00:00.000Z'),
+        }),
+      ]);
+
+      const result = await service.listForScout(PRINCIPAL, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        uuid: MEETING_UUID,
+        canBook: false,
+        bookingBlockedReasonCode: 'MEETING_NOT_OPEN',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('lists future active registrations for the scout in chronological order', async () => {
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
@@ -604,6 +635,7 @@ describe('MeetingsService', () => {
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
+      date: new Date('2026-05-12T00:00:00.000Z'),
       status: MeetingStatus.OPEN_FOR_REGISTRATION,
       slotMode: SlotMode.DAY_ONLY,
       commission: { type: CommissionType.INSTRUCTOR },
@@ -632,6 +664,7 @@ describe('MeetingsService', () => {
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
+      date: new Date('2026-05-12T00:00:00.000Z'),
       status: MeetingStatus.OPEN_FOR_REGISTRATION,
       slotMode: SlotMode.DAY_ONLY,
       commission: { type: CommissionType.INSTRUCTOR },
@@ -684,7 +717,47 @@ describe('MeetingsService', () => {
         action: 'SLOT_BOOKED',
         targetUuid: REGISTRATION_UUID,
       }),
+      tx,
     );
+  });
+
+  it('rejects registrations for meetings in the past even when the status remains open', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+
+    try {
+      expect.assertions(4);
+
+      const { service, prisma, tx, auditService } = createService();
+      prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+      tx.commissionMeeting.findUnique.mockResolvedValue({
+        uuid: MEETING_UUID,
+        date: new Date('2026-05-12T00:00:00.000Z'),
+        status: MeetingStatus.OPEN_FOR_REGISTRATION,
+        slotMode: SlotMode.DAY_ONLY,
+        commission: { type: CommissionType.INSTRUCTOR },
+      });
+      tx.instructorApplication.findFirst.mockResolvedValue({
+        uuid: INSTRUCTOR_APPLICATION_UUID,
+      });
+      tx.scoutApplication.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.createRegistration(PRINCIPAL, MEETING_UUID, {});
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        expect((error as ConflictException).getResponse()).toMatchObject({
+          code: 'MEETING_NOT_OPEN',
+        });
+        expect(tx.meetingRegistration.create).not.toHaveBeenCalled();
+        expect(auditService.log).not.toHaveBeenCalled();
+        return;
+      }
+
+      throw new Error('Expected createRegistration to throw.');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('blocks duplicate active registrations before insert', async () => {
@@ -694,6 +767,7 @@ describe('MeetingsService', () => {
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
+      date: new Date('2026-05-12T00:00:00.000Z'),
       status: MeetingStatus.OPEN_FOR_REGISTRATION,
       slotMode: SlotMode.DAY_ONLY,
       commission: { type: CommissionType.INSTRUCTOR },
@@ -727,6 +801,7 @@ describe('MeetingsService', () => {
     prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
+      date: new Date('2026-05-12T00:00:00.000Z'),
       status: MeetingStatus.OPEN_FOR_REGISTRATION,
       slotMode: SlotMode.SLOTS,
       commission: { type: CommissionType.INSTRUCTOR },
