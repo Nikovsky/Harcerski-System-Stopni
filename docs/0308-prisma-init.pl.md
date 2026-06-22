@@ -1,4 +1,11 @@
 ## Instalacja PRISMA
+
+Aktualny stan repo:
+
+- `packages/database` uzywa Prisma `7.8.0`.
+- `@prisma/client` i `@prisma/adapter-pg` sa utrzymywane w wersji `^7.8.0`.
+- Generowanie klienta uruchamiaj przez `pnpm db:generate`.
+
 ```powershell
 mkdir packages/database
 ```

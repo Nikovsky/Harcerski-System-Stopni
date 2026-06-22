@@ -134,21 +134,22 @@ pnpm start:cold
 | Typecheck | `pnpm typecheck` |
 | Tests | `pnpm test` |
 | Dependency audit | `pnpm audit` |
+| Env validation | `pnpm validate:env` |
 | Start stack | `pnpm stack:up` |
 | Stop stack | `pnpm stack:down` |
 
 <a id="security"></a>
 ## Security
 
-- Vulnerability reporting: [SECURITY.en.md](./SECURITY.en.md)
-- Engineering rules and quality gates: [CONTRIBUTING.en.md](./CONTRIBUTING.en.md)
-- Code of Conduct: [CODE_OF_CONDUCT.en.md](./CODE_OF_CONDUCT.en.md)
+- Vulnerability reporting: [SECURITY.md](./SECURITY.md)
+- Engineering rules and quality gates: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Code of Conduct: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 - Never commit secrets (`.env`, tokens, keys, passwords).
 
 ## Documentation
 
-- Project start: [docs/91-START.pl.md](./docs/91-START.pl.md)
-- Full list: [docs](./docs)
+- Project start: [docs/0309-start.pl.md](./docs/0309-start.pl.md)
+- Full list: [docs/0000-overview.md](./docs/0000-overview.md)
 
 ## Contributors
 

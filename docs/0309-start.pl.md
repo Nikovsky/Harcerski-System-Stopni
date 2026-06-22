@@ -24,6 +24,7 @@ requirements:
   - [1) Start infrastruktury](#1-start-infrastruktury)
   - [2) Start aplikacji](#2-start-aplikacji)
 - [Operacje pomocnicze (Docker)](#operacje-pomocnicze-docker)
+- [Skrypty runtime](#skrypty-runtime)
 - [Najczęstsze problemy](#najczęstsze-problemy)
 
 
@@ -86,7 +87,8 @@ Skopiuj (jeśli w repo istnieją warianty `.env.example` / `.env.template`, uży
 ## 3) Kontrola końcówek linii w skryptach init Postgres (CRLF vs LF)
 
 > [!IMPORTANT]
-> Przed uruchomieniem Dockera upewnij się, że wszystkie pliki:
+> `pnpm stack:up` uruchamia `scripts/infra.mjs`, ktory automatycznie normalizuje pliki `.sh` pod `docker/` do LF.
+> Przy recznym uruchamianiu Docker Compose upewnij się, że wszystkie pliki:
 > `./docker/postgres/init/*.sh`
 > mają końcówki linii **LF**, a nie **CRLF**.
 >
@@ -105,20 +107,21 @@ Skopiuj (jeśli w repo istnieją warianty `.env.example` / `.env.template`, uży
 ## 4) Start infrastruktury (Docker Compose)
 
 ```bash
-docker compose -f ./docker/docker-compose.yml up -d
+pnpm stack:up
 ```
 
 Sprawdź status:
 
 ```bash
-docker compose -f ./docker/docker-compose.yml ps
+pnpm stack:status
 ```
 
 > [!TIP]
 > Logi (np. Keycloak):
 >
 > ```bash
-> docker compose -f ./docker/docker-compose.yml logs -f keycloak
+> cd docker
+> docker compose logs -f keycloak
 > ```
 
 ## 5) Instalacja zależności (pnpm)
@@ -134,6 +137,12 @@ pnpm install
 ```bash
 pnpm dev
 ```
+
+> [!IMPORTANT]
+> `pnpm dev` nie uruchamia stacka Docker. Przed startem aplikacji uruchom `pnpm stack:up`
+> albo upewnij się przez `pnpm stack:is-running`, że infrastruktura już działa.
+> `pnpm dev` najpierw uruchamia `pnpm validate:env`, więc lokalne `.env` muszą być zgodne
+> z odpowiadającymi im plikami `.env.example`.
 
 ### 6.1 API (NestJS)
 
@@ -163,7 +172,7 @@ pnpm --filter @hss/web dev
 ## 1) Start infrastruktury
 
 ```bash
-docker compose -f ./docker/docker-compose.yml up -d
+pnpm stack:up
 ```
 
 ## 2) Start aplikacji
@@ -187,20 +196,34 @@ pnpm dev
 > **Zatrzymanie stacka**
 >
 > ```bash
-> docker compose -f ./docker/docker-compose.yml down
+> pnpm stack:stop
 > ```
 >
 > **Zatrzymanie + usunięcie wolumenów (pełny reset danych)**
 >
 > ```bash
-> docker compose -f ./docker/docker-compose.yml down -v
+> pnpm stack:down
 > ```
 >
 > **Restart stacka (bez kasowania wolumenów)**
 >
 > ```bash
-> docker compose -f ./docker/docker-compose.yml restart
+> pnpm stack:stop
+> pnpm stack:start
 > ```
+
+## Skrypty runtime
+
+| Cel | Komenda | Implementacja |
+|---|---|---|
+| Start stacka | `pnpm stack:up` | `node scripts/infra.mjs --up` |
+| Stop kontenerow | `pnpm stack:stop` | `node scripts/infra.mjs --stop` |
+| Pelny reset stacka z wolumenami | `pnpm stack:down` | `node scripts/infra.mjs --down` |
+| Status stacka | `pnpm stack:status` | `node scripts/infra.mjs --status` |
+| Machine-readable check | `pnpm stack:is-running` | `node scripts/infra.mjs --is-running` |
+| Walidacja `.env` | `pnpm validate:env` | `node scripts/validate-env.mjs` |
+| Czyszczenie build output | `pnpm clean:build` | `node scripts/clean.mjs --build` |
+| Czyszczenie dependencies | `pnpm clean:deps` | `node scripts/clean.mjs --deps` |
 
 ---
 

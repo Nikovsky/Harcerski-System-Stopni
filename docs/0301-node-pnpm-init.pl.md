@@ -22,14 +22,7 @@ pnpm -v
 pnpm init
 ```
 
-2. dodanie pnpm-workspaces: `pnpm-workspaces.yaml`
-
-## Instalacja Turbo
-```powershell
-# .\hss
-pnpm add -D turbo -w
-```
-Dodanie plików: `turbo.json`
+2. dodanie pnpm workspace: `pnpm-workspace.yaml`
 
 ## Utworzenie folderu `apps`
 ```powershell

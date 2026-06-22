@@ -1,4 +1,4 @@
-# CONTEXT — HSS (Harcerki System Stopni)
+# CONTEXT — HSS (Harcerski System Stopni)
 
 ## 1) Elevator pitch
 
@@ -138,9 +138,11 @@ Wniosek: dostęp tylko dla uprawnionych (owner + komisja + admin).
 
 ## 10) Tech stack (ustalony)
 
-- Web: Next.js
-- API: NestJS
-- DB: PostgreSQL + Prisma
+- Web: Next.js 16 + Turbopack dev
+- API: NestJS 11
+- DB: PostgreSQL + Prisma 7
 - Storage: MinIO
 - IAM: Keycloak (OIDC)
 - Reverse proxy: Nginx
+- Package manager: pnpm 11 workspace
+- Runtime scripts: Node/MJS (`scripts/infra.mjs`, `scripts/clean.mjs`, `scripts/validate-env.mjs`)

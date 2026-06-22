@@ -1,6 +1,6 @@
 ```yaml
-title: "CONTRIBUTING (Zasady Inzynieryjne)"
-language: "pl"
+title: "CONTRIBUTING (Engineering Rules)"
+language: "en"
 document_type: "contributing-guide"
 project:
   code: "HSS"
@@ -10,7 +10,7 @@ last_updated: "2026-03-04"
 
 repository:
   type: "monorepo"
-  tool: "turborepo"
+  tool: "pnpm-workspace"
   package_manager: "pnpm"
 
 requirements:
@@ -39,410 +39,402 @@ scalability_note:
   avoid_in_memory: ["sessions", "rate-limit", "job-queue", "locks"]
 ```
 
-# Wspoltworzenie HSS (Zasady Inzynieryjne)
+# Contributing to HSS (Engineering Rules)
 
-**Jezyk:** Polski | [English](./CONTRIBUTING.en.md)
+**Language:** English
 
-HSS (Harcerski System Stopni) wspiera prace komisji stopni instruktorskich ZHR i komunikacje
-z harcerzami realizujacymi proby instruktorskie. System cyfryzuje dokumentacje,
-umozliwia asynchroniczny przeglad przed posiedzeniami i usprawnia organizacje slotow,
-skracajac czas obslugi pojedynczej osoby przy zachowaniu kompletnego archiwum cyfrowego.
+HSS (Harcerski System Stopni) supports the work of ZHR instructor rank commissions and communication with scouts conducting instructor-rank trials. The system digitalizes documentation, enables asynchronous review before meetings, and improves meeting organization (slots), reducing the time per candidate while maintaining a complete digital archive.
 
-Te zasady istnieja, aby kod byl:
+These rules exist to keep the codebase:
 
-- utrzymywalny i przewidywalny,
-- bezpieczny domyslnie (enterprise-level),
-- gotowy na przyszle skalowanie horyzontalne,
-- spojny w `apps/*` i `packages/*`.
+- maintainable and predictable,
+- secure by default (enterprise-level),
+- ready for future horizontal scaling,
+- consistent across `apps/*` and `packages/*`.
 
 ---
 
-## 0) Cel i zakres
+## 0) Purpose and scope
 
-Ten dokument definiuje minimalne standardy inzynieryjne i bezpieczenstwa dla:
+This document defines the minimum engineering and security standards for:
 
-- kodu w `apps/*` i `packages/*`,
-- infrastruktury i toolingu, gdzie ma to zastosowanie,
-- zmian wplywajacych na auth, autoryzacje, dane lub zachowanie user-facing.
-
----
-
-## 1) Jezyk i komunikacja
-
-- Kod, komentarze i nazewnictwo techniczne pozostaja po **angielsku**.
-- Dokumentacja i komunikacja projektowa moga byc po polsku.
-- Opis PR ma byc konkretny: **co zmieniono**, **dlaczego**, **ryzyko**, **jak testowano**.
+- code under `apps/*` and `packages/*`,
+- infra and tooling where applicable,
+- any change that affects authentication, authorization, data handling, or user-facing behavior.
 
 ---
 
-## 2) Styl kodu: self-describing first
+## 1) Language and communication
 
-- Pisz kod samowyjasniajacy:
-  - sensowne nazwy,
-  - male funkcje,
-  - pojedyncza odpowiedzialnosc.
-- Komentarze dodawaj tylko gdy:
-  - intencja nie jest oczywista,
-  - wystepuje istotny tradeoff,
-  - istnieje implikacja bezpieczenstwa.
-- Komentarze maja opisywac **zamiar**, a nie przepisywac kod.
+- Think and write in **English** (code, comments, docs, commit messages).
+- Prefer clear technical wording over slang.
+- Keep PR descriptions action-oriented: **what changed**, **why**, **risk**, **how tested**.
 
 ---
 
-## 3) Wymaganie naglowka pliku (obowiazkowe)
+## 2) Code style: self-describing first
 
-Kazdy plik kodu musi zaczynac sie od jednolinijkowego naglowka:
+- Write self-describing code:
+  - meaningful names,
+  - small functions,
+  - single responsibility.
+- Add comments only when:
+  - the “why” is not obvious,
+  - there is a non-trivial tradeoff,
+  - there is a security implication.
+- Comments must be in English and explain **intent**, not restate code.
+
+---
+
+## 3) File header requirement (mandatory)
+
+Every code file must start with a single-line header:
 
 ```ts
 // @file: apps/web/src/components/ui/button.tsx
 ```
 
-Zasady:
+Rules:
 
-- zawsze uzywaj sciezki od roota repo,
-- utrzymuj naglowek jako pierwsza linie (przed importami).
+- Always use the repo path from root.
+- Keep it as the first line (before imports).
 
 ---
 
-## 4) Architektura stateless-first
+## 4) Stateless-first architecture
 
-Zasada domyslna: kod ma byc **stateless**.
+Default rule: code should be **stateless**.
 
-Stateless oznacza:
+Stateless means:
 
-- brak globalnego mutowalnego stanu,
-- brak module-level cache zmieniajacego sie w runtime,
-- brak singletonow przechowujacych dane request/user.
+- no global mutable state,
+- no module-level caches that change at runtime,
+- no singletons storing request/user data.
 
-Dopuszczalne:
+Allowed:
 
-- czyste helpery,
-- deterministyczne transformacje,
-- uslugi stateless tworzone per request.
+- pure helper functions,
+- deterministic transformations,
+- stateless services created per request.
 
-Jesli stan jest nieunikniony (rzadko):
+If state is unavoidable (rare):
 
-- uzasadnij to krotkim komentarzem,
-- opisz wplyw na skalowanie horyzontalne,
-- preferuj stan zewnetrzny (DB/Redis), nie in-memory.
+- justify it in a short comment,
+- explain horizontal scaling impact,
+- prefer external state (DB/Redis) over in-memory state.
 
 ---
 
 ## 5) Defensive programming (bad input ready)
 
-- Zakladaj, ze wejscie moze byc niepoprawne, chyba ze:
-  - zostalo zwalidowane wczesniej w tym samym flow **i**
-  - jest to jawnie udokumentowane.
+- Assume inputs can be invalid unless:
+  - they were validated earlier in the same request flow **and**
+  - this is explicitly documented.
 
-- Waliduj na granicach:
-  - HTTP DTO validation (API),
+- Validate at boundaries:
+  - HTTP request DTO validation (API),
   - form validation (Web),
   - config validation (startup).
 
 - Fail safely:
-  - zwracaj poprawne kody HTTP,
-  - nie ujawniaj szczegolow wewnetrznych,
-  - loguj tyle, ile trzeba do diagnostyki (bez sekretow).
+  - return correct HTTP codes,
+  - never leak internals,
+  - log enough for troubleshooting (without secrets).
 
 ---
 
-## 6) Typy wszedzie
+## 6) Types everywhere
 
-- Preferuj strict TypeScript:
-  - unikaj `any`,
-  - unikaj niebezpiecznych type assertions bez uzasadnienia.
+- Prefer strict TypeScript:
+  - avoid `any`,
+  - avoid unsafe type assertions unless justified.
 
-- Modeluj typy domenowe jawnie (np. stopnie, proby, posiedzenia/sloty).
-- Wspoldzielone kontrakty trzymaj w `packages/*`:
-  - `@hss/types`, `@hss/schemas` itd.
+- Model domain types explicitly (e.g. ranks, trials, commission meetings/slots).
+- Shared contracts belong in `packages/*`:
+  - `@hss/types`, `@hss/schemas`, etc.
 
-- Preferuj typy z schematow:
-  - zod schema -> inferred types (single source of truth).
-
----
-
-## 7) Helpery i reuse (mniej duplikacji)
-
-- Uzywaj prostych, czytelnych helperow gdy:
-  - usuwaja powtarzalna logike,
-  - centralizuja walidacje/formatowanie/mapowanie,
-  - zmniejszaja powierzchnie bledow.
-
-- Unikaj abstrakcji bez wartosci:
-  - bez "helpera do wszystkiego",
-  - bez over-engineered utility layers.
-
-Rekomendowane wzorce:
-
-- pure functions do formatowania/parsingu/mapowania,
-- male reuzywalne UI primitives w `components/ui`,
-- wspolne reguly biznesowe w `packages/*`.
+- Prefer schema-driven types:
+  - zod schema → inferred types (single source of truth).
 
 ---
 
-## 8) Zasady wydajnosci (obowiazkowe)
+## 7) Helpers & reuse (reduce duplication)
 
-Wydajnosc to cecha produktu, nie afterthought.
+- Use simple, readable helpers to reduce duplication when they:
+  - remove repeated logic across files/features,
+  - centralize validation/formatting/mapping,
+  - reduce bug surface area.
 
-### 8.1 Nie wysylaj zbednych danych do klienta
+- Avoid abstraction without value:
+  - no “helper for everything”,
+  - no over-engineered utility layers.
 
-- Nie wysylaj do przegladarki duzych slownikow tlumaczen, wielkich configow,
-  ani stalej server-only.
-- Dla i18n preferuj podzial messages per feature/route-group zamiast jednego duzego JSON.
+Recommended patterns:
 
-### 8.2 Preferuj Server Components / SSR dla krytycznych flow
+- pure functions for formatting/parsing/mapping,
+- small reusable UI primitives in `components/ui`,
+- shared business rules in `packages/*`.
 
-Renderuj po stronie serwera, gdy to pomaga:
+---
 
-- stan uwierzytelnienia,
+## 8) Performance rules (mandatory)
+
+Performance is a feature, not an afterthought.
+
+### 8.1 Avoid shipping unnecessary data to the client
+
+- Do not send large translation dictionaries, large configs, or server-only constants to the browser.
+- For i18n, prefer feature/route-group split messages over one massive JSON as the app grows.
+
+### 8.2 Prefer Server Components / SSR for critical flows
+
+Render on the server whenever it benefits:
+
+- authentication state,
 - RBAC gating,
-- trasy chronione,
-- decyzje bezpieczenstwa.
+- protected routes,
+- security-sensitive decisions.
 
-### 8.3 Utrzymuj lekkie komponenty klienckie
+### 8.3 Keep client components lean
 
-- Minimalizuj client-side state.
-- Unikaj ciezkich bibliotek do prostych zadan.
-- Kontroluj re-render cascades:
-  - memoizuj tylko gdy potrzeba,
-  - utrzymuj stabilne propsy,
-  - unikaj zbednych context re-renderow.
+- Minimize client-side state.
+- Avoid heavy libraries for simple tasks.
+- Watch re-render cascades:
+  - memoize only when needed,
+  - keep props stable,
+  - avoid unnecessary context re-renders.
 
 ---
 
-## 9) Skalowanie (vertical teraz, horizontal potem)
+## 9) Scalability awareness (vertical now, horizontal later)
 
-HSS musi pozostac gotowy na multi-instance deployment.
+HSS must remain ready for multi-instance deployment.
 
-Unikaj:
+Avoid:
 
 - in-memory sessions,
-- per-instance cache bez shared store,
-- local-only lockow dla correctness.
+- per-instance caches without a shared store,
+- local-only locks for correctness.
 
-Jesli zastosujesz skrot pionowy (niewskazane):
+If a vertical shortcut is taken (discouraged):
 
-- dodaj krotki komentarz:
+- add a short comment:
 
 > [!NOTE]
-> Not horizontally scalable because ...; acceptable for now because ...; migration path: ...
+> Not horizontally scalable because …; acceptable for now because …; migration path: ….”
 
 ---
 
-## 10) Zasady struktury frontendu (apps/web)
+## 10) Frontend structure rules (apps/web)
 
-### 10.1 Polityka lokalizacji komponentow
+### 10.1 Component location policy
 
-Komponenty reuzywalne musza byc w:
+Reusable components must live in:
 
 - `apps/web/src/components/ui` (buttons, inputs, modals, dropdowns, tables, primitives)
 - `apps/web/src/components/layout` (Navbar, Footer, AppShell, wrappers, layout composition)
 
-Zasady:
+Rules:
 
-- pliki stron (`app/**/page.tsx`) maja byc cienkie:
+- Page files (`app/**/page.tsx`) should be thin:
   - orchestration + composition,
-  - bez ciezkiej duplikacji UI.
+  - no heavy UI duplication.
 
-- Reuzywaj UI primitives zamiast przepisywac markup.
+- Reuse UI primitives instead of rewriting markup.
 
-### 10.2 SSR dla auth i tras chronionych
+### 10.2 SSR for auth & protected routes
 
-Rozstrzygaj po stronie serwera (SSR / Server Components / middleware), gdy to mozliwe:
+Resolve on the server when possible (SSR / Server Components / middleware):
 
 - authentication state,
 - user role,
 - access permissions,
 - protected navigation items.
 
-Client-side checks moga istniec dla UX, ale nie moga byc jedyna ochrona.
+Client-side checks may exist for UX, but must not be the only protection.
 
 ### 10.3 i18n
 
-- Uzywaj `next-intl` z namespaced messages.
-- Utrzymuj payloady message w waskim zakresie; nie wysylaj nieuzywanych namespace.
+- Use `next-intl` with namespaced messages.
+- Keep message payloads scoped; avoid shipping unused namespaces.
 
 ---
 
-## 11) Clean Code + Security (bez skrotow)
+## 11) Clean Code + Security (no shortcuts)
 
-Bezpieczenstwo nie jest opcjonalne.
+Security is not optional.
 
-### 11.1 Obowiazkowe zasady bezpieczenstwa
+### 11.1 Mandatory security rules
 
-- Sekrety nigdy nie moga trafic do repo.
-- Waliduj i sanityzuj wszystkie niezaufane inputy.
-- RBAC musi byc egzekwowany na granicy API (server-side).
-- Rate limiting i ochrona brute-force tam, gdzie to istotne
-  (login, endpointy wrazliwe).
-- Cookie musza miec odpowiednio `HttpOnly`, `Secure`, `SameSite`.
-- Nigdy nie loguj:
-  - hasel,
-  - tokenow,
-  - sekretow,
-  - wrazliwych danych osobowych.
+- Secrets must never be committed.
+- Validate and sanitize all untrusted input.
+- RBAC must be enforced at the API boundary (server-side).
+- Rate limiting and brute-force protection where relevant (login, sensitive endpoints).
+- Cookies must use `HttpOnly`, `Secure`, `SameSite` appropriately.
+- Never log:
+  - passwords,
+  - tokens,
+  - secrets,
+  - sensitive personal data.
 
-### 11.2 Wymaganie dokumentacji security
+### 11.2 Security documentation requirement
 
-Przy zmianie auth/session/crypto/storage:
+When introducing or changing auth/session/crypto/storage rules:
 
-- udokumentuj zagrozenie (1-2 linie),
-- udokumentuj kontrole (1-2 linie).
-
----
-
-## 12) Error handling i polityka logowania
-
-- Nigdy nie ujawniaj stack trace ani bledow wewnetrznych klientom.
-- Uzywaj spojnych odpowiedzi bledow i stabilnych kodow.
-- Logi musza byc:
-  - strukturalne,
-  - poziomowane (`debug/info/warn/error`),
-  - wolne od sekretow/PII,
-  - z correlation/request id, jesli dostepne.
+- document the threat (1–2 lines),
+- document the control (1–2 lines).
 
 ---
 
-## 13) Zasady konfiguracji i srodowisk
+## 12) Error handling & logging policy
 
-- Waliduj `.env` przy starcie (fail fast).
-- Nie polegaj na niebezpiecznych domyslnych wartosciach.
-- Rozdzielaj konfiguracje dla dev/test/prod.
-- Trzymaj sekrety poza Git i poza client bundle.
+- Never leak stack traces or internal errors to clients.
+- Use consistent error responses and error codes.
+- Logs must be:
+  - structured,
+  - level-based (debug/info/warn/error),
+  - free of secrets/PII,
+  - include correlation/request id where available.
 
 ---
 
-## 14) Baseline testow
+## 13) Config & environment rules
 
-- Testy unit dla logiki domenowej i helperow.
-- Testy integracyjne dla API + DB path.
-- Testy E2E dla krytycznych flow:
+- Validate `.env` at startup (fail fast).
+- Do not rely on unsafe defaults.
+- Separate configuration for dev/test/prod.
+- Keep secrets outside Git and outside client bundles.
+
+---
+
+## 14) Testing baseline
+
+- Unit tests for domain logic and helpers.
+- Integration tests for API + DB paths.
+- E2E tests for critical flows:
   - auth,
-  - trasy chronione,
-  - kluczowe user journeys (submission/review prob,
-    sloty posiedzen, zapis decyzji gdzie dotyczy).
+  - protected routes,
+  - core user journeys (trial submission/review, meeting slots, decision recording where applicable).
 
 ---
 
-## 15) Higiena zaleznosci
+## 15) Dependency hygiene
 
-- Unikaj nieutrzymywanych bibliotek dla funkcji kluczowych.
-- Pinuj wersje celowo.
-- Uruchamiaj audyty w CI.
-- Preferuj oficjalna dokumentacje i stabilne ekosystemy.
-
----
-
-## 16) Checklist PR / Review (minimum)
-
-Kazdy PR musi spelniac:
-
-- [ ] lint/typecheck/tests przechodza
-- [ ] security reviewed (bez skrotow)
-- [ ] wydajnosc uwzgledniona (bez ogromnych payloadow)
-- [ ] wplyw na skalowanie opisany (jesli dotyczy)
-- [ ] dokumentacja zaktualizowana przy zmianie zachowania
+- Avoid unmaintained libraries for core features.
+- Pin versions intentionally.
+- Run audits in CI.
+- Prefer official docs and stable ecosystems.
 
 ---
 
-## 17) Krotka "definition of done" dla feature HSS
+## 16) PR / Review checklist (minimum)
 
-Zmiana jest done tylko wtedy, gdy:
+Every PR must satisfy:
 
-- RBAC jest egzekwowany server-side dla kazdej akcji chronionej,
-- inputy sa walidowane na granicach (API + formularze + config),
-- dane wrazliwe nie sa eksponowane w payloadach klienta ani logach,
-- feature pozostaje horyzontalnie skalowalny (bez correctness-critical in-memory state),
-- testy pokrywaja krytyczna sciezke.
+- [ ] lint/typecheck/tests pass
+- [ ] security reviewed (no shortcuts)
+- [ ] performance considered (no huge payloads)
+- [ ] scaling impact noted if relevant
+- [ ] docs updated if behavior changes
 
 ---
 
-## 18) Branching, commity i rozmiar PR
+## 17) Quick “definition of done” for HSS features
 
-### Nazewnictwo branchy
-Uzyj jednego z:
+A change is considered done only if:
+
+- RBAC is enforced server-side for any protected action,
+- inputs are validated at boundaries (API + forms + config),
+- no sensitive data is exposed in client payloads or logs,
+- the feature remains horizontally scalable (no correctness-critical in-memory state),
+- tests cover the critical path.
+
+---
+
+## 18) Branching, commits, and PR size
+
+### Branch naming
+Use one of:
 - `feat/<short-topic>`
 - `fix/<short-topic>`
 - `chore/<short-topic>`
 - `docs/<short-topic>`
 - `refactor/<short-topic>`
 
-### Komunikaty commitow
-Preferuj format wymagany w repo (obszar + opis):
-- `I18N - Aktualizacja tlumaczen`
-- `API - Dodanie endpointu rezerwacji slotu`
-- `SECURITY - Blokada wycieku tokena do payloadu klienta`
+### Commit messages
+Prefer Conventional Commits:
+- `feat(api): add slot reservation endpoint`
+- `fix(web): prevent leaking role in client payload`
+- `chore(ci): enable pnpm audit`
 
-Dopuszczalne sa tez Conventional Commits, jesli nie koliduja z polityka zespolu.
-
-### Rozmiar PR
-Utrzymuj PRy male i reviewowalne:
-- Preferuj < ~400 LOC diff, chyba ze istnieje mocne uzasadnienie.
-- Przy wiekszych zmianach dziel na PR "prep/refactor" i PR "behavior".
+### PR size guideline
+Keep PRs small and reviewable:
+- Prefer < ~400 LOC diff unless there is a strong reason.
+- If larger, split into “prep/refactor” PR + “behavior” PR.
 
 ---
 
-## 19) Uruchamianie quality gates lokalnie
+## 19) Run quality gates locally
 
-Przed push uruchom:
+Before pushing, run:
 
 - `pnpm -r lint`
 - `pnpm -r typecheck`
 - `pnpm -r test`
 
-Rekomendowane przy zmianach ryzykownych:
+Recommended for risky changes:
 - `pnpm -r build`
 
-CI jest source of truth, ale lokalne bramki powinny byc maksymalnie zblizone do CI.
+CI is the source of truth, but local gates should match CI as closely as possible.
 
 ---
 
-## 20) Zmiany wrazliwe (dodatkowe wymagania)
+## 20) Sensitive changes (extra requirements)
 
-Zmiana jest **wrazliwa**, jesli dotyka:
-- auth/session/cookies/refresh flow,
-- RBAC/permissions/policy checks,
-- uploadu plikow lub polityk dostepu MinIO,
-- endpointow przetwarzajacych PII,
-- hardeningu nginx/Keycloak/PostgreSQL/infra,
-- crypto/hashowania hasel/obslugi tokenow.
+A change is **sensitive** if it affects any of:
+- auth/session/cookies/refresh flows
+- RBAC/permissions/policy checks
+- file uploads or MinIO access policies
+- endpoints processing personal data (PII)
+- nginx/Keycloak/PostgreSQL/infra hardening
+- crypto/password hashing/token handling
 
-Dla zmian wrazliwych opis PR musi zawierac:
-- podsumowanie zagrozen (1-2 punkty),
-- podsumowanie kontroli (1-2 punkty),
-- kroki weryfikacji (testy + manual checks).
-
----
-
-## 21) Zglaszanie problemow security
-
-**Nie** zglaszaj podatnosci przez publiczne issue ani publiczne PR.
-Uzyj prywatnego procesu opisanego w `SECURITY.md`.
+For sensitive changes, PR description must include:
+- Threat summary (1–2 bullets)
+- Control summary (1–2 bullets)
+- Verification steps (tests + manual checks)
 
 ---
 
-## 22) Kontrakty API i wspoldzielone schematy (packages/schemas)
+## 21) Reporting security issues
 
-- `packages/schemas` to source of truth dla wspoldzielonych kontraktow request/response.
-- Kazda zmiana kontraktu musi zaktualizowac:
-  - zod schema,
-  - inferred types,
-  - uzycie w API i Web.
-- Breaking changes musza byc jawnie opisane w PR.
+Do **not** report vulnerabilities using public issues or public PRs.
+Follow the private process described in `SECURITY.md`.
 
 ---
 
-## 23) Baza danych i migracje (packages/database)
+## 22) API contracts and shared schemas (packages/schemas)
 
-- Local dev: `prisma migrate dev` (tylko developer workflow)
+- `packages/schemas` is the source of truth for shared request/response contracts.
+- Any contract change must update:
+  - zod schema
+  - inferred types
+  - API + Web usage
+- Breaking changes must be explicitly called out in the PR description.
+
+---
+
+## 23) Database & migrations (packages/database)
+
+- Local dev: `prisma migrate dev` (developer workflow only)
 - CI/prod-like: `prisma migrate deploy`
-- Bez migracji destrukcyjnych bez planu (data backfill + rollback strategy).
-- Nowe zapytania musza uwzgledniac indeksy/ograniczenia, gdzie to konieczne.
+- No destructive migration without a documented plan (data backfill + rollback strategy).
+- New queries must consider indexes/constraints where applicable.
 
 ---
 
-## 24) Skrypty shell i konce linii
+## 24) Shell scripts and line endings
 
-- Wszystkie skrypty `.sh` musza miec konce linii LF.
-- Nie commituj CRLF w skryptach (lamie Docker/Linux).
-- Upewnij sie, ze skrypty wykonywalne maja poprawne uprawnienia (`chmod +x`).
+- All `.sh` scripts must use LF line endings.
+- Do not commit CRLF in scripts (it breaks Docker/Linux).
+- Ensure executable scripts have the correct permissions (`chmod +x`).

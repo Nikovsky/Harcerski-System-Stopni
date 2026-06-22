@@ -13,5 +13,12 @@ Router instalacji, uruchamiania i operacji lokalnych.
 | [0307-docker-init.pl.md](./0307-docker-init.pl.md) | Docker |
 | [0308-prisma-init.pl.md](./0308-prisma-init.pl.md) | Prisma |
 | [0309-start.pl.md](./0309-start.pl.md) | Cold start, warm start, weryfikacja |
-| [0398-python-venv-ai.pl.md](./0398-python-venv-ai.pl.md) | Python venv dla narzedzi AI |
 
+## Aktualny kontrakt runtime
+
+- Repo jest pnpm workspace monorepo; Turbo nie jest czescia flow.
+- `pnpm dev` nie startuje automatycznie stacka Docker. Stack uruchamiaj jawnie przez `pnpm stack:up`.
+- Skrypty infrastruktury i czyszczenia sa Node/MJS:
+  - `scripts/infra.mjs` obsluguje `pnpm stack:*`.
+  - `scripts/clean.mjs` obsluguje `pnpm clean`, `pnpm clean:build`, `pnpm clean:deps`.
+- Repo nie utrzymuje lokalnego Python `.venv`, `requirements.txt` ani `.pnpm-store`.

@@ -15,7 +15,7 @@ Ustalić spójne zasady kodowania dla HSS, tak aby:
 
 ## 0) Wymagania repo i narzędzia
 
-- Repo: **monorepo** (tooling: **turborepo**)
+- Repo: **monorepo** (tooling: **pnpm workspace**)
 - Package manager: **pnpm**
 - Node: `>= 24.12.0`
 - pnpm: `>= 11.8.0`
@@ -23,6 +23,7 @@ Ustalić spójne zasady kodowania dla HSS, tak aby:
 
 **Quality gates (wymagane na PR)**
 
+- `validate:env`
 - `lint`
 - `typecheck`
 - `test`
@@ -72,33 +73,30 @@ Zasady:
 
 ```plaintext
 C:.
+├───.ai
+│   └───memory
+├───.github
 ├───.vscode
 ├───apps
 │   ├───api
 │   └───web
 ├───docs
-│   └───ai
+│   └───assets
 ├───docker
-│   ├───api
+│   ├───certs
 │   ├───keycloak
-│   ├───minio
 │   ├───nginx
 │   ├───postgres
-│   ├───redis
-│   └───web
 ├───packages
-│   ├───config
 │   ├───database
-│   ├───eslint
-│   ├───logger
 │   ├───schemas
-│   ├───ui
-│   └───tsconfig
-├───tests
-│   ├───e2e
-│   └───integration
 └───scripts
 ```
+
+Nie przywracaj repo-local `.codex/`, `skills/`, `CLAUDE.md`, `.venv/`, `.pnpm-store/` ani `requirements.txt`.
+Agent memory trzymamy tylko w `.ai/`.
+Root compliance docs pozostają po angielsku: `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CONTRIBUTING.md`.
+Polskie warianty tych plików nie są utrzymywane.
 
 ---
 
@@ -165,7 +163,7 @@ Walidujemy na granicach systemu:
 
 ### Config
 
-- `.env` waliduj na starcie (fail fast).
+- `.env` waliduj na starcie (fail fast): root `pnpm dev` wywołuje `pnpm validate:env`.
 - Nie polegaj na “cichych defaultach” w produkcji.
 
 ---
@@ -175,8 +173,7 @@ Walidujemy na granicach systemu:
 - Strict TypeScript, brak `any`.
 - Unikaj `as unknown as ...`. Jeśli musisz — uzasadnij komentarzem (EN).
 - Kontrakty współdzielone trzymamy w `packages/*`:
-  - `packages/schemas` (zod) jako source of truth,
-  - `packages/types` typy inferowane ze schematów.
+  - `packages/schemas` (zod) jako source of truth.
 
 Preferowany model:
 
@@ -330,7 +327,7 @@ UI może robić dodatkowe checki dla UX, ale ochrona jest w API.
 - Walidacja inputów na granicach (HTTP/forms/config)
 - Brak danych wrażliwych w logach
 - Stateless-first, gotowość na skalowanie poziome
-- Quality gates na PR: lint + typecheck + test
+- Quality gates na PR: validate:env + lint + typecheck + test
 - Nagłówek `// @file:` w każdym pliku kodu
 
 ## Założenia

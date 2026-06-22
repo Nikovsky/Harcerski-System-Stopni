@@ -2,7 +2,7 @@
 // =================================================================================================
 // HSS - Harcerska System Stopni (Scout Degree Management System)
 // =================================================================================================
-// PostgreSQL 18 + Prisma 7.4.1
+// PostgreSQL 18 + Prisma 7.8.0
 // Architecture: Split Instructor/Scout + Versioned Templates + JSONB Snapshots
 //
 // CHANGELOG (Current Version):

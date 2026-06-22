@@ -55,7 +55,7 @@
   "keywords": [],
   "author": "",
   "license": "AGPL-3.0-only",
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@11.8.0",
   "devDependencies": {
     "typescript": "^5.9.3"
   },

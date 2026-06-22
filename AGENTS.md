@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Scope
-HSS (Harcerski System Stopni) is a Turborepo monorepo (`pnpm`) with enterprise security and quality expectations.  
+HSS (Harcerski System Stopni) is a pnpm workspace monorepo with enterprise security and quality expectations.  
 Primary goal: keep `apps/web` and `apps/api` horizontally scalable and stateless by default.
 
 ## Requirements & Structure
@@ -44,6 +44,6 @@ Primary goal: keep `apps/web` and `apps/api` horizontally scalable and stateless
 
 ## Commits & Pull Requests
 - Branches: `feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`.
-- Commit message format (required): `OBSZAR - Opis` (e.g., `I18N - Aktualizacja tlumaczen`, `TURBOREPO - Dodanie zadan`).
+- Commit message format (required): `OBSZAR - Opis` (e.g., `I18N - Aktualizacja tlumaczen`, `WORKSPACE - Aktualizacja skryptow`).
 - Do not mix areas in one commit: one commit must include changes from exactly one area.
 - PR must include: what changed, why, risk, verification steps, docs updates, and touched MUST controls.

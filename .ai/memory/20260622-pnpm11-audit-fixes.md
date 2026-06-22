@@ -15,7 +15,7 @@ The repository package manager was upgraded to `pnpm@11.8.0`, and vulnerabilitie
 
 ## Audit Fix Pattern
 
-- Direct bumps were used for first-party direct dependencies where appropriate, including `next`, `next-intl`, and `turbo`.
+- Direct bumps were used for first-party direct dependencies where appropriate, including `next` and `next-intl`. Turbo was later removed in favor of pnpm workspace scripts.
 - Transitive security fixes are enforced through root `overrides` in `pnpm-workspace.yaml`.
 - `js-yaml@4.1.2` and `@babel/core@7.29.1` from audit guidance were not published in npm; real available safe versions were used instead.
 
@@ -28,4 +28,3 @@ The repository package manager was upgraded to `pnpm@11.8.0`, and vulnerabilitie
 
 - Local Node observed during validation was `v25.9.0`.
 - Prisma install output warned it supports Node lines `20.19+`, `22.12+`, and `24.0+`; consider constraining project Node to 24 LTS instead of open-ended `>=24.12.0`.
-

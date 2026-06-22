@@ -39,6 +39,7 @@ Task jest DONE, gdy spełnia wszystkie punkty:
 
 ### D) Jakość kodu
 
+- Lokalna konfiguracja przechodzi `pnpm validate:env`.
 - Kod przechodzi lint + typecheck.
 - Nazewnictwo spójne z domeną (`Trial`, `MeetingSlot`, `AuditEvent`).
 - Brak “magic numbers” dla limitów (konfigurowalne).
@@ -80,7 +81,7 @@ Iteracja jest DONE, gdy:
   - “co zrobiono”
   - “jak przetestować”
   - “ryzyka”
-- repo jest w stanie “green” (build/test).
+- repo jest w stanie “green” (`validate:env`, build/test).
 - deployment lokalny działa (compose) jeśli iteracja dotyczy infrastruktury.
 
 ---

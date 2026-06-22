@@ -1,64 +1,63 @@
 <!-- @file: CODE_OF_CONDUCT.md -->
 
-# Kodeks Postepowania
+# Code of Conduct
 
-**Jezyk:** Polski | [English](./CODE_OF_CONDUCT.en.md)
+**Language:** English
 
-## Nasze zobowiazanie
+## Our Pledge
 
-My, maintainerzy i wspoltworcy HSS, zobowiazujemy sie tworzyc srodowisko wspolpracy otwarte,
-bezpieczne i wolne od naduzyc dla wszystkich, niezaleznie od wieku, niepelnosprawnosci, pochodzenia,
-tozsamosci i ekspresji plciowej, poziomu doswiadczenia, narodowosci, wygladu, rasy, religii
-lub orientacji seksualnej.
+We, as maintainers and contributors of HSS, pledge to make participation in our community a respectful,
+safe, and harassment-free experience for everyone, regardless of age, disability, ethnicity, gender identity
+and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity
+and orientation.
 
-Zobowiazujemy sie dzialac i komunikowac w sposob profesjonalny, merytoryczny i z szacunkiem.
+We commit to acting and communicating in a professional, constructive, and respectful way.
 
-## Oczekiwane zachowania
+## Expected Behavior
 
-- Okazywanie szacunku i empatii wobec innych osob.
-- Przyjmowanie i udzielanie konstruktywnego feedbacku.
-- Odpowiedzialnosc za bledy oraz gotowosc do ich korygowania.
-- Skupienie na dobru projektu i zespolu, nie na sporach personalnych.
-- Jasna i rzeczowa komunikacja techniczna.
+- Demonstrating empathy and respect toward other people.
+- Giving and accepting constructive feedback.
+- Taking responsibility for mistakes and learning from them.
+- Focusing on what is best for the project and the community.
+- Keeping technical communication clear and factual.
 
-## Zachowania niedopuszczalne
+## Unacceptable Behavior
 
-- Obrazy, ataki personalne, trolling, prowokacje i celowe eskalowanie konfliktow.
-- Nekanie, grozby, dyskryminacja oraz mowa nienawisci.
-- Publikowanie prywatnych danych innych osob bez ich zgody.
-- Inne zachowania, ktore w profesjonalnym kontekscie moga byc uznane za nieodpowiednie.
+- Insults, personal attacks, trolling, flamebaiting, or deliberate disruption.
+- Harassment, threats, discrimination, or hate speech.
+- Publishing private information of others without explicit permission.
+- Any conduct that could reasonably be considered inappropriate in a professional context.
 
-## Zakres
+## Scope
 
-Ten kodeks obowiazuje we wszystkich przestrzeniach projektu HSS, w tym:
+This Code of Conduct applies in all HSS project spaces, including:
 
-- issue, pull requesty, review komentarze i dyskusje,
-- komunikacje zwiazana z projektem prowadzona publicznie lub prywatnie przez maintainerow,
-- reprezentowanie projektu na zewnatrz.
+- issues, pull requests, review comments, and discussions,
+- project-related communication in public or private channels by maintainers,
+- situations where someone officially represents the project.
 
-## Zglaszanie naruszen
+## Reporting
 
-Incydenty zwiazane z naruszeniem kodeksu zglaszaj na:
+To report behavior that violates this Code of Conduct, contact:
 
 - `hss@zhr.pl`
 
-Kazde zgloszenie bedzie rozpatrywane poufnie i z nalezyta starannoscia.
+All reports will be reviewed and handled confidentially and in good faith.
 
-## Egzekwowanie
+## Enforcement
 
-Maintainerzy odpowiadaja za wyjasnianie i egzekwowanie standardow zachowania.
-Maja prawo podejmowac adekwatne i sprawiedliwe dzialania w odpowiedzi na zachowania
-niewlasciwe, zagrażajace lub szkodliwe.
+Project maintainers are responsible for clarifying and enforcing these standards.
+They may take fair and appropriate corrective action in response to unacceptable behavior.
 
-Mozliwe konsekwencje obejmuja m.in.:
+Possible consequences include:
 
-- upomnienie lub ostrzezenie,
-- czasowe ograniczenie mozliwosci udzialu,
-- usuniecie tresci, komentarzy lub kontrybucji,
-- stale zablokowanie udzialu w przestrzeniach projektu.
+- warning,
+- temporary participation restriction,
+- content/comment/contribution removal,
+- permanent ban from project spaces.
 
-## Atrybucja
+## Attribution
 
-Ten dokument jest inspirowany
-[Contributor Covenant](https://www.contributor-covenant.org/) (wersja 2.1),
-dostosowany do potrzeb projektu HSS.
+This document is inspired by
+[Contributor Covenant](https://www.contributor-covenant.org/) (version 2.1),
+adapted for HSS.

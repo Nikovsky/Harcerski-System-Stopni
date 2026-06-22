@@ -1,4 +1,11 @@
 ## Instalacja NEST.JS
+
+Aktualny stan repo:
+
+- `apps/api` uzywa NestJS `11.1.x`.
+- `@nestjs/cli` jest w wersji `^11.0.23`.
+- Uruchamianie API w monorepo odbywa sie przez pnpm filter, bez Turbo.
+
 ```powershell
 if (Test-Path .\apps\api) { Remove-Item .\apps\api -Recurse -Force }
 pnpm dlx @nestjs/cli@latest new apps/api --package-manager=pnpm --skip-git

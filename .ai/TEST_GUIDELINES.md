@@ -17,6 +17,7 @@ Ustalić zasady testowania w HSS tak, aby:
 
 Każdy PR musi przejść:
 
+- `validate:env`
 - `lint`
 - `typecheck`
 - `test`
@@ -235,7 +236,7 @@ Operacje krytyczne:
 - Unit testy status machine + single active trial
 - Audit testy dla operacji krytycznych
 - Testy i opisy po angielsku
-- PR gate: lint + typecheck + test
+- PR gate: validate:env + lint + typecheck + test
 
 ## Założenia
 

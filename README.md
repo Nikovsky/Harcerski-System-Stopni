@@ -131,6 +131,7 @@ pnpm start:cold
 | Typecheck | `pnpm typecheck` |
 | Testy | `pnpm test` |
 | Audit zaleznosci | `pnpm audit` |
+| Walidacja env | `pnpm validate:env` |
 | Start stacka | `pnpm stack:up` |
 | Stop stacka | `pnpm stack:down` |
 
@@ -140,13 +141,13 @@ pnpm start:cold
 - Zglaszanie podatnosci: [SECURITY.md](./SECURITY.md)
 - Zasady inzynieryjne i quality gates: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Kodeks postepowania: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
-- Wersja angielska dokumentacji: [README.en.md](./README.en.md), [SECURITY.en.md](./SECURITY.en.md), [CONTRIBUTING.en.md](./CONTRIBUTING.en.md)
+- Wersja angielska dokumentacji: [README.en.md](./README.en.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Nigdy nie commituj sekretow (`.env`, tokeny, klucze, hasla).
 
 ## Dokumentacja
 
-- Start projektu: [docs/91-START.pl.md](./docs/91-START.pl.md)
-- Pelna lista: [docs](./docs)
+- Start projektu: [docs/0309-start.pl.md](./docs/0309-start.pl.md)
+- Pelna lista: [docs/0000-overview.md](./docs/0000-overview.md)
 
 ## Contributors
 

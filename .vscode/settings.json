@@ -1,5 +1,5 @@
 {
-  "typescript.updateImportsOnFileMove.enabled": "always",
+  "js/ts.updateImportsOnFileMove.enabled": "always",
   "editor.formatOnPaste": true,
   "editor.formatOnType": true,
   "editor.indentSize": 2,
@@ -35,13 +35,13 @@
         "column": 100
       }
     ]
-  },
-  "python.terminal.activateEnvironment": true,
-  "python.analysis.exclude": [
-    "**/.venv/**",
-    "**/node_modules",
-    "**/__pycache__"
-  ],
+  } //,
+  // "python.terminal.activateEnvironment": true,
+  // "python.analysis.exclude": [
+  //   "**/.venv/**",
+  //   "**/node_modules",
+  //   "**/__pycache__"
+  // ],
   // "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\Activate.ps1",
+  // "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\Activate.ps1",
 }

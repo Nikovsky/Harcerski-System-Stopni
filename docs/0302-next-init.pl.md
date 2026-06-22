@@ -1,4 +1,11 @@
 ## Instalacja NEXT.JS
+
+Aktualny stan repo:
+
+- `apps/web` uzywa Next.js `16.2.9`.
+- Lokalny dev startuje przez `next dev --turbopack`.
+- Certyfikat lokalnego CA jest podpinany przez `NODE_EXTRA_CA_CERTS=..\..\docker\certs\rootCA.pem`.
+
 ```powershell
 if (Test-Path .\apps\web) { Remove-Item .\apps\web -Recurse -Force }
 pnpm dlx create-next-app@latest apps/web

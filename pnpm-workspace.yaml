@@ -5,6 +5,7 @@ packages:
 overrides:
   '@angular-devkit/core>ajv': 8.18.0
   '@nestjs/platform-express>multer': 2.2.0
+  '@opentelemetry/core': 2.8.0
   '@typescript-eslint/typescript-estree>minimatch': 9.0.8
   '@babel/core': 8.0.1
   terser-webpack-plugin>serialize-javascript: 7.0.5

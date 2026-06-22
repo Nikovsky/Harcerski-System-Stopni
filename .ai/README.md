@@ -1,4 +1,4 @@
-# AI Workspace — HSS (Harcerki System Stopni)
+# AI Workspace — HSS (Harcerski System Stopni)
 
 ## Cel katalogu `.ai/`
 
@@ -10,6 +10,14 @@ Ten katalog służy do pracy z agentami AI (np. do generowania kodu, testów, ta
 
 **Źródło prawdy (source of truth):** katalog `docs/`.  
 Agent AI ma traktować `docs/` jako nadrzędne względem własnych założeń.
+
+Aktualny kontrakt repo:
+
+- repo jest pnpm workspace monorepo, bez Turbo,
+- `pnpm dev` uruchamia `pnpm validate:env` przed generowaniem Prisma/schemas i startem aplikacji,
+- `pnpm dev` nie startuje automatycznie Docker stacka; użyj jawnie `pnpm stack:up`,
+- skrypty repo są Node/MJS: `scripts/infra.mjs`, `scripts/clean.mjs`, `scripts/validate-env.mjs`, `scripts/validate-certs.mjs`,
+- root compliance docs są canonical po angielsku: `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CONTRIBUTING.md`.
 
 ---
 
