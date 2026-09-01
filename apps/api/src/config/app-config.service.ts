@@ -32,6 +32,68 @@ export class AppConfigService {
     return this.cfg.get('DATABASE_URL', { infer: true });
   }
 
+  get betterAuthSecret(): string {
+    return this.cfg.get('BETTER_AUTH_SECRET', { infer: true });
+  }
+
+  get betterAuthUrl(): string {
+    return this.cfg.get('BETTER_AUTH_URL', { infer: true }).replace(/\/$/, '');
+  }
+
+  get bffInternalSecret(): string {
+    return this.cfg.get('HSS_BFF_INTERNAL_SECRET', { infer: true });
+  }
+
+  get sessionCookieName(): string {
+    return this.cfg.get('HSS_SESSION_COOKIE_NAME', { infer: true });
+  }
+
+  get sessionKeyPrefix(): string {
+    return this.cfg.get('HSS_SESSION_KEY_PREFIX', { infer: true });
+  }
+
+  get sessionIdleTimeoutSeconds(): number {
+    return this.cfg.get('HSS_SESSION_IDLE_TIMEOUT_SECONDS', { infer: true });
+  }
+
+  get sessionAbsoluteTimeoutSeconds(): number {
+    return this.cfg.get('HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS', {
+      infer: true,
+    });
+  }
+
+  get sessionTouchThrottleSeconds(): number {
+    return this.cfg.get('HSS_SESSION_TOUCH_THROTTLE_SECONDS', { infer: true });
+  }
+
+  get sessionMaxExtensionSeconds(): number {
+    return this.cfg.get('HSS_SESSION_MAX_EXTENSION_SECONDS', { infer: true });
+  }
+
+  get sessionRefreshLockTtlMs(): number {
+    return this.cfg.get('HSS_SESSION_REFRESH_LOCK_TTL_MS', { infer: true });
+  }
+
+  get redisUrl(): string {
+    return this.cfg.get('HSS_REDIS_URL', { infer: true });
+  }
+
+  get redisConnectTimeoutMs(): number {
+    return this.cfg.get('HSS_REDIS_CONNECT_TIMEOUT_MS', { infer: true });
+  }
+
+  get redisCommandTimeoutMs(): number {
+    return this.cfg.get('HSS_REDIS_COMMAND_TIMEOUT_MS', { infer: true });
+  }
+
+  get authKeycloakClientId(): string {
+    return this.cfg.get('AUTH_KEYCLOAK_ID', { infer: true });
+  }
+
+  get authKeycloakClientSecret(): string {
+    return this.cfg.get('AUTH_KEYCLOAK_SECRET', { infer: true });
+  }
+
   get trustProxy(): boolean {
     return this.cfg.get('TRUST_PROXY', { infer: true });
   }

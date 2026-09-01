@@ -7,9 +7,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { hasAnyDefined } from '@/helpers/object.helper';
-import { isHigherThanUser } from '@/helpers/role.helper';
+import {
+  isHigherThanUser,
+  resolveHighestUserRole,
+} from '@/helpers/role.helper';
 import { dateOnlyToUtcOrNull, iso, isoOrNull } from '@/helpers';
-import { Prisma, Status, UserRole, type User } from '@hss/database';
+import { Prisma, Status, type User } from '@hss/database';
 import {
   userDashboardPrivilegedKeys,
   type AuthPrincipal,
@@ -58,46 +61,19 @@ export class ProfileService {
   }
 
   /**
-   * Get-or-create (Keycloak sub) and RETURN DB entity.
-   * - If user doesn't exist in DB: create MINIMAL row (email only + system fields).
+   * Get-or-create the HSS profile keyed by the immutable Keycloak subject.
    */
   private async ensureUserEntity(principal: AuthPrincipal): Promise<User> {
     const keycloakUuid = principal.sub;
-    const email = principal.email?.toLowerCase() ?? null;
-
     try {
       return await this.prisma.$transaction(
         async (tx) => {
           const byKc = await tx.user.findUnique({ where: { keycloakUuid } });
           if (byKc) return byKc;
 
-          if (!email) {
-            throw new ConflictException({
-              code: 'EMAIL_REQUIRED',
-              message: 'Email is required to create a local user record.',
-            });
-          }
-
-          const byEmail = await tx.user.findUnique({ where: { email } });
-          if (byEmail) {
-            if (byEmail.keycloakUuid && byEmail.keycloakUuid !== keycloakUuid) {
-              throw new ConflictException({
-                code: 'KEYCLOAK_LINK_CONFLICT',
-                message: 'Account linking conflict.',
-              });
-            }
-
-            return tx.user.update({
-              where: { uuid: byEmail.uuid },
-              data: { keycloakUuid },
-            });
-          }
-
           return tx.user.create({
             data: {
               keycloakUuid,
-              email,
-              role: UserRole.USER,
               status: Status.ACTIVE,
             } satisfies Prisma.UserCreateInput,
           });
@@ -113,7 +89,7 @@ export class ProfileService {
     user: AuthPrincipal,
   ): Promise<UserDashboardResponse> {
     const entity = await this.ensureUserEntity(user);
-    return this.toProfileDto(entity);
+    return this.toProfileDto(entity, user);
   }
 
   async updateProfile(
@@ -121,7 +97,7 @@ export class ProfileService {
     body: UserDashboardUpdatePrivilegedBody,
   ): Promise<UserDashboardResponse> {
     const me = await this.ensureUserEntity(principal);
-    const privileged = isHigherThanUser(me.role);
+    const privileged = isHigherThanUser(principal);
 
     if (!privileged && hasAnyDefined(body, userDashboardPrivilegedKeys)) {
       throw new ForbiddenException({
@@ -131,9 +107,6 @@ export class ProfileService {
     }
 
     const data: Prisma.UserUpdateInput = {
-      ...(body.firstName !== undefined ? { firstName: body.firstName } : {}),
-      ...(body.secondName !== undefined ? { secondName: body.secondName } : {}),
-      ...(body.surname !== undefined ? { surname: body.surname } : {}),
       ...(body.phone !== undefined ? { phone: body.phone } : {}),
       ...(body.birthDate !== undefined
         ? { birthDate: dateOnlyToUtcOrNull(body.birthDate) }
@@ -178,36 +151,34 @@ export class ProfileService {
       const updated = await this.prisma.$transaction(
         async (tx) =>
           tx.user.update({
-            where: { uuid: me.uuid },
+            where: { keycloakUuid: me.keycloakUuid },
             data,
           }),
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
 
-      return this.toProfileDto(updated);
+      return this.toProfileDto(updated, principal);
     } catch (error) {
       this.rethrowPrismaError(error);
     }
   }
 
-  private toProfileDto(user: User): UserDashboardResponse {
-    if (!user.keycloakUuid) {
-      throw new InternalServerErrorException({
-        code: 'KEYCLOAK_UUID_MISSING',
-        message: 'User is not linked to Keycloak.',
-      });
-    }
-
+  private toProfileDto(
+    user: User,
+    principal: AuthPrincipal,
+  ): UserDashboardResponse {
+    const nameParts = principal.name?.trim().split(/\s+/) ?? [];
     return {
-      uuid: user.uuid,
+      uuid: user.keycloakUuid,
       keycloakUuid: user.keycloakUuid,
-      firstName: user.firstName,
-      secondName: user.secondName,
-      surname: user.surname,
-      email: user.email,
+      firstName: nameParts.at(0) ?? null,
+      secondName:
+        nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : null,
+      surname: nameParts.length > 1 ? (nameParts.at(-1) ?? null) : null,
+      email: principal.email?.toLowerCase() ?? null,
       phone: user.phone,
       birthDate: isoOrNull(user.birthDate),
-      role: user.role,
+      role: resolveHighestUserRole(principal),
       hufiecCode: user.hufiecCode,
       druzynaCode: user.druzynaCode,
       scoutRank: user.scoutRank,

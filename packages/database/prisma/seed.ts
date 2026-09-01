@@ -1,9 +1,8 @@
 // @file: packages/database/prisma/seed.ts
-import 'dotenv/config';
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
-  UserRole,
   ScoutRank,
   InstructorRank,
   ApplicationStatus,
@@ -31,17 +30,12 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log("🌱 Starting database seed...");
 
   async function ensureUser(data: {
     keycloakUuid: string;
-    firstName: string;
-    secondName?: string | null;
-    surname: string;
-    email: string;
     phone: string;
     birthDate: Date;
-    role: UserRole;
     status: Status;
     hufiecCode?: string | null;
     druzynaCode?: string | null;
@@ -53,33 +47,10 @@ async function main() {
     inZhrSince?: Date | null;
     oathDate?: Date | null;
   }) {
-    const matches = await prisma.user.findMany({
-      where: {
-        OR: [{ keycloakUuid: data.keycloakUuid }, { email: data.email }],
-      },
-      select: {
-        uuid: true,
-        keycloakUuid: true,
-        email: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (matches.length > 1) {
-      throw new Error(
-        `Ambiguous seeded user match for ${data.email} / ${data.keycloakUuid}. Resolve duplicate local rows first.`,
-      );
-    }
-
     const userData = {
       keycloakUuid: data.keycloakUuid,
-      firstName: data.firstName,
-      secondName: data.secondName ?? null,
-      surname: data.surname,
-      email: data.email,
       phone: data.phone,
       birthDate: data.birthDate,
-      role: data.role,
       status: data.status,
       hufiecCode: data.hufiecCode ?? null,
       druzynaCode: data.druzynaCode ?? null,
@@ -92,17 +63,10 @@ async function main() {
       oathDate: data.oathDate ?? null,
     };
 
-    const existingUser = matches[0];
-
-    if (existingUser) {
-      return prisma.user.update({
-        where: { uuid: existingUser.uuid },
-        data: userData,
-      });
-    }
-
-    return prisma.user.create({
-      data: userData,
+    return prisma.user.upsert({
+      where: { keycloakUuid: data.keycloakUuid },
+      update: userData,
+      create: userData,
     });
   }
 
@@ -118,7 +82,7 @@ async function main() {
         status: Status.ACTIVE,
         leftAt: null,
       },
-      orderBy: { joinedAt: 'desc' },
+      orderBy: { joinedAt: "desc" },
     });
 
     if (activeMembership) {
@@ -158,172 +122,142 @@ async function main() {
   // =========================================================
   // 1. ORGANIZATIONAL STRUCTURE
   // =========================================================
-  console.log('📂 Seeding organizational structure...');
+  console.log("📂 Seeding organizational structure...");
 
   const hufiec1 = await prisma.scoutUnit.upsert({
-    where: { code: 'HUF-KLB' },
+    where: { code: "HUF-KLB" },
     update: {},
     create: {
-      code: 'HUF-KLB',
+      code: "HUF-KLB",
       name: 'Kluczborski Hufiec Harcerzy "Płomień"',
       type: UnitType.HUFIEC,
       status: Status.ACTIVE,
-    }
+    },
   });
 
   const hufiec2 = await prisma.scoutUnit.upsert({
-    where: { code: 'HUF-WOL' },
+    where: { code: "HUF-WOL" },
     update: {},
     create: {
-      code: 'HUF-WOL',
+      code: "HUF-WOL",
       name: 'Wołczyński Hufiec Harcerzy "Omega"',
       type: UnitType.HUFIEC,
       status: Status.ACTIVE,
-    }
+    },
   });
 
   const druzyna1 = await prisma.scoutUnit.upsert({
-    where: { code: 'KLB-TOR' },
+    where: { code: "KLB-TOR" },
     update: {},
     create: {
-      code: 'KLB-TOR',
+      code: "KLB-TOR",
       name: '122 Kluczbroska Drużyna Harcerzy "Tornado" im. Andrzeja Romockiego ps. "Morro"',
       type: UnitType.DRUZYNA,
       parentHufiecCode: hufiec1.code,
       status: Status.ACTIVE,
-    }
+    },
   });
 
   const druzyna2 = await prisma.scoutUnit.upsert({
-    where: { code: 'WOL-FLAMMAE' },
+    where: { code: "WOL-FLAMMAE" },
     update: {},
     create: {
-      code: 'WOL-FLAMMAE',
+      code: "WOL-FLAMMAE",
       name: '7 Wołczyńska Drużyna Harcerzy "Flammae" im. kadeta Karola Chodkiewicza',
       type: UnitType.DRUZYNA,
       parentHufiecCode: hufiec2.code,
       status: Status.ACTIVE,
-    }
+    },
   });
 
   // =========================================================
   // 2. USERS
   // =========================================================
-  console.log('👤 Seeding users...');
+  console.log("👤 Seeding users...");
 
   const janKowalski = await ensureUser({
-    keycloakUuid: '11111111-1111-1111-1111-111111111111',
-    firstName: 'Jan',
-    secondName: 'Marian',
-    surname: 'Kowalski',
-    email: 'jan.kowalski@zhr.pl',
-    phone: '+48123456789',
-    birthDate: new Date('2000-01-01'),
-    role: UserRole.SCOUT,
+    keycloakUuid: "11111111-1111-1111-1111-111111111111",
+    phone: "+48123456789",
+    birthDate: new Date("2000-01-01"),
     status: Status.ACTIVE,
     hufiecCode: hufiec1.code,
     druzynaCode: druzyna1.code,
     scoutRank: ScoutRank.HARCERZ_ORLI,
     instructorRank: null,
     instructorRankAwardedAt: null,
-    inScoutingSince: new Date('2010-09-01'),
-    inZhrSince: new Date('2010-09-01'),
-    oathDate: new Date('2011-07-28'),
+    inScoutingSince: new Date("2010-09-01"),
+    inZhrSince: new Date("2010-09-01"),
+    oathDate: new Date("2011-07-28"),
   });
 
   const piotrNowak = await ensureUser({
-    keycloakUuid: '22222222-2222-2222-2222-222222222222',
-    firstName: 'Piotr',
-    secondName: 'Paweł',
-    surname: 'Nowak',
-    email: 'piotr.nowak@zhr.pl',
-    phone: '+48676767676',
-    birthDate: new Date('2007-12-21'),
-    role: UserRole.USER,
+    keycloakUuid: "22222222-2222-2222-2222-222222222222",
+    phone: "+48676767676",
+    birthDate: new Date("2007-12-21"),
     status: Status.ACTIVE,
     hufiecCode: hufiec2.code,
     druzynaCode: druzyna2.code,
     scoutRank: ScoutRank.CWIK,
-    inScoutingSince: new Date('2018-09-01'),
-    inZhrSince: new Date('2018-09-01'),
-    oathDate: new Date('2019-07-28'),
+    inScoutingSince: new Date("2018-09-01"),
+    inZhrSince: new Date("2018-09-01"),
+    oathDate: new Date("2019-07-28"),
   });
 
   const piotrKrajewski = await ensureUser({
-    keycloakUuid: '33333333-3333-3333-3333-333333333333',
-    firstName: 'Piotr',
-    secondName: 'Adam',
-    surname: 'Krajewski',
-    email: 'piotr.krajewski@zhr.pl',
-    phone: '+48987654321',
-    birthDate: new Date('1995-05-15'),
-    role: UserRole.COMMISSION_MEMBER,
+    keycloakUuid: "33333333-3333-3333-3333-333333333333",
+    phone: "+48987654321",
+    birthDate: new Date("1995-05-15"),
     status: Status.ACTIVE,
     scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
     instructorRank: InstructorRank.HARCMISTRZ,
-    instructorRankAwardedAt: new Date('2020-01-01'),
+    instructorRankAwardedAt: new Date("2020-01-01"),
   });
 
   const adamNowakowski = await ensureUser({
-    keycloakUuid: '44444444-4444-4444-4444-444444444444',
-    firstName: 'Adam',
-    secondName: 'Nowakowski',
-    surname: 'Nowakowski',
-    email: 'adam.nowakowski@zhr.pl',
-    phone: '+48564887123',
-    birthDate: new Date('1998-05-15'),
-    role: UserRole.COMMISSION_MEMBER,
+    keycloakUuid: "44444444-4444-4444-4444-444444444444",
+    phone: "+48564887123",
+    birthDate: new Date("1998-05-15"),
     status: Status.ACTIVE,
     scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
     instructorRank: InstructorRank.PODHARCMISTRZ,
-    instructorRankAwardedAt: new Date('2021-12-01'),
+    instructorRankAwardedAt: new Date("2021-12-01"),
   });
 
   const krzysztofKier = await ensureUser({
-    keycloakUuid: '55555555-5555-5555-5555-555555555555',
-    firstName: 'Krzysztof',
-    secondName: 'Adam',
-    surname: 'Kier',
-    email: 'krzysztof.kier@zhr.pl',
-    phone: '+487789906676',
-    birthDate: new Date('1995-05-15'),
-    role: UserRole.COMMISSION_MEMBER,
+    keycloakUuid: "55555555-5555-5555-5555-555555555555",
+    phone: "+487789906676",
+    birthDate: new Date("1995-05-15"),
     status: Status.ACTIVE,
     scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
     instructorRank: InstructorRank.HARCMISTRZ,
-    instructorRankAwardedAt: new Date('2018-11-21'),
+    instructorRankAwardedAt: new Date("2018-11-21"),
   });
 
   const michalRenke = await ensureUser({
-    keycloakUuid: '66666666-6666-6666-6666-666666666666',
-    firstName: 'Michał',
-    secondName: 'Renke',
-    surname: 'Renke',
-    email: 'michal.renke@zhr.pl',
-    phone: '+48564887123',
-    birthDate: new Date('2000-07-15'),
-    role: UserRole.COMMISSION_MEMBER,
+    keycloakUuid: "66666666-6666-6666-6666-666666666666",
+    phone: "+48564887123",
+    birthDate: new Date("2000-07-15"),
     status: Status.ACTIVE,
     scoutRank: ScoutRank.HARCERZ_RZECZYPOSPOLITEJ,
     instructorRank: InstructorRank.PODHARCMISTRZ,
-    instructorRankAwardedAt: new Date('2024-12-15'),
+    instructorRankAwardedAt: new Date("2024-12-15"),
   });
 
   // =========================================================
   // 3. COMMISSIONS
   // =========================================================
-  console.log('📋 Seeding commissions...');
+  console.log("📋 Seeding commissions...");
 
   const instructorCommission = await prisma.commission.upsert({
     where: {
       type: CommissionType.INSTRUCTOR,
     },
     update: {
-      name: 'Komisja Instruktorska',
+      name: "Komisja Instruktorska",
       status: Status.ACTIVE,
     },
     create: {
-      name: 'Komisja Instruktorska',
+      name: "Komisja Instruktorska",
       type: CommissionType.INSTRUCTOR,
       status: Status.ACTIVE,
     },
@@ -331,13 +265,13 @@ async function main() {
 
   await ensureActiveCommissionMembership({
     commissionUuid: instructorCommission.uuid,
-    userUuid: piotrKrajewski.uuid,
+    userUuid: piotrKrajewski.keycloakUuid,
     role: CommissionRole.CHAIRMAN,
   });
 
   await ensureActiveCommissionMembership({
     commissionUuid: instructorCommission.uuid,
-    userUuid: adamNowakowski.uuid,
+    userUuid: adamNowakowski.keycloakUuid,
     role: CommissionRole.MEMBER,
   });
 
@@ -346,11 +280,11 @@ async function main() {
       type: CommissionType.SCOUT,
     },
     update: {
-      name: 'Kapituła Stopni Harcerskich',
+      name: "Kapituła Stopni Harcerskich",
       status: Status.ACTIVE,
     },
     create: {
-      name: 'Kapituła Stopni Harcerskich',
+      name: "Kapituła Stopni Harcerskich",
       type: CommissionType.SCOUT,
       status: Status.ACTIVE,
     },
@@ -358,20 +292,20 @@ async function main() {
 
   await ensureActiveCommissionMembership({
     commissionUuid: scoutCommission.uuid,
-    userUuid: krzysztofKier.uuid,
+    userUuid: krzysztofKier.keycloakUuid,
     role: CommissionRole.CHAIRMAN,
   });
 
   await ensureActiveCommissionMembership({
     commissionUuid: scoutCommission.uuid,
-    userUuid: michalRenke.uuid,
+    userUuid: michalRenke.keycloakUuid,
     role: CommissionRole.MEMBER,
   });
 
   // =========================================================
   // 4. COMMISSION MEETINGS
   // =========================================================
-  console.log('🗓️ Seeding commission meetings...');
+  console.log("🗓️ Seeding commission meetings...");
 
   async function ensureMeeting(data: {
     commissionUuid: string;
@@ -407,38 +341,38 @@ async function main() {
 
   const instructorMeetingWithSlots = await ensureMeeting({
     commissionUuid: instructorCommission.uuid,
-    createdByUuid: piotrKrajewski.uuid,
-    date: new Date('2026-04-10'),
+    createdByUuid: piotrKrajewski.keycloakUuid,
+    date: new Date("2026-04-10"),
     slotMode: SlotMode.SLOTS,
     status: MeetingStatus.OPEN_FOR_REGISTRATION,
-    notes: 'Posiedzenie KI z indywidualnymi slotami rozmów.',
+    notes: "Posiedzenie KI z indywidualnymi slotami rozmów.",
   });
 
   await ensureMeeting({
     commissionUuid: instructorCommission.uuid,
-    createdByUuid: adamNowakowski.uuid,
-    date: new Date('2026-05-15'),
+    createdByUuid: adamNowakowski.keycloakUuid,
+    date: new Date("2026-05-15"),
     slotMode: SlotMode.DAY_ONLY,
     status: MeetingStatus.OPEN_FOR_REGISTRATION,
-    notes: 'Posiedzenie KI w formule całodniowej.',
+    notes: "Posiedzenie KI w formule całodniowej.",
   });
 
   await ensureMeeting({
     commissionUuid: scoutCommission.uuid,
-    createdByUuid: krzysztofKier.uuid,
-    date: new Date('2026-05-16'),
+    createdByUuid: krzysztofKier.keycloakUuid,
+    date: new Date("2026-05-16"),
     slotMode: SlotMode.DAY_ONLY,
     status: MeetingStatus.OPEN_FOR_REGISTRATION,
-    notes: 'Posiedzenie KSH dla prób i zamknięć stopni harcerskich.',
+    notes: "Posiedzenie KSH dla prób i zamknięć stopni harcerskich.",
   });
 
   await ensureMeeting({
     commissionUuid: scoutCommission.uuid,
-    createdByUuid: krzysztofKier.uuid,
-    date: new Date('2026-06-21'),
+    createdByUuid: krzysztofKier.keycloakUuid,
+    date: new Date("2026-06-21"),
     slotMode: SlotMode.DAY_ONLY,
     status: MeetingStatus.OPEN_FOR_REGISTRATION,
-    notes: 'Posiedzenie KSH dla prób i zamknięć stopni harcerskich.',
+    notes: "Posiedzenie KSH dla prób i zamknięć stopni harcerskich.",
   });
 
   const existingSlots = await prisma.meetingSlot.findMany({
@@ -452,20 +386,20 @@ async function main() {
       data: [
         {
           meetingUuid: instructorMeetingWithSlots.uuid,
-          startTime: new Date('2026-04-10T16:00:00.000Z'),
-          endTime: new Date('2026-04-10T16:30:00.000Z'),
+          startTime: new Date("2026-04-10T16:00:00.000Z"),
+          endTime: new Date("2026-04-10T16:30:00.000Z"),
           sortOrder: 0,
         },
         {
           meetingUuid: instructorMeetingWithSlots.uuid,
-          startTime: new Date('2026-04-10T16:30:00.000Z'),
-          endTime: new Date('2026-04-10T17:00:00.000Z'),
+          startTime: new Date("2026-04-10T16:30:00.000Z"),
+          endTime: new Date("2026-04-10T17:00:00.000Z"),
           sortOrder: 1,
         },
         {
           meetingUuid: instructorMeetingWithSlots.uuid,
-          startTime: new Date('2026-04-10T17:00:00.000Z'),
-          endTime: new Date('2026-04-10T17:30:00.000Z'),
+          startTime: new Date("2026-04-10T17:00:00.000Z"),
+          endTime: new Date("2026-04-10T17:30:00.000Z"),
           sortOrder: 2,
         },
       ],
@@ -475,26 +409,26 @@ async function main() {
   // =========================================================
   // 5. Requirement templates
   // =========================================================
-  console.log('📑 Seeding requirement templates...');
+  console.log("📑 Seeding requirement templates...");
 
   // PWD Template - use upsert with composite unique constraint
   const pwdTemplate = await prisma.requirementTemplate.upsert({
     where: {
       degreeType_degreeCode_version: {
         degreeType: DegreeType.INSTRUCTOR,
-        degreeCode: 'PWD',
+        degreeCode: "PWD",
         version: 1,
-      }
+      },
     },
     update: {},
     create: {
       degreeType: DegreeType.INSTRUCTOR,
-      degreeCode: 'PWD',
+      degreeCode: "PWD",
       version: 1,
       status: Status.ACTIVE,
-      name: 'Próba na stopień Przewodnika',
-      description: 'Wymagania na stopień przewodnika'
-    }
+      name: "Próba na stopień Przewodnika",
+      description: "Wymagania na stopień przewodnika",
+    },
   });
 
   // Helper function to upsert requirement definitions
@@ -511,7 +445,7 @@ async function main() {
         templateId_code: {
           templateId: data.templateId,
           code: data.code,
-        }
+        },
       },
       update: {
         description: data.description,
@@ -525,16 +459,18 @@ async function main() {
 
   const pwdRequirement1 = await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1',
-    description: 'Wykazał, że jest przygotowany do poprowadzenia gromady zuchów lub drużyny harcerzy lub wędrowników. Potrafi:',
+    code: "1",
+    description:
+      "Wykazał, że jest przygotowany do poprowadzenia gromady zuchów lub drużyny harcerzy lub wędrowników. Potrafi:",
     isGroup: true,
     sortOrder: 1,
   });
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1A',
-    description: 'zaplanować roczną pracę gromady / drużyny uwzględniając cele wychowawcze oraz dobierając odpowiednie formy pracy np. wspólnie z drużynowym napisać plan pracy i uzyskać jego zatwierdzenie',
+    code: "1A",
+    description:
+      "zaplanować roczną pracę gromady / drużyny uwzględniając cele wychowawcze oraz dobierając odpowiednie formy pracy np. wspólnie z drużynowym napisać plan pracy i uzyskać jego zatwierdzenie",
     isGroup: false,
     sortOrder: 2,
     parentId: pwdRequirement1.uuid,
@@ -542,7 +478,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1B',
+    code: "1B",
     description: `zaplanować i prowadzić zdobywanie gwiazdek, stopni i sprawności w toku pracy gromady / drużyny:
 ● met. zuchowa: wykorzystanie systemu „pryzmat" np. wprowadzić tablicę tęczową, ułożyć próby na gwiazdki, ułożyć zadania na sprawności kolonijne
 ● met. harcerska: wymagania na stopnie i sprawności ujęte w planie pracy
@@ -554,7 +490,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1C',
+    code: "1C",
     description: `posługiwać się systemem małych grup:
 ● met. zuchowa: podział na szóstki, zaangażować opiekunów szóstek na zimowisku i kolonii
 ● met. harcerska: system zastępowy - zaplanować pracę zastępu zastępowych i przeprowadzić zbiórkę tego zastępu
@@ -566,7 +502,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1D',
+    code: "1D",
     description: `samodzielnie zaplanować i pod nadzorem instruktora przeprowadzić przynajmniej trzy różne nieobozowe formy pracy z gromadą / drużyną:
 ● met. zuchowa: co najmniej jedna nie w pomieszczeniu, np. zbiórka gromady, wycieczka, biwak, kominek
 ● met. harcerska: jeden biwak i dwie inne formy wymagany biwak z noclegiem w terenie; przykłady pozostałych form: zbiórka drużyny, rajd, ognisko, zawody sportowe
@@ -578,7 +514,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1E',
+    code: "1E",
     description: `tworzyć i wykorzystywać obrzędowość w gromadzie / drużynie np. obrzędowość ZZ, obrzędowość zimowiska, kolonii, fabuła obozu, obrzęd przyjęcia do gromady / drużyny, obrzęd złożenia obietnicy, przyrzeczenia, wtajemniczenia`,
     isGroup: false,
     sortOrder: 6,
@@ -587,7 +523,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1F',
+    code: "1F",
     description: `osobiście przeprowadzić formę pracy z zakresu wychowania religijnego zaplanowaną we współpracy z kapelanem/duszpasterzem:
 ● met. zuchowa: np. jasełka, teatrzyk, śpiew na Mszy św., spotkanie z duszpasterzem
 ● met. harcerska: np. HaDeS, droga krzyżowa, rekolekcje
@@ -599,7 +535,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '1G',
+    code: "1G",
     description: `przekazywać wartości ideowe w oparciu o prawo zucha, prawo harcerskie, symbolikę naramiennika wędrowniczego poprzez konkretne formy pracy:
 ● met. zuchowa: np. krąg rady, gawęda, prace plastyczne
 ● met. harcerska: np. gawęda, pogadanka, gra, zadania indywidualne na stopnie
@@ -611,31 +547,34 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '2',
-    description: 'Potrafi poprowadzić zajęcia na kursie zastępowych, kursie przybocznych zuchowych lub odpowiednim kursie dla wędrowników.',
+    code: "2",
+    description:
+      "Potrafi poprowadzić zajęcia na kursie zastępowych, kursie przybocznych zuchowych lub odpowiednim kursie dla wędrowników.",
     isGroup: false,
     sortOrder: 9,
   });
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '3',
-    description: 'Potrafi pomóc drużynowemu w przeprowadzeniu programu wyjazdu, pełniąc funkcję w komendzie zimowiska, obozu lub kolonii.',
+    code: "3",
+    description:
+      "Potrafi pomóc drużynowemu w przeprowadzeniu programu wyjazdu, pełniąc funkcję w komendzie zimowiska, obozu lub kolonii.",
     isGroup: false,
     sortOrder: 10,
   });
 
   const pwdRequirement2 = await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '4',
-    description: 'Poprzez osobiste zaangażowanie w organizację wyjazdów wykazał, że jest gotów zapewnić swojej drużynie udział w obozach i zimowiskach. Potrafi:',
+    code: "4",
+    description:
+      "Poprzez osobiste zaangażowanie w organizację wyjazdów wykazał, że jest gotów zapewnić swojej drużynie udział w obozach i zimowiskach. Potrafi:",
     isGroup: true,
     sortOrder: 11,
   });
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '4A',
+    code: "4A",
     description: `Pomóc przy organizacji obozu lub kolonii od strony formalnej. np. zgoda nadleśnictwa, zgłoszenie wypoczynku w kuratorium, preliminarz finansowy`,
     isGroup: false,
     sortOrder: 12,
@@ -644,7 +583,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '4B',
+    code: "4B",
     description: `Rozliczyć biwak, zimowisko lub śródroczną pracę drużyny`,
     isGroup: false,
     sortOrder: 13,
@@ -653,15 +592,16 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '5',
-    description: 'Potrafi zachęcić chłopców do wstąpienia do drużyny/gromady. np. nabór, zwiększenie stanu liczbowego',
+    code: "5",
+    description:
+      "Potrafi zachęcić chłopców do wstąpienia do drużyny/gromady. np. nabór, zwiększenie stanu liczbowego",
     isGroup: false,
     sortOrder: 14,
   });
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '6',
+    code: "6",
     description: `Potrafi wypromować ZHR w środowisku działania. np. gazetka, artykuł w prasie lokalnej, gablotka, strona internetowa, udział w wydarzeniach lokalnych`,
     isGroup: false,
     sortOrder: 15,
@@ -669,7 +609,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '7',
+    code: "7",
     description: `Potrafi zorganizować służbę na rzecz środowiska i zaangażować w nią zuchy / harcerzy / wędrowników. np. akcja charytatywna, pomoc w świetlicy środowiskowej, domu opieki, szkole specjalnej`,
     isGroup: false,
     sortOrder: 16,
@@ -677,7 +617,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '8',
+    code: "8",
     description: `Potrafi zorganizować i przeprowadzić element współpracy z rodzicami np. zebranie, opłatek, dzień matki, rajd ojca i syna, gra dla rodziców, KPH`,
     isGroup: false,
     sortOrder: 17,
@@ -685,7 +625,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '9',
+    code: "9",
     description: `Przeczytał 5 lektur na poziomie przewodnika zaaprobowanych przez opiekuna próby.`,
     isGroup: false,
     sortOrder: 18,
@@ -693,52 +633,53 @@ async function main() {
 
   await upsertRequirement({
     templateId: pwdTemplate.uuid,
-    code: '10',
+    code: "10",
     description: `10. Ewentualne dodatkowe zadanie zlecone przez Komisję`,
     isGroup: false,
     sortOrder: 19,
   });
-
 
   // PHM Template
   const phmTemplate = await prisma.requirementTemplate.upsert({
     where: {
       degreeType_degreeCode_version: {
         degreeType: DegreeType.INSTRUCTOR,
-        degreeCode: 'PHM',
+        degreeCode: "PHM",
         version: 1,
-      }
+      },
     },
     update: {},
     create: {
       degreeType: DegreeType.INSTRUCTOR,
-      degreeCode: 'PHM',
+      degreeCode: "PHM",
       version: 1,
       status: Status.ACTIVE,
-      name: 'Próba na stopień Podharcmistrza',
-      description: 'Wymagania na stopień podharcmistrza'
-    }
+      name: "Próba na stopień Podharcmistrza",
+      description: "Wymagania na stopień podharcmistrza",
+    },
   });
 
   const phmRequirement1 = await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '1',
-    description: 'Osiągnął sukcesy w prowadzeniu drużyny/gromady. np. udział w TDP, zdobycie kolejnej kategorii, zwiększenie liczebności, wykształcenie dobrych następców',
+    code: "1",
+    description:
+      "Osiągnął sukcesy w prowadzeniu drużyny/gromady. np. udział w TDP, zdobycie kolejnej kategorii, zwiększenie liczebności, wykształcenie dobrych następców",
     isGroup: false,
     sortOrder: 1,
   });
 
   const phmRequirement2 = await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '2',
-    description: 'Poprzez zaangażowanie w prace hufca / referatu wykazał, że jest przygotowany do rozwijania środowiska harcerskiego. Potrafi:',
+    code: "2",
+    description:
+      "Poprzez zaangażowanie w prace hufca / referatu wykazał, że jest przygotowany do rozwijania środowiska harcerskiego. Potrafi:",
     isGroup: true,
     sortOrder: 2,
   });
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '2A',
+    code: "2A",
     description: `zaplanować roczną pracę hufca / referatu / wydziału uwzględniając cele oraz dobierając do nich odpowiednie formy pracy
     np. wspólnie z hufcowym napisanie plan pracy i uzyskanie jego zatwierdzenia`,
     isGroup: false,
@@ -748,7 +689,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '2B',
+    code: "2B",
     description: `wspierać drużynowych w prowadzeniu pracy wychowawczej
     np. warsztaty metodyczne, opiekun drużyny, indywidualna praca`,
     isGroup: false,
@@ -758,7 +699,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '2C',
+    code: "2C",
     description: `prowadzić formację drużynowych w sferze idei harcerskiej
     np. dyskusja o prawie harcerskim, kuźnica, spotkanie z gościem, rekolekcje dla drużynowych, dyskusja o filmie`,
     isGroup: false,
@@ -768,7 +709,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '2D',
+    code: "2D",
     description: `przeprowadzić przedsięwzięcie z udziałem kilku drużyn
     np. obóz, zgrupowanie obozów, turniej, biwak, pielgrzymka`,
     isGroup: false,
@@ -778,7 +719,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '3',
+    code: "3",
     description: `Potrafi poprowadzić zajęcia na kursie drużynowych oraz poprowadzić kurs zastępowych, kurs przybocznych zuchowych lub odpowiedni kurs dla wędrowników.`,
     isGroup: false,
     sortOrder: 7,
@@ -786,7 +727,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '4',
+    code: "4",
     description: `Pełniąc rolę opiekuna próby potrafi doprowadzić harcerza do zdobycia stopnia przewodnika i harcerza orlego lub harcerza rzeczypospolitej.`,
     isGroup: false,
     sortOrder: 8,
@@ -794,7 +735,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '5',
+    code: "5",
     description: `Potrafi wesprzeć metodycznie rozwój istniejącego, słabszego środowiska lub powstanie nowego.
     np. znalezienie kandydatów do służby spoza harcerstwa, funkcja opiekuna słabszej drużyny, zabranie na obóz lub zimowisko słabszej drużyny, przyjęcie na staż przybocznego ze słabszej drużyny`,
     isGroup: false,
@@ -803,23 +744,25 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '6',
-    description: 'Potrafi zorganizować pracę zespołu instruktorów w konkretnym przedsięwzięciu.',
+    code: "6",
+    description:
+      "Potrafi zorganizować pracę zespołu instruktorów w konkretnym przedsięwzięciu.",
     isGroup: false,
     sortOrder: 10,
   });
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '7',
-    description: 'Potrafi zorganizować, poprowadzić i pełnić funkcję komendanta obozu lub kolonii zuchowej.',
+    code: "7",
+    description:
+      "Potrafi zorganizować, poprowadzić i pełnić funkcję komendanta obozu lub kolonii zuchowej.",
     isGroup: false,
     sortOrder: 11,
   });
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '8',
+    code: "8",
     description: `Poprzez współpracę z parafią i samorządem lokalnym lub jego agendami potrafił uzyskać dla ZHR istotne korzyści.
     np. dotacja, lokal, opieka duszpasterska, umundurowanie polowe`,
     isGroup: false,
@@ -828,7 +771,7 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '9',
+    code: "9",
     description: `Potrafi przeprowadzić akcję lub cykl systematycznych działań promujących ZHR na forum publicznym.
     np. partnerstwo w organizacji wydarzenia lokalnego, artykuł w prasie, wystąpienie w mediach, gra dla mieszkańców, festyn`,
     isGroup: false,
@@ -837,16 +780,17 @@ async function main() {
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '10',
-    description: 'Przeczytał 5 lektur na poziomie podharcmistrza zaaprobowanych przez opiekuna próby.',
+    code: "10",
+    description:
+      "Przeczytał 5 lektur na poziomie podharcmistrza zaaprobowanych przez opiekuna próby.",
     isGroup: false,
     sortOrder: 14,
   });
 
   await upsertRequirement({
     templateId: phmTemplate.uuid,
-    code: '11',
-    description: 'Ewentualne dodatkowe zadanie zlecone przez Komisję',
+    code: "11",
+    description: "Ewentualne dodatkowe zadanie zlecone przez Komisję",
     isGroup: false,
     sortOrder: 15,
   });
@@ -854,12 +798,12 @@ async function main() {
   // =========================================================
   // 6. DETERMINISTIC E2E DATA
   // =========================================================
-  console.log('🧪 Seeding deterministic E2E candidate data...');
+  console.log("🧪 Seeding deterministic E2E candidate data...");
 
   const existingMeetingsE2eApprovedApplication =
     await prisma.instructorApplication.findFirst({
       where: {
-        candidateUuid: janKowalski.uuid,
+        candidateUuid: janKowalski.keycloakUuid,
         templateUuid: pwdTemplate.uuid,
         status: ApplicationStatus.APPROVED,
       },
@@ -869,22 +813,21 @@ async function main() {
   if (!existingMeetingsE2eApprovedApplication) {
     await prisma.instructorApplication.create({
       data: {
-        candidateUuid: janKowalski.uuid,
+        candidateUuid: janKowalski.keycloakUuid,
         templateUuid: pwdTemplate.uuid,
         status: ApplicationStatus.APPROVED,
-        lastSubmittedAt: new Date('2026-03-01T12:00:00.000Z'),
-        approvedAt: new Date('2026-03-05T12:00:00.000Z'),
+        lastSubmittedAt: new Date("2026-03-01T12:00:00.000Z"),
+        approvedAt: new Date("2026-03-05T12:00:00.000Z"),
       },
     });
   }
 
-  console.log('✅ Database seeded successfully!');
+  console.log("✅ Database seeded successfully!");
 }
-
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding error:', e);
+    console.error("❌ Seeding error:", e);
     process.exit(1);
   })
   .finally(async () => {

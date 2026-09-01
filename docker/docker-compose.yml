@@ -2,7 +2,7 @@ name: ${STACK_NAME:-hss}
 
 services:
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm}
     container_name: ${POSTGRES_CONTAINER_NAME:-hss_postgres}
     hostname: ${POSTGRES_CONTAINER_NAME:-hss_postgres}
     restart: unless-stopped
@@ -59,7 +59,7 @@ services:
       - infra
 
   keycloak:
-    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.4.7}
+    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.7.3}
     container_name: ${KEYCLOAK_CONTAINER_NAME:-hss_keycloak}
     hostname: ${KEYCLOAK_CONTAINER_NAME:-hss_keycloak}
     restart: unless-stopped
@@ -118,7 +118,7 @@ services:
     read_only: true
 
     volumes:
-      - keycloak_quarkus:/opt/keycloak/lib/quarkus
+      - keycloak_quarkus_26_7_3:/opt/keycloak/lib/quarkus
       - ./keycloak:/opt/keycloak/data/import:ro
       - ./keycloak/themes/hss:/opt/keycloak/themes/hss/login:ro
 
@@ -132,7 +132,7 @@ services:
     cap_drop:
       - ALL
 
-    command: [ "start", "--import-realm" ] # start-dev -> start :contentReference[oaicite:4]{index=4}
+    command: [ "start", "--import-realm" ]
 
     healthcheck:
       test: [ "CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/${KEYCLOAK_MGMT_PORT:-8081}; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; head -n 1 <&3 | grep -q \"200\"'" ]
@@ -153,8 +153,8 @@ services:
     stop_grace_period: 30s
 
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in infra/docker/compose/.env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in infra/docker/compose/.env}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in docker/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in docker/.env}
       MINIO_REGION: ${MINIO_REGION:-eu-central-1}
       TZ: ${TZ:-Europe/Warsaw}
       # MINIO_SERVER_URL: ${MINIO_SERVER_URL:-https://s3.hss.local}
@@ -193,7 +193,7 @@ services:
       - infra
 
   minio-init:
-    image: ${MINIO_MC_IMAGE:-minio/mc:latest}
+    image: ${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-08-13T08-35-41Z}
     container_name: ${MINIO_INIT_CONTAINER_NAME:-hss_minio_init}
     restart: "no"
     init: true
@@ -257,7 +257,7 @@ services:
       - infra
 
   redis:
-    image: ${REDIS_IMAGE:-redis:8.2.5}
+    image: ${REDIS_IMAGE:-redis:8.10.1-trixie}
     container_name: ${REDIS_CONTAINER_NAME:-hss_redis}
     hostname: ${REDIS_CONTAINER_NAME:-hss_redis}
     user: "redis:redis"
@@ -271,7 +271,7 @@ services:
       - >
         printf '%s\n' "user default off"
         "user ${REDIS_USER:-root} on >${REDIS_PASSWORD:?set in docker/.env} ~* +@all"
-        "user ${REDIS_BFF_USER:-nextbff} on >${REDIS_BFF_PASSWORD:?set in docker/.env} ~hss:sess:* ~hss:rl:* +get +set +del +eval +ping +incr +pexpire +pttl" > /tmp/users.acl
+        "user ${REDIS_BFF_USER:-nextbff} on >${REDIS_BFF_PASSWORD:?set in docker/.env} ~hss:sess:* ~hss:rl:* +get +set +setex +del +getdel +eval +expire +scan +ping +incr +pexpire +pttl" > /tmp/users.acl
         && exec redis-server
         --bind 0.0.0.0
         --port 6379
@@ -306,7 +306,7 @@ services:
       - infra
 
   nginx:
-    image: ${NGINX_IMAGE:-nginx:1.29.4-alpine-slim}
+    image: ${NGINX_IMAGE:-nginx:1.31.4-trixie}
     container_name: ${NGINX_CONTAINER_NAME:-hss_nginx}
     hostname: ${NGINX_CONTAINER_NAME:-hss_nginx}
     restart: unless-stopped
@@ -375,7 +375,7 @@ services:
 volumes:
   pg_data:
   minio_data:
-  keycloak_quarkus:
+  keycloak_quarkus_26_7_3:
   redis_data:
 
 

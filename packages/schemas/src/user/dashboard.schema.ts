@@ -61,9 +61,6 @@ export type UserDashboardResponse = z.infer<typeof userDashboardResponseSchema>;
  */
 export const userDashboardUpdateProfileBodySchema = z
   .object({
-    firstName: z.string().min(1).max(32).nullable().optional(),
-    secondName: z.string().min(1).max(32).nullable().optional(),
-    surname: z.string().min(1).max(32).nullable().optional(),
     phone: z.string().min(3).max(16).nullable().optional(),
     birthDate: dateOnlySchema.nullable().optional(),
   })

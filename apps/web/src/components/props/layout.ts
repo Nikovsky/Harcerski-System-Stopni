@@ -1,5 +1,5 @@
 // @file: apps/web/src/components/props/layout.ts
-import type { Session } from "next-auth";
+import type { HssSession } from "@/auth";
 
 export type NavItem = {
   label: string;
@@ -8,7 +8,7 @@ export type NavItem = {
 
 export type NavbarProps = {
   locale: string;
-  session: Session | null;
+  session: HssSession | null;
 };
 
 export type NavbarLinksProps = {

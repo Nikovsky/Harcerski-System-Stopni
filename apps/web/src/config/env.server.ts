@@ -14,7 +14,9 @@ function formatZodError(e: ZodError): string {
 const parsed = webServerEnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  throw new Error(`[env] Invalid server environment: ${formatZodError(parsed.error)}`);
+  throw new Error(
+    `[env] Invalid server environment: ${formatZodError(parsed.error)}`,
+  );
 }
 
 export const envServer: WebServerEnv = parsed.data;

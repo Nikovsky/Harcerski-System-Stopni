@@ -1,7 +1,7 @@
 // @file: apps/web/src/server/rbac.ts
 import "server-only";
 import { cache } from "react";
-import type { Session } from "next-auth";
+import type { HssSession } from "@/auth";
 import {
   AuthPrincipalSchema,
   ROLE_RANK,
@@ -12,7 +12,7 @@ import {
 import { envServer } from "@/config/env.server";
 
 const API_BASE_URL = envServer.HSS_API_BASE_URL.replace(/\/$/, "");
-const KEYCLOAK_CLIENT_ID = envServer.AUTH_KEYCLOAK_ID;
+const KEYCLOAK_CLIENT_ID = envServer.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
 
 export type VerifiedPrincipalState =
   | { status: "authenticated"; principal: AuthPrincipal }
@@ -40,7 +40,7 @@ function normalizeRoleList(value: unknown): string[] {
   return roles;
 }
 
-function getSessionAccessToken(session: Session | null): string | null {
+function getSessionAccessToken(session: HssSession | null): string | null {
   if (!session?.accessToken) return null;
   if (typeof session.accessToken !== "string") return null;
   if (!session.accessToken.trim()) return null;
@@ -73,7 +73,9 @@ function decodeJwtClaims(token: string | null): KeycloakTokenClaims | null {
   }
 }
 
-export function buildSessionPrincipal(session: Session | null): AuthPrincipal | null {
+export function buildSessionPrincipal(
+  session: HssSession | null,
+): AuthPrincipal | null {
   const userId = session?.user?.id;
   if (typeof userId !== "string" || !userId.trim()) {
     return null;
@@ -139,7 +141,7 @@ const fetchVerifiedPrincipalByAccessToken = cache(
 );
 
 export async function resolveVerifiedPrincipal(
-  session: Session | null,
+  session: HssSession | null,
 ): Promise<VerifiedPrincipalState> {
   const accessToken = getSessionAccessToken(session);
   const fallbackPrincipal = buildSessionPrincipal(session);
@@ -154,13 +156,15 @@ export async function resolveVerifiedPrincipal(
 }
 
 export async function getVerifiedPrincipal(
-  session: Session | null,
+  session: HssSession | null,
 ): Promise<AuthPrincipal | null> {
   const resolved = await resolveVerifiedPrincipal(session);
   return resolved.status === "authenticated" ? resolved.principal : null;
 }
 
-export function getPrincipalRoles(principal: AuthPrincipal | null): Set<string> {
+export function getPrincipalRoles(
+  principal: AuthPrincipal | null,
+): Set<string> {
   const realmRoles = normalizeRoleList(principal?.realmRoles);
   const clientRoles = normalizeRoleList(principal?.clientRoles);
   return new Set([...realmRoles, ...clientRoles]);
@@ -188,7 +192,10 @@ function getHighestRoleRank(principal: AuthPrincipal | null): number | null {
   return highest;
 }
 
-export function canAccess(principal: AuthPrincipal | null, minRank?: number): boolean {
+export function canAccess(
+  principal: AuthPrincipal | null,
+  minRank?: number,
+): boolean {
   if (!principal) return false;
   if (typeof minRank !== "number") return true;
 
@@ -202,7 +209,10 @@ function normalizeCallbackPath(callbackPath: string): string {
   return callbackPath.startsWith("/") ? callbackPath : `/${callbackPath}`;
 }
 
-export function buildKeycloakSignInHref(locale: string, callbackPath: string): string {
+export function buildKeycloakSignInHref(
+  locale: string,
+  callbackPath: string,
+): string {
   const normalizedLocale = locale === "en" ? "en" : "pl";
   const params = new URLSearchParams({
     locale: normalizedLocale,

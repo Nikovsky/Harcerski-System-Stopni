@@ -9,6 +9,11 @@ import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { StorageService } from './modules/storage/storage.service';
+import {
+  BETTER_AUTH,
+  type BetterAuthInstance,
+} from './modules/auth/better-auth.provider';
+import { BffSecretService } from './modules/auth/bff-secret.service';
 
 function normalizeRequestId(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -19,7 +24,9 @@ function normalizeRequestId(value: string | undefined): string | undefined {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
   app.useGlobalFilters(new HttpExceptionFilter());
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -65,6 +72,30 @@ async function bootstrap(): Promise<void> {
       xXssProtection: true,
     }),
   );
+
+  const auth = app.get<BetterAuthInstance>(BETTER_AUTH);
+  const bffSecret = app.get(BffSecretService);
+  const { toNodeHandler } = await import('better-auth/node');
+  const authHandler = toNodeHandler(auth);
+  const express = app.getHttpAdapter().getInstance();
+  express.all('/api/auth/*splat', (req: Request, res: Response) => {
+    if (!bffSecret.isValid(req.headers['x-hss-bff-secret'])) {
+      const requestId =
+        typeof res.locals.requestId === 'string'
+          ? res.locals.requestId
+          : randomUUID();
+      res.status(401).json({
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required.',
+        requestId,
+      });
+      return;
+    }
+    void authHandler(req, res);
+  });
+
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '1mb' });
   app.enableShutdownHooks();
 
   const cfg = app.get(AppConfigService);

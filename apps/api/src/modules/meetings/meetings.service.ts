@@ -986,10 +986,14 @@ export class MeetingsService {
         scoutApplicationUuid: true,
         candidate: {
           select: {
-            uuid: true,
-            firstName: true,
-            surname: true,
-            email: true,
+            keycloakUuid: true,
+            authIdentity: {
+              select: {
+                givenName: true,
+                familyName: true,
+                email: true,
+              },
+            },
           },
         },
         slot: {
@@ -1015,10 +1019,10 @@ export class MeetingsService {
         registeredAt: registration.registeredAt.toISOString(),
         updatedAt: registration.updatedAt.toISOString(),
         candidate: {
-          uuid: registration.candidate.uuid,
-          firstName: registration.candidate.firstName,
-          surname: registration.candidate.surname,
-          email: registration.candidate.email,
+          uuid: registration.candidate.keycloakUuid,
+          firstName: registration.candidate.authIdentity?.givenName ?? null,
+          surname: registration.candidate.authIdentity?.familyName ?? null,
+          email: registration.candidate.authIdentity?.email ?? null,
         },
         slot: registration.slot
           ? {
@@ -1650,7 +1654,7 @@ export class MeetingsService {
   ): Promise<{ uuid: string }> {
     const user = await this.prisma.user.findUnique({
       where: { keycloakUuid: principal.sub },
-      select: { uuid: true },
+      select: { keycloakUuid: true },
     });
 
     if (!user) {
@@ -1660,7 +1664,7 @@ export class MeetingsService {
       });
     }
 
-    return user;
+    return { uuid: user.keycloakUuid };
   }
 
   private async resolveManagerMembershipForCommission(

@@ -1,9 +1,15 @@
 // @file: apps/web/src/app/api/auth/login/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
 import { forceReauthCookieName } from "@/auth";
 import { envServer } from "@/config/env.server";
-import { getOrCreateRequestId, requireTrustedHost } from "@/server/request-security";
+import { copySetCookies, fetchAuthApi } from "@/server/auth-api.client";
+import {
+  getOrCreateRequestId,
+  rateLimitExceededResponse,
+  requireTrustedHost,
+} from "@/server/request-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,92 +19,34 @@ function normalizeLocale(value: string | null): "pl" | "en" {
 }
 
 function normalizeCallbackPath(value: string | null): string {
-  if (!value) return "/";
-
-  const normalized = value.trim();
-  if (!normalized.startsWith("/")) return "/";
-  if (normalized.startsWith("//")) return "/";
-  if (normalized.includes("\r") || normalized.includes("\n")) return "/";
-
-  return normalized;
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  if (value.includes("\r") || value.includes("\n")) return "/";
+  return value;
 }
 
-function jsonNoStore(body: unknown, status: number, requestId: string): NextResponse {
-  const res = NextResponse.json(body, { status });
-  res.headers.set("Cache-Control", "no-store");
-  res.headers.set("x-request-id", requestId);
-  return res;
-}
-
-function firstSetCookieValue(headers: Headers): string | null {
-  const combined = headers.get("set-cookie");
-  if (!combined) return null;
-  return combined.split(", ")[0] ?? null;
-}
-
-function setCookie(
-  name: string,
-  value: string,
-  secure: boolean,
-  maxAgeSeconds: number,
-): string {
-  const parts = [
-    `${name}=${encodeURIComponent(value)}`,
+function clearCookie(name: string): string {
+  return [
+    `${name}=`,
     "Path=/",
-    `Max-Age=${Math.max(0, Math.floor(maxAgeSeconds))}`,
+    "Max-Age=0",
     "HttpOnly",
     "SameSite=Lax",
-  ];
-  if (secure) parts.push("Secure");
-  return parts.join("; ");
+    ...(envServer.HSS_WEB_ORIGIN.startsWith("https://") ? ["Secure"] : []),
+  ].join("; ");
 }
 
-function readSetCookieHeaders(headers: Headers): string[] {
-  const source = headers as Headers & { getSetCookie?: () => string[] };
-  if (typeof source.getSetCookie === "function") {
-    const values = source.getSetCookie();
-    if (values.length > 0) return values;
-  }
-
-  const single = headers.get("set-cookie");
-  return single ? [single] : [];
-}
-
-async function fetchCsrfToken(locale: "pl" | "en"): Promise<{ token: string; cookie: string } | null> {
-  const csrfUrl = new URL("/api/auth/csrf", envServer.HSS_WEB_ORIGIN);
-  const csrfRes = await fetch(csrfUrl, {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      accept: "application/json",
-      "x-hss-auth-login-locale": locale,
+function unavailable(requestId: string): NextResponse {
+  const response = NextResponse.json(
+    {
+      code: "SERVICE_UNAVAILABLE",
+      message: "Unable to start login flow.",
+      requestId,
     },
-    redirect: "manual",
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!csrfRes.ok) return null;
-
-  const csrfCookie = firstSetCookieValue(csrfRes.headers);
-  if (!csrfCookie) return null;
-
-  const payload = (await csrfRes.json().catch(() => null)) as unknown;
-  if (!payload || typeof payload !== "object") return null;
-  const token = (payload as { csrfToken?: unknown }).csrfToken;
-  if (typeof token !== "string" || !token.trim()) return null;
-
-  return { token, cookie: csrfCookie };
-}
-
-function copyRedirectHeaders(source: Headers, target: Headers): void {
-  const location = source.get("location");
-  if (location) {
-    target.set("location", location);
-  }
-
-  for (const headerValue of readSetCookieHeaders(source)) {
-    target.append("set-cookie", headerValue);
-  }
+    { status: 503 },
+  );
+  response.headers.set("cache-control", "no-store");
+  response.headers.set("x-request-id", requestId);
+  return response;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -107,93 +55,70 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (untrustedHost) return untrustedHost;
 
   const locale = normalizeLocale(req.nextUrl.searchParams.get("locale"));
-  const callbackPath = normalizeCallbackPath(req.nextUrl.searchParams.get("callbackPath"));
-  const shouldForceReauthOnce = req.cookies.get(forceReauthCookieName)?.value === "1";
-  const isSecure = envServer.HSS_WEB_ORIGIN.startsWith("https://");
-
-  const callbackUrl = new URL(callbackPath, envServer.HSS_WEB_ORIGIN).toString();
-  const signInUrl = new URL("/api/auth/signin/keycloak", envServer.HSS_WEB_ORIGIN);
-  signInUrl.searchParams.set("ui_locales", locale);
-  signInUrl.searchParams.set("kc_locale", locale);
-  if (shouldForceReauthOnce) {
-    signInUrl.searchParams.set("prompt", "login");
-  }
+  const callbackPath = normalizeCallbackPath(
+    req.nextUrl.searchParams.get("callbackPath"),
+  );
+  const callbackURL = new URL(
+    callbackPath,
+    envServer.HSS_WEB_ORIGIN,
+  ).toString();
+  const forceLogin =
+    req.cookies.get(forceReauthCookieName)?.value === "1" ||
+    req.nextUrl.searchParams.get("forceLogin") === "1";
 
   try {
-    const csrf = await fetchCsrfToken(locale);
-    if (!csrf) {
-      return jsonNoStore(
-        {
-          code: "SERVICE_UNAVAILABLE",
-          message: "Unable to start login flow.",
-          requestId,
-        },
-        503,
-        requestId,
-      );
-    }
-
-    const body = new URLSearchParams({
-      csrfToken: csrf.token,
-      callbackUrl,
-    });
-
-    const signInRes = await fetch(signInUrl, {
-      method: "POST",
-      body,
-      cache: "no-store",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        cookie: csrf.cookie,
-      },
-      redirect: "manual",
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (![302, 303].includes(signInRes.status)) {
-      return jsonNoStore(
-        {
-          code: "SERVICE_UNAVAILABLE",
-          message: "Unable to start login flow.",
-          requestId,
-        },
-        503,
-        requestId,
-      );
-    }
-
-    const location = signInRes.headers.get("location");
-    if (!location) {
-      return jsonNoStore(
-        {
-          code: "SERVICE_UNAVAILABLE",
-          message: "Unable to start login flow.",
-          requestId,
-        },
-        503,
-        requestId,
-      );
-    }
-
-    const res = new NextResponse(null, { status: 302 });
-    copyRedirectHeaders(signInRes.headers, res.headers);
-    res.headers.set("location", location);
-    if (shouldForceReauthOnce) {
-      res.headers.append("set-cookie", setCookie(forceReauthCookieName, "", isSecure, 0));
-    }
-    res.headers.set("Cache-Control", "no-store");
-    res.headers.set("x-request-id", requestId);
-    return res;
-  } catch (error) {
-    console.error("[auth-login] failed to start login flow:", { requestId, error });
-    return jsonNoStore(
+    const authResponse = await fetchAuthApi(
+      "/api/auth/sign-in/social",
+      req.headers,
       {
-        code: "SERVICE_UNAVAILABLE",
-        message: "Unable to start login flow.",
-        requestId,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: "keycloak",
+          callbackURL,
+          additionalParams: {
+            ui_locales: locale,
+            kc_locale: locale,
+            ...(forceLogin ? { prompt: "login" } : {}),
+          },
+        }),
       },
-      503,
       requestId,
     );
+    if (authResponse.status === 429) {
+      const response = rateLimitExceededResponse(requestId);
+      const retryAfter = authResponse.headers.get("retry-after");
+      if (retryAfter && /^\d+$/.test(retryAfter)) {
+        response.headers.set("retry-after", retryAfter);
+      }
+      return response;
+    }
+    if (!authResponse.ok) {
+      console.error("[auth-login] auth API rejected login flow:", {
+        requestId,
+        status: authResponse.status,
+      });
+      return unavailable(requestId);
+    }
+    const payload = (await authResponse
+      .clone()
+      .json()
+      .catch(() => null)) as { url?: unknown } | null;
+    if (typeof payload?.url !== "string") return unavailable(requestId);
+
+    const response = NextResponse.redirect(payload.url, { status: 302 });
+    copySetCookies(authResponse.headers, response.headers);
+    if (forceLogin) {
+      response.headers.append("set-cookie", clearCookie(forceReauthCookieName));
+    }
+    response.headers.set("cache-control", "no-store");
+    response.headers.set("x-request-id", requestId);
+    return response;
+  } catch (error) {
+    console.error("[auth-login] failed to start login flow:", {
+      requestId,
+      error,
+    });
+    return unavailable(requestId);
   }
 }

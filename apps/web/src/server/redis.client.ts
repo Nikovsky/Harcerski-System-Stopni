@@ -49,6 +49,18 @@ function createRedisClient(): Redis {
   return client;
 }
 
+export function getRedisClientInstance(): Redis {
+  if (
+    !globalThis.__hssRedisClient ||
+    globalThis.__hssRedisClient.status === "end"
+  ) {
+    globalThis.__hssRedisClient = createRedisClient();
+    globalThis.__hssRedisReadyPromise = undefined;
+  }
+
+  return globalThis.__hssRedisClient;
+}
+
 async function closeRedisClient(client: Redis): Promise<void> {
   if (client.status === "end") return;
 
@@ -79,7 +91,8 @@ async function resetRedisClient(): Promise<void> {
 function readyTimeoutMs(): number {
   return Math.max(
     3_000,
-    envServer.HSS_REDIS_CONNECT_TIMEOUT_MS + envServer.HSS_REDIS_COMMAND_TIMEOUT_MS,
+    envServer.HSS_REDIS_CONNECT_TIMEOUT_MS +
+      envServer.HSS_REDIS_COMMAND_TIMEOUT_MS,
   );
 }
 
@@ -91,7 +104,11 @@ async function waitForClientReady(client: Redis): Promise<Redis> {
   return new Promise<Redis>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error(`[redis] ready timeout after ${timeoutMs}ms (status=${client.status})`));
+      reject(
+        new Error(
+          `[redis] ready timeout after ${timeoutMs}ms (status=${client.status})`,
+        ),
+      );
     }, timeoutMs);
 
     const onReady = () => {
@@ -101,7 +118,11 @@ async function waitForClientReady(client: Redis): Promise<Redis> {
 
     const onError = (error: unknown) => {
       cleanup();
-      reject(error instanceof Error ? error : new Error("[redis] unknown client error before ready"));
+      reject(
+        error instanceof Error
+          ? error
+          : new Error("[redis] unknown client error before ready"),
+      );
     };
 
     const onEnd = () => {
@@ -133,19 +154,16 @@ async function ensureClientReady(client: Redis): Promise<Redis> {
 }
 
 export async function getRedisClient(): Promise<Redis> {
-  if (!globalThis.__hssRedisClient || globalThis.__hssRedisClient.status === "end") {
-    globalThis.__hssRedisClient = createRedisClient();
-    globalThis.__hssRedisReadyPromise = undefined;
-  }
-
-  const client = globalThis.__hssRedisClient;
+  const client = getRedisClientInstance();
   if (client.status === "ready") return client;
 
   if (!globalThis.__hssRedisReadyPromise) {
-    globalThis.__hssRedisReadyPromise = ensureClientReady(client).catch((error) => {
-      globalThis.__hssRedisReadyPromise = undefined;
-      throw error;
-    });
+    globalThis.__hssRedisReadyPromise = ensureClientReady(client).catch(
+      (error) => {
+        globalThis.__hssRedisReadyPromise = undefined;
+        throw error;
+      },
+    );
   }
 
   return globalThis.__hssRedisReadyPromise;

@@ -1,7 +1,7 @@
 // @file: apps/web/src/app/[locale]/layout.tsx
 import type { Metadata } from "next";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
-import type { Session } from "next-auth";
+import type { HssSession } from "@/auth";
 import { notFound, redirect } from "next/navigation";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
@@ -65,9 +65,9 @@ export default async function LocaleLayout({ children, params }: Props) {
   setRequestLocale(locale);
   const messages = await getMessages();
 
-  let session: Session | null = null;
+  let session: HssSession | null = null;
   try {
-    session = (await auth()) as Session | null;
+    session = await auth();
   } catch (error) {
     if (hasSessionCookie && isInvalidJwtSessionError(error)) {
       redirect(clearInvalidSessionHref(locale));

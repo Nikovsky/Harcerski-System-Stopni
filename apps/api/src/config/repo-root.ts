@@ -4,17 +4,17 @@ import { dirname, resolve } from 'node:path';
 
 export function findRepoRoot(startDir: string): string {
   let dir = resolve(startDir);
+  let packageRoot: string | undefined;
 
   while (true) {
-    const isRoot =
-      existsSync(resolve(dir, 'pnpm-workspace.yaml')) ||
-      existsSync(resolve(dir, '.git')) ||
-      existsSync(resolve(dir, 'package.json'));
-
-    if (isRoot) return dir;
+    if (existsSync(resolve(dir, 'pnpm-workspace.yaml'))) return dir;
+    if (existsSync(resolve(dir, '.git'))) return dir;
+    if (!packageRoot && existsSync(resolve(dir, 'package.json'))) {
+      packageRoot = dir;
+    }
 
     const parent = dirname(dir);
-    if (parent === dir) return resolve(startDir); // fallback
+    if (parent === dir) return packageRoot ?? resolve(startDir);
     dir = parent;
   }
 }

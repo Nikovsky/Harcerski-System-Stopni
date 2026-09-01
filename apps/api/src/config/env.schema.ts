@@ -34,6 +34,11 @@ const toCsv = (v: unknown): string[] => {
 };
 
 const url = z.string().url();
+const positiveInteger = z.coerce.number().int().positive();
+const redisUrl = url.refine(
+  (value) => value.startsWith('redis://') || value.startsWith('rediss://'),
+  'Expected a Redis URL (redis:// or rediss://)',
+);
 const bucketName = z
   .string()
   .min(3)
@@ -75,6 +80,25 @@ export const envSchema = z
         'DATABASE_URL must be a PostgreSQL connection string',
       ),
 
+    // ===[BETTER AUTH | BFF]===
+    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_URL: url,
+    HSS_BFF_INTERNAL_SECRET: z.string().min(32),
+    HSS_SESSION_COOKIE_NAME: z
+      .string()
+      .regex(/^(?:__Host-|__Secure-)?[A-Za-z0-9._-]+$/),
+    HSS_SESSION_KEY_PREFIX: z.string().min(1),
+    HSS_SESSION_IDLE_TIMEOUT_SECONDS: positiveInteger,
+    HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS: positiveInteger,
+    HSS_SESSION_TOUCH_THROTTLE_SECONDS: positiveInteger,
+    HSS_SESSION_MAX_EXTENSION_SECONDS: positiveInteger,
+    HSS_SESSION_REFRESH_LOCK_TTL_MS: positiveInteger,
+    HSS_REDIS_URL: redisUrl,
+    HSS_REDIS_CONNECT_TIMEOUT_MS: positiveInteger,
+    HSS_REDIS_COMMAND_TIMEOUT_MS: positiveInteger,
+    AUTH_KEYCLOAK_ID: z.string().min(1),
+    AUTH_KEYCLOAK_SECRET: z.string().min(1),
+
     // ===[KEYCLOAK | REALM / ISSUER]===
     KEYCLOAK_REALM: z.string().min(1),
     KEYCLOAK_ISSUER: url,
@@ -108,6 +132,47 @@ export const envSchema = z
     ),
   })
   .superRefine((env, ctx) => {
+    if (
+      env.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS <=
+      env.HSS_SESSION_IDLE_TIMEOUT_SECONDS
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS'],
+        message:
+          'HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS must be greater than the idle timeout.',
+      });
+    }
+
+    if (env.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS > 8 * 60 * 60) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS'],
+        message:
+          'HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS must not exceed 8 hours.',
+      });
+    }
+
+    if (
+      env.HSS_SESSION_MAX_EXTENSION_SECONDS >
+      env.HSS_SESSION_ABSOLUTE_TIMEOUT_SECONDS
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['HSS_SESSION_MAX_EXTENSION_SECONDS'],
+        message:
+          'HSS_SESSION_MAX_EXTENSION_SECONDS exceeds the absolute timeout.',
+      });
+    }
+
+    if (new URL(env.BETTER_AUTH_URL).protocol !== 'https:') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['BETTER_AUTH_URL'],
+        message: 'BETTER_AUTH_URL must use HTTPS.',
+      });
+    }
+
     if (
       env.NODE_ENV === 'production' &&
       env.MINIO_ENDPOINT.startsWith('http://')

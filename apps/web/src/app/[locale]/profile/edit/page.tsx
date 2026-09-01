@@ -59,9 +59,6 @@ export default function ProfileEditPage() {
   const form = useForm<UserDashboardUpdatePrivilegedBody>({
     resolver: zodResolver(userDashboardUpdatePrivilegedBodySchema),
     defaultValues: {
-      firstName: null,
-      secondName: null,
-      surname: null,
       phone: null,
       birthDate: null,
 
@@ -128,9 +125,6 @@ export default function ProfileEditPage() {
 
         // reset form values from API response (PATCH-friendly: nulls allowed)
         reset({
-          firstName: data.firstName,
-          secondName: data.secondName,
-          surname: data.surname,
           phone: data.phone,
           birthDate: toDateOnly(data.birthDate),
 
@@ -171,7 +165,9 @@ export default function ProfileEditPage() {
     >;
 
     const payload: Partial<UserDashboardUpdatePrivilegedBody> = {};
-    const assignDirtyField = <K extends keyof UserDashboardUpdatePrivilegedBody>(
+    const assignDirtyField = <
+      K extends keyof UserDashboardUpdatePrivilegedBody,
+    >(
       k: K,
     ) => {
       if (dirty[k]) {
@@ -192,7 +188,10 @@ export default function ProfileEditPage() {
       const res = await fetch("/api/backend/profile", {
         method: "PATCH",
         credentials: "include",
-        headers: { "content-type": "application/json", accept: "application/json" },
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
@@ -218,9 +217,6 @@ export default function ProfileEditPage() {
       // Refresh state + reset dirtiness
       setState({ kind: "ready", data: parsed.data });
       reset({
-        firstName: parsed.data.firstName,
-        secondName: parsed.data.secondName,
-        surname: parsed.data.surname,
         phone: parsed.data.phone,
         birthDate: toDateOnly(parsed.data.birthDate),
 
@@ -229,7 +225,9 @@ export default function ProfileEditPage() {
         scoutRank: parsed.data.scoutRank,
         scoutRankAwardedAt: toDateOnly(parsed.data.scoutRankAwardedAt),
         instructorRank: parsed.data.instructorRank,
-        instructorRankAwardedAt: toDateOnly(parsed.data.instructorRankAwardedAt),
+        instructorRankAwardedAt: toDateOnly(
+          parsed.data.instructorRankAwardedAt,
+        ),
         inScoutingSince: toDateOnly(parsed.data.inScoutingSince),
         inZhrSince: toDateOnly(parsed.data.inZhrSince),
         oathDate: toDateOnly(parsed.data.oathDate),
@@ -278,7 +276,7 @@ export default function ProfileEditPage() {
         <div>
           <h1 className="text-2xl font-semibold">Edit profile</h1>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
-            Update your profile fields.
+            Update HSS profile fields. Name and email are managed in Keycloak.
           </p>
         </div>
 
@@ -292,34 +290,12 @@ export default function ProfileEditPage() {
         className="mt-6 rounded-lg border border-neutral-200/60 dark:border-neutral-800 p-5 space-y-6"
       >
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="First name">
-            <input
-              className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-              {...register("firstName", { setValueAs: (v) => (v === "" ? null : v) })}
-              placeholder="e.g. Jan"
-            />
-          </Field>
-
-          <Field label="Second name">
-            <input
-              className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-              {...register("secondName", { setValueAs: (v) => (v === "" ? null : v) })}
-              placeholder="optional"
-            />
-          </Field>
-
-          <Field label="Surname">
-            <input
-              className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-              {...register("surname", { setValueAs: (v) => (v === "" ? null : v) })}
-              placeholder="e.g. Kowalski"
-            />
-          </Field>
-
           <Field label="Phone">
             <input
               className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-              {...register("phone", { setValueAs: (v) => (v === "" ? null : v) })}
+              {...register("phone", {
+                setValueAs: (v) => (v === "" ? null : v),
+              })}
               placeholder="+48…"
             />
           </Field>
@@ -328,7 +304,9 @@ export default function ProfileEditPage() {
             <input
               type="date"
               className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-              {...register("birthDate", { setValueAs: (v) => (v === "" ? null : v) })}
+              {...register("birthDate", {
+                setValueAs: (v) => (v === "" ? null : v),
+              })}
             />
           </Field>
         </div>
@@ -346,14 +324,18 @@ export default function ProfileEditPage() {
               <Field label="Hufiec code">
                 <input
                   className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-                  {...register("hufiecCode", { setValueAs: (v) => (v === "" ? null : v) })}
+                  {...register("hufiecCode", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
                 />
               </Field>
 
               <Field label="Drużyna code">
                 <input
                   className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-                  {...register("druzynaCode", { setValueAs: (v) => (v === "" ? null : v) })}
+                  {...register("druzynaCode", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
                 />
               </Field>
 
@@ -361,7 +343,9 @@ export default function ProfileEditPage() {
                 <input
                   type="date"
                   className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-                  {...register("inScoutingSince", { setValueAs: (v) => (v === "" ? null : v) })}
+                  {...register("inScoutingSince", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
                 />
               </Field>
 
@@ -369,7 +353,9 @@ export default function ProfileEditPage() {
                 <input
                   type="date"
                   className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-                  {...register("inZhrSince", { setValueAs: (v) => (v === "" ? null : v) })}
+                  {...register("inZhrSince", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
                 />
               </Field>
 
@@ -377,7 +363,9 @@ export default function ProfileEditPage() {
                 <input
                   type="date"
                   className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-transparent px-3 py-2 text-sm"
-                  {...register("oathDate", { setValueAs: (v) => (v === "" ? null : v) })}
+                  {...register("oathDate", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
                 />
               </Field>
             </div>

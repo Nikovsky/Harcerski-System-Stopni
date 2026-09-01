@@ -145,17 +145,25 @@ const APPROVAL_ACTIVE_STATUSES: ApplicationStatus[] = [
 ];
 
 const COMMISSION_AUTHOR_SELECT = {
-  uuid: true,
-  firstName: true,
-  surname: true,
-  email: true,
+  keycloakUuid: true,
+  authIdentity: {
+    select: {
+      givenName: true,
+      familyName: true,
+      email: true,
+    },
+  },
 } satisfies Prisma.UserSelect;
 
 const AUDIT_ACTOR_SELECT = {
   keycloakUuid: true,
-  firstName: true,
-  surname: true,
-  email: true,
+  authIdentity: {
+    select: {
+      givenName: true,
+      familyName: true,
+      email: true,
+    },
+  },
 } satisfies Prisma.UserSelect;
 
 const COMMISSION_MEMBERSHIP_SELECT = {
@@ -178,9 +186,13 @@ const COMMISSION_REVIEW_LIST_ITEM_SELECT = {
   lastSubmittedAt: true,
   candidate: {
     select: {
-      firstName: true,
-      surname: true,
-      email: true,
+      authIdentity: {
+        select: {
+          givenName: true,
+          familyName: true,
+          email: true,
+        },
+      },
     },
   },
   template: {
@@ -208,9 +220,13 @@ const COMMISSION_REVIEW_DETAIL_INCLUDE = {
   candidate: {
     select: {
       keycloakUuid: true,
-      firstName: true,
-      surname: true,
-      email: true,
+      authIdentity: {
+        select: {
+          givenName: true,
+          familyName: true,
+          email: true,
+        },
+      },
       phone: true,
       birthDate: true,
       hufiecCode: true,
@@ -518,6 +534,10 @@ type LegacyFixRequestTimelineRow =
 
 type AuditActorRow = Prisma.UserGetPayload<{
   select: typeof AUDIT_ACTOR_SELECT;
+}>;
+
+type CommissionAuthorRow = Prisma.UserGetPayload<{
+  select: typeof COMMISSION_AUTHOR_SELECT;
 }>;
 
 @Injectable()
@@ -1922,25 +1942,31 @@ export class CommissionReviewService {
             OR: [
               {
                 candidate: {
-                  firstName: {
-                    contains: trimmedQuery,
-                    mode: 'insensitive',
+                  authIdentity: {
+                    givenName: {
+                      contains: trimmedQuery,
+                      mode: 'insensitive',
+                    },
                   },
                 },
               },
               {
                 candidate: {
-                  surname: {
-                    contains: trimmedQuery,
-                    mode: 'insensitive',
+                  authIdentity: {
+                    familyName: {
+                      contains: trimmedQuery,
+                      mode: 'insensitive',
+                    },
                   },
                 },
               },
               {
                 candidate: {
-                  email: {
-                    contains: trimmedQuery,
-                    mode: 'insensitive',
+                  authIdentity: {
+                    email: {
+                      contains: trimmedQuery,
+                      mode: 'insensitive',
+                    },
                   },
                 },
               },
@@ -1978,8 +2004,8 @@ export class CommissionReviewService {
         return [{ lastSubmittedAt: direction }, { updatedAt: 'desc' }];
       case 'candidateSurname':
         return [
-          { candidate: { surname: direction } },
-          { candidate: { firstName: direction } },
+          { candidate: { authIdentity: { familyName: direction } } },
+          { candidate: { authIdentity: { givenName: direction } } },
           { updatedAt: 'desc' },
         ];
       case 'updatedAt':
@@ -2005,9 +2031,9 @@ export class CommissionReviewService {
       createdAt: application.createdAt.toISOString(),
       updatedAt: application.updatedAt.toISOString(),
       lastSubmittedAt: application.lastSubmittedAt?.toISOString() ?? null,
-      candidateFirstName: application.candidate.firstName ?? null,
-      candidateSurname: application.candidate.surname ?? null,
-      candidateEmail: application.candidate.email ?? null,
+      candidateFirstName: application.candidate.authIdentity?.givenName ?? null,
+      candidateSurname: application.candidate.authIdentity?.familyName ?? null,
+      candidateEmail: application.candidate.authIdentity?.email ?? null,
       hasOpenFixRequest: application.reviewRevisionRequests.length > 0,
       canChangeStatus: availableTransitions.length > 0,
       canComment: this.canCreateInternalNote(application.status),
@@ -2153,9 +2179,9 @@ export class CommissionReviewService {
         ),
       },
       candidateProfile: {
-        firstName: application.candidate.firstName,
-        surname: application.candidate.surname,
-        email: application.candidate.email,
+        firstName: application.candidate.authIdentity?.givenName ?? null,
+        surname: application.candidate.authIdentity?.familyName ?? null,
+        email: application.candidate.authIdentity?.email ?? null,
         phone: application.candidate.phone,
         birthDate:
           application.candidate.birthDate?.toISOString().split('T')[0] ?? null,
@@ -2412,17 +2438,12 @@ export class CommissionReviewService {
     });
   }
 
-  private toAuthorDto(author: {
-    uuid: string;
-    firstName: string | null;
-    surname: string | null;
-    email: string | null;
-  }) {
+  private toAuthorDto(author: CommissionAuthorRow) {
     return {
-      userUuid: author.uuid,
-      firstName: author.firstName,
-      surname: author.surname,
-      email: author.email,
+      userUuid: author.keycloakUuid,
+      firstName: author.authIdentity?.givenName ?? null,
+      surname: author.authIdentity?.familyName ?? null,
+      email: author.authIdentity?.email ?? null,
     };
   }
 
@@ -2529,21 +2550,9 @@ export class CommissionReviewService {
     updatedAt: Date;
     publishedAt: Date | null;
     resolvedAt: Date | null;
-    updatedBy: {
-      firstName: string | null;
-      surname: string | null;
-      email: string | null;
-    } | null;
-    publishedBy: {
-      firstName: string | null;
-      surname: string | null;
-      email: string | null;
-    } | null;
-    resolvedBy: {
-      firstName: string | null;
-      surname: string | null;
-      email: string | null;
-    } | null;
+    updatedBy: CommissionAuthorRow | null;
+    publishedBy: CommissionAuthorRow | null;
+    resolvedBy: CommissionAuthorRow | null;
   }): CommissionReviewTimelineEvent[] {
     const events: CommissionReviewTimelineEvent[] = [];
 
@@ -2835,15 +2844,11 @@ export class CommissionReviewService {
     });
   }
 
-  private formatAuthorDisplayName(author: {
-    firstName: string | null;
-    surname: string | null;
-    email: string | null;
-  }): string {
+  private formatAuthorDisplayName(author: CommissionAuthorRow): string {
     return this.formatDisplayName(
-      author.firstName,
-      author.surname,
-      author.email,
+      author.authIdentity?.givenName ?? null,
+      author.authIdentity?.familyName ?? null,
+      author.authIdentity?.email ?? null,
       'Unknown user',
     );
   }
@@ -2857,9 +2862,9 @@ export class CommissionReviewService {
     }
 
     return this.formatDisplayName(
-      actor.firstName,
-      actor.surname,
-      actor.email,
+      actor.authIdentity?.givenName ?? null,
+      actor.authIdentity?.familyName ?? null,
+      actor.authIdentity?.email ?? null,
       fallbackKeycloakUuid,
     );
   }

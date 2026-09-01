@@ -3,6 +3,7 @@ import "server-only";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
   bffSessionTouchRequestSchema,
   type BffErrorCode,
@@ -13,6 +14,7 @@ import {
 
 import { auth } from "@/auth";
 import { envServer } from "@/config/env.server";
+import { fetchAuthApi } from "@/server/auth-api.client";
 import { buildRateLimitKey, consumeRateLimit } from "@/server/rate-limit";
 import {
   getClientIp,
@@ -20,19 +22,38 @@ import {
   rateLimitExceededResponse,
   requireTrustedHost,
 } from "@/server/request-security";
-import { normalizeSessionSidFromCookie, touchSessionBySid } from "@/server/bff-session.store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function jsonNoStore(body: unknown, status: number, requestId: string): NextResponse {
+const internalTouchResponseSchema = z.object({
+  session: z
+    .object({
+      touched: z.boolean(),
+      idleExpiresAt: z.string().datetime(),
+      absoluteExpiresAt: z.string().datetime(),
+    })
+    .nullable(),
+  invalidRequest: z.boolean(),
+});
+
+function jsonNoStore(
+  body: unknown,
+  status: number,
+  requestId: string,
+): NextResponse {
   const res = NextResponse.json(body, { status });
   res.headers.set("Cache-Control", "no-store");
   res.headers.set("x-request-id", requestId);
   return res;
 }
 
-function errorNoStore(status: number, code: BffErrorCode, message: string, requestId: string): NextResponse {
+function errorNoStore(
+  status: number,
+  code: BffErrorCode,
+  message: string,
+  requestId: string,
+): NextResponse {
   const payload: BffErrorResponse = { code, message, requestId };
   return jsonNoStore(payload, status, requestId);
 }
@@ -47,12 +68,6 @@ function serviceUnavailableResponse(requestId: string): NextResponse {
     503,
     requestId,
   );
-}
-
-function hasUsableSessionToken(token: Awaited<ReturnType<typeof touchSessionBySid>>["token"]): boolean {
-  if (!token) return false;
-  if (token.error === "RefreshTokenExpired") return false;
-  return typeof token.accessToken === "string" && token.accessToken.length > 0;
 }
 
 function parseOriginFromReferer(referer: string | null): string | null {
@@ -70,7 +85,10 @@ function getRequestOrigin(req: NextRequest): string | null {
   return parseOriginFromReferer(req.headers.get("referer"));
 }
 
-function enforceSameOriginCsrf(req: NextRequest, requestId: string): NextResponse | null {
+function enforceSameOriginCsrf(
+  req: NextRequest,
+  requestId: string,
+): NextResponse | null {
   const allowedOrigin = new URL(envServer.HSS_WEB_ORIGIN).origin;
   const requestOrigin = getRequestOrigin(req);
 
@@ -81,7 +99,9 @@ function enforceSameOriginCsrf(req: NextRequest, requestId: string): NextRespons
   return null;
 }
 
-async function readTouchBody(req: NextRequest): Promise<BffSessionTouchRequest | null> {
+async function readTouchBody(
+  req: NextRequest,
+): Promise<BffSessionTouchRequest | null> {
   const length = req.headers.get("content-length");
   if (!length || length === "0") {
     return {};
@@ -121,35 +141,86 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const session = await auth();
   if (!session?.user) {
-    return errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+    return errorNoStore(
+      401,
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required.",
+      requestId,
+    );
   }
   if (session.error === "RefreshTokenExpired") {
-    return errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId);
+    return errorNoStore(
+      401,
+      "SESSION_EXPIRED",
+      "Session expired. Please log in again.",
+      requestId,
+    );
   }
   if (!session.accessToken) {
-    return errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+    return errorNoStore(
+      401,
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required.",
+      requestId,
+    );
   }
 
   const body = await readTouchBody(req);
   if (!body) {
-    return errorNoStore(400, "INVALID_REQUEST", "Invalid request payload.", requestId);
+    return errorNoStore(
+      400,
+      "INVALID_REQUEST",
+      "Invalid request payload.",
+      requestId,
+    );
   }
 
-  const sidCookie = req.cookies.get(envServer.HSS_SESSION_COOKIE_NAME)?.value;
-  const sid = normalizeSessionSidFromCookie(sidCookie);
-  if (!sid) {
-    return errorNoStore(401, "AUTHENTICATION_REQUIRED", "Authentication required.", requestId);
+  let internalResponse: Response;
+  try {
+    internalResponse = await fetchAuthApi(
+      "/internal/bff/auth/touch",
+      req.headers,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      requestId,
+    );
+  } catch (error) {
+    console.error("[session-touch] auth API unavailable:", {
+      requestId,
+      error,
+    });
+    return serviceUnavailableResponse(requestId);
   }
 
-  const touched = await touchSessionBySid(sid, body.extendSeconds);
-  if (!hasUsableSessionToken(touched.token)) {
-    return errorNoStore(401, "SESSION_EXPIRED", "Session expired. Please log in again.", requestId);
+  if (!internalResponse.ok) return serviceUnavailableResponse(requestId);
+  const parsed = internalTouchResponseSchema.safeParse(
+    (await internalResponse.json()) as unknown,
+  );
+  if (!parsed.success) return serviceUnavailableResponse(requestId);
+  if (parsed.data.invalidRequest) {
+    return errorNoStore(
+      400,
+      "INVALID_REQUEST",
+      "Invalid request payload.",
+      requestId,
+    );
+  }
+  if (!parsed.data.session) {
+    return errorNoStore(
+      401,
+      "SESSION_EXPIRED",
+      "Session expired. Please log in again.",
+      requestId,
+    );
   }
 
   const payload: BffSessionTouchResponse = {
-    touched: touched.touched,
-    idleExpiresAt: touched.idleExpiresAt?.toISOString() ?? null,
-    absoluteExpiresAt: touched.absoluteExpiresAt?.toISOString() ?? null,
+    touched: parsed.data.session.touched,
+    idleExpiresAt: parsed.data.session.idleExpiresAt,
+    absoluteExpiresAt: parsed.data.session.absoluteExpiresAt,
     requestId,
   };
 

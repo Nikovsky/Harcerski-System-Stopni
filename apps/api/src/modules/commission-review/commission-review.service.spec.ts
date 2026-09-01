@@ -122,10 +122,12 @@ function createMembershipRow(role: CommissionRole = CommissionRole.CHAIRMAN) {
 
 function createAuthor() {
   return {
-    uuid: USER_UUID,
-    firstName: 'Jan',
-    surname: 'Boczek',
-    email: 'jan@example.com',
+    keycloakUuid: USER_UUID,
+    authIdentity: {
+      givenName: 'Jan',
+      familyName: 'Boczek',
+      email: 'jan@example.com',
+    },
   };
 }
 

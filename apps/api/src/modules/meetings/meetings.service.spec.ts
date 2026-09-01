@@ -228,9 +228,18 @@ function createService() {
 }
 
 describe('MeetingsService', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-03-10T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('returns commissionType and blocks booking when only a non-matching approved application exists', async () => {
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     prisma.instructorApplication.findFirst.mockResolvedValue(null);
     prisma.scoutApplication.findFirst.mockResolvedValue({
       uuid: SCOUT_APPLICATION_UUID,
@@ -345,7 +354,7 @@ describe('MeetingsService', () => {
 
   it('limits scout list queries to public meeting statuses', async () => {
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     prisma.instructorApplication.findFirst.mockResolvedValue(null);
     prisma.scoutApplication.findFirst.mockResolvedValue(null);
     prisma.commissionMeeting.findMany.mockResolvedValue([]);
@@ -379,7 +388,7 @@ describe('MeetingsService', () => {
     expect.assertions(5);
 
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     prisma.instructorApplication.findFirst.mockResolvedValue(null);
     prisma.scoutApplication.findFirst.mockResolvedValue(null);
     prisma.commissionMeeting.findFirst.mockResolvedValue(null);
@@ -422,7 +431,7 @@ describe('MeetingsService', () => {
 
   it('returns day details lazily for a single requested date', async () => {
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     prisma.instructorApplication.findFirst.mockResolvedValue({
       uuid: INSTRUCTOR_APPLICATION_UUID,
     });
@@ -501,7 +510,7 @@ describe('MeetingsService', () => {
 
     try {
       const { service, prisma } = createService();
-      prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+      prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
       prisma.instructorApplication.findFirst.mockResolvedValue({
         uuid: INSTRUCTOR_APPLICATION_UUID,
       });
@@ -527,7 +536,7 @@ describe('MeetingsService', () => {
 
   it('lists future active registrations for the scout in chronological order', async () => {
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     prisma.meetingRegistration.findMany.mockResolvedValue([
       createMyRegistrationRow({
         uuid: SECOND_REGISTRATION_UUID,
@@ -632,7 +641,7 @@ describe('MeetingsService', () => {
     expect.assertions(3);
 
     const { service, prisma, tx } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
       date: new Date('2026-05-12T00:00:00.000Z'),
@@ -661,7 +670,7 @@ describe('MeetingsService', () => {
 
   it('uses the approved application matching the meeting commission type when the candidate has both approved applications', async () => {
     const { service, prisma, tx, auditService } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
       date: new Date('2026-05-12T00:00:00.000Z'),
@@ -729,7 +738,7 @@ describe('MeetingsService', () => {
       expect.assertions(4);
 
       const { service, prisma, tx, auditService } = createService();
-      prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+      prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
       tx.commissionMeeting.findUnique.mockResolvedValue({
         uuid: MEETING_UUID,
         date: new Date('2026-05-12T00:00:00.000Z'),
@@ -764,7 +773,7 @@ describe('MeetingsService', () => {
     expect.assertions(3);
 
     const { service, prisma, tx } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
       date: new Date('2026-05-12T00:00:00.000Z'),
@@ -798,7 +807,7 @@ describe('MeetingsService', () => {
     expect.assertions(3);
 
     const { service, prisma, tx } = createService();
-    prisma.user.findUnique.mockResolvedValue({ uuid: USER_UUID });
+    prisma.user.findUnique.mockResolvedValue({ keycloakUuid: USER_UUID });
     tx.commissionMeeting.findUnique.mockResolvedValue({
       uuid: MEETING_UUID,
       date: new Date('2026-05-12T00:00:00.000Z'),

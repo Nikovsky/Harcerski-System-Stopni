@@ -142,7 +142,9 @@ export class InstructorApplicationService {
       return { complete: false, missingFields: ['profile'] };
     }
 
-    const missing = this.validationService.getMissingProfileFields(user);
+    const missing = this.validationService.getMissingProfileFields(
+      this.withPrincipalIdentity(user, principal),
+    );
 
     return { complete: missing.length === 0, missingFields: missing };
   }
@@ -203,7 +205,7 @@ export class InstructorApplicationService {
         ];
         const existing = await tx.instructorApplication.findFirst({
           where: {
-            candidateUuid: user.uuid,
+            candidateUuid: user.keycloakUuid,
             template: { degreeCode: template.degreeCode },
             status: { notIn: CLOSED_STATUSES },
           },
@@ -219,7 +221,7 @@ export class InstructorApplicationService {
         return tx.instructorApplication.create({
           select: { uuid: true },
           data: {
-            candidateUuid: user.uuid,
+            candidateUuid: user.keycloakUuid,
             templateUuid: template.uuid,
             status: ApplicationStatus.DRAFT,
             requirements: {
@@ -240,7 +242,7 @@ export class InstructorApplicationService {
 
       if (this.isActiveDegreeGuardConflict(error)) {
         const existingUuid = await this.findActiveApplicationUuidByDegreeCode(
-          user.uuid,
+          user.keycloakUuid,
           template.degreeCode,
         );
         throw new ConflictException({
@@ -295,9 +297,13 @@ export class InstructorApplicationService {
         candidate: {
           select: {
             keycloakUuid: true,
-            firstName: true,
-            surname: true,
-            email: true,
+            authIdentity: {
+              select: {
+                givenName: true,
+                familyName: true,
+                email: true,
+              },
+            },
             phone: true,
             birthDate: true,
             hufiecCode: true,
@@ -455,9 +461,9 @@ export class InstructorApplicationService {
         })),
       },
       candidateProfile: {
-        firstName: app.candidate.firstName,
-        surname: app.candidate.surname,
-        email: app.candidate.email,
+        firstName: app.candidate.authIdentity?.givenName ?? null,
+        surname: app.candidate.authIdentity?.familyName ?? null,
+        email: app.candidate.authIdentity?.email ?? null,
         phone: app.candidate.phone,
         birthDate: app.candidate.birthDate?.toISOString().split('T')[0] ?? null,
         hufiecCode: app.candidate.hufiecCode,
@@ -744,7 +750,7 @@ export class InstructorApplicationService {
       const fullApp = await tx.instructorApplication.findUnique({
         where: { uuid: applicationId },
         include: {
-          candidate: true,
+          candidate: { include: { authIdentity: true } },
           template: true,
           requirements: { include: { requirementDefinition: true } },
           attachments: { where: { status: 'ACTIVE' } },
@@ -768,7 +774,7 @@ export class InstructorApplicationService {
         });
       }
 
-      this.ensureCompleteProfileForWrite(fullApp.candidate);
+      this.ensureCompleteProfileForWrite(fullApp.candidate, principal);
 
       // Validate required fields before submit
       this.validationService.validateRequiredFieldsForSubmit(fullApp);
@@ -810,10 +816,10 @@ export class InstructorApplicationService {
           templateUuid: fullApp.template.uuid,
           templateVersion: fullApp.template.version,
           candidateSnapshot: {
-            uuid: fullApp.candidate.uuid,
-            firstName: fullApp.candidate.firstName,
-            surname: fullApp.candidate.surname,
-            email: fullApp.candidate.email,
+            uuid: fullApp.candidate.keycloakUuid,
+            firstName: fullApp.candidate.authIdentity?.givenName ?? null,
+            surname: fullApp.candidate.authIdentity?.familyName ?? null,
+            email: fullApp.candidate.authIdentity?.email ?? null,
             hufiecCode: fullApp.candidate.hufiecCode,
             druzynaCode: fullApp.candidate.druzynaCode,
             scoutRank: fullApp.candidate.scoutRank,
@@ -858,9 +864,9 @@ export class InstructorApplicationService {
             supervisorInstructorRank: fullApp.supervisorInstructorRank,
             supervisorInstructorFunction: fullApp.supervisorInstructorFunction,
           },
-          candidateFirstName: fullApp.candidate.firstName ?? '',
-          candidateSurname: fullApp.candidate.surname ?? '',
-          candidateEmailAtSubmit: fullApp.candidate.email ?? '',
+          candidateFirstName: fullApp.candidate.authIdentity?.givenName ?? '',
+          candidateSurname: fullApp.candidate.authIdentity?.familyName ?? '',
+          candidateEmailAtSubmit: fullApp.candidate.authIdentity?.email ?? '',
           hufiecCodeAtSubmit: fullApp.candidate.hufiecCode,
           druzynaCodeAtSubmit: fullApp.candidate.druzynaCode,
           statusAtSubmit: ApplicationStatus.SUBMITTED,
@@ -877,8 +883,8 @@ export class InstructorApplicationService {
           data: {
             status: InstructorReviewRevisionRequestStatus.RESOLVED,
             resolvedAt: submittedAt,
-            resolvedByUuid: fullApp.candidate.uuid,
-            updatedByUuid: fullApp.candidate.uuid,
+            resolvedByUuid: fullApp.candidate.keycloakUuid,
+            updatedByUuid: fullApp.candidate.keycloakUuid,
             responseSnapshotUuid: submittedSnapshot.uuid,
           },
         });
@@ -894,8 +900,8 @@ export class InstructorApplicationService {
           data: {
             status: InstructorReviewCandidateAnnotationStatus.RESOLVED,
             resolvedAt: submittedAt,
-            resolvedByUuid: fullApp.candidate.uuid,
-            updatedByUuid: fullApp.candidate.uuid,
+            resolvedByUuid: fullApp.candidate.keycloakUuid,
+            updatedByUuid: fullApp.candidate.keycloakUuid,
           },
         });
       }
@@ -1319,17 +1325,40 @@ export class InstructorApplicationService {
   private async resolveUserForWrite(principal: AuthPrincipal) {
     const user = await this.resolveUser(principal);
 
-    this.ensureCompleteProfileForWrite(user);
+    this.ensureCompleteProfileForWrite(user, principal);
 
     return user;
   }
 
   private ensureCompleteProfileForWrite(
-    user: Parameters<
-      InstructorApplicationValidationService['ensureProfileCompleteForWrite']
-    >[0],
+    user: Omit<
+      Parameters<
+        InstructorApplicationValidationService['ensureProfileCompleteForWrite']
+      >[0],
+      'firstName' | 'surname' | 'email'
+    >,
+    principal: AuthPrincipal,
   ) {
-    this.validationService.ensureProfileCompleteForWrite(user);
+    this.validationService.ensureProfileCompleteForWrite(
+      this.withPrincipalIdentity(user, principal),
+    );
+  }
+
+  private withPrincipalIdentity<T extends object>(
+    user: T,
+    principal: AuthPrincipal,
+  ): T & {
+    firstName: string | null;
+    surname: string | null;
+    email: string | null;
+  } {
+    const nameParts = principal.name?.trim().split(/\s+/) ?? [];
+    return {
+      ...user,
+      firstName: nameParts.at(0) ?? null,
+      surname: nameParts.length > 1 ? (nameParts.at(-1) ?? null) : null,
+      email: principal.email ?? null,
+    };
   }
 
   private buildBadRequestException(

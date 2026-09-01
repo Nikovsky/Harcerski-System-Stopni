@@ -1,14 +1,20 @@
 // @file: apps/api/src/helpers/role.helper.ts
-import { UserRole } from '@hss/database';
-import { ROLE_RANK, type UserRole as SchemaUserRole } from '@hss/schemas';
+import { ROLE_RANK, type AuthPrincipal, type UserRole } from '@hss/schemas';
 
-function toSchemaUserRole(role: UserRole): SchemaUserRole {
-  return role as unknown as SchemaUserRole;
+const USER_ROLES = Object.keys(ROLE_RANK) as UserRole[];
+
+export function resolveHighestUserRole(principal: AuthPrincipal): UserRole {
+  const assignedRoles = new Set([
+    ...principal.realmRoles,
+    ...principal.clientRoles,
+  ]);
+
+  return USER_ROLES.reduce<UserRole>((highest, candidate) => {
+    if (!assignedRoles.has(candidate)) return highest;
+    return ROLE_RANK[candidate] > ROLE_RANK[highest] ? candidate : highest;
+  }, 'USER');
 }
 
-export function isHigherThanUser(role: UserRole): boolean {
-  return (
-    ROLE_RANK[toSchemaUserRole(role)] >
-    ROLE_RANK[toSchemaUserRole(UserRole.USER)]
-  );
+export function isHigherThanUser(principal: AuthPrincipal): boolean {
+  return ROLE_RANK[resolveHighestUserRole(principal)] > ROLE_RANK.USER;
 }
