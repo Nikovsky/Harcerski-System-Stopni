@@ -10,4 +10,4 @@ Router domeny architektury, kontraktow i jakosci.
 | [0204-nonfunctional-requirements.pl.md](./0204-nonfunctional-requirements.pl.md) | Wymagania niefunkcjonalne |
 | [0205-observability.pl.md](./0205-observability.pl.md) | Logi, requestId, audit, monitoring |
 | [0206-auth-security-fixes.md](./0206-auth-security-fixes.md) | Historia poprawek audytu auth/security |
-
+| [0207-authentication-better-auth.pl.md](./0207-authentication-better-auth.pl.md) | Aktualna architektura logowania, sesji i granic BFF |

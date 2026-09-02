@@ -5,8 +5,9 @@
 ### Styl
 
 - **Modular Monolith** dla API (NestJS) — moduły domenowe w jednej aplikacji.
-- Web (Next.js) jako UI dla harcerzy/komisji/admina.
-- **Keycloak** jako centralny IdP (OIDC) + zarządzanie rolami.
+- Web (Next.js) jako UI oraz BFF dla harcerzy/komisji/admina.
+- **Better Auth** w API jako orkiestrator logowania i sesji.
+- **Keycloak** jako centralny IdP (OIDC), źródło tożsamości i ról.
 - **Nginx** jako reverse proxy i routing wejścia.
 - PostgreSQL jako DB.
 - MinIO jako storage obiektów dla załączników.
@@ -19,18 +20,22 @@ flowchart LR
   U[Użytkownik] -.->|"HTTP 80 -> HTTPS 443"| N[Nginx]
   U --> |HTTPS| N
   N -->|/| W[Web: Next.js]
-  N -->|/server| A[API: NestJS]
-  N -->|/auth| K[Keycloak: OIDC]
+  N -->|api.hss.local| A[API: NestJS]
+  N -->|auth.hss.local| K[Keycloak: OIDC]
+  W -->|BFF auth i sesja| A
+  W -->|Bearer access token| A
   A --> DB[(PostgreSQL)]
+  A --> R[(Redis)]
   A --> S[(MinIO: private bucket)]
-  A -->|Admin API| K
+  A -->|OAuth, JWKS, Admin API| K
 ```
 
 ### Routing (Nginx)
 
-- `/` → web
-- `/server/` → api
-- `/auth/` → keycloak
+- `https://hss.local` → Web/BFF
+- `https://api.hss.local` → API
+- `https://auth.hss.local` → publiczne endpointy Keycloak
+- `https://authconsole.hss.local` → konsola administracyjna Keycloak
 
 ---
 
@@ -38,7 +43,8 @@ flowchart LR
 
 ### Moduły domenowe (MVP)
 
-- `authz` — weryfikacja JWT (Keycloak), RBAC, guards, owner-checks
+- `auth` — Better Auth, sesje, OAuth z Keycloak i chronione endpointy wewnętrzne BFF
+- `authz` — weryfikacja JWT Keycloak dla endpointów domenowych, RBAC, guards, owner-checks
 - `users` — shadow profile (cache minimalny) + synchronizacja “na żądanie”
 - `trials` — próby, statusy, reguły aktywności (jedna aktywna próba)
 - `tasks` — zadania w ramach próby
@@ -56,23 +62,27 @@ flowchart LR
 
 ---
 
-## 3) Tożsamość i autoryzacja (Keycloak OIDC)
+## 3) Tożsamość, sesja i autoryzacja
 
-### OIDC Clients (default)
+Szczegółowy kontrakt znajduje się w [0207-authentication-better-auth.pl.md](./0207-authentication-better-auth.pl.md).
 
-- `hss-web` — Authorization Code Flow + PKCE (public client)
-- `hss-api` — bearer-only (API tylko weryfikuje tokeny)
-- `hss-admin-service` — service account (do Keycloak Admin API)
+### Podział odpowiedzialności
 
-### Tokeny
+- Keycloak jest źródłem tożsamości, ról oraz tokenów OIDC.
+- Better Auth `1.7.2` działa w `apps/api`, prowadzi flow OAuth i zarządza sesją aplikacyjną.
+- Web jest BFF: wystawia przeglądarce trasy `/api/auth/*` i `/api/backend/*`, ale nie łączy się z PostgreSQL ani Prisma.
+- Techniczne modele Better Auth i dane OAuth są obsługiwane przez Prisma/PostgreSQL; aktywna sesja i polityka czasu życia korzystają z Redis.
+- Endpointy domenowe API nadal przyjmują token Keycloak w `Authorization: Bearer` i egzekwują RBAC oraz owner-checks.
 
-- Web uzyskuje `access_token` z Keycloak.
-- Wywołania API: `Authorization: Bearer <access_token>`.
-- API waliduje:
-  - issuer (`KEYCLOAK_ISSUER_URL`)
-  - podpis (JWKS)
-  - audience/client (`hss-api`)
-  - role z claims (mapper w Keycloak)
+### Przepływ
+
+1. Przeglądarka rozpoczyna logowanie przez trasę Web BFF.
+2. Web przekazuje żądanie do Better Auth w API, dodając współdzielony sekret BFF i zaufany `Origin` Web.
+3. Better Auth realizuje Authorization Code Flow z PKCE przez Keycloak i ustanawia bezpieczne cookie sesyjne.
+4. Dla chronionego wywołania domenowego Web pobiera sesję przez chroniony endpoint wewnętrzny, uzyskuje lub odświeża access token Keycloak i przekazuje go do API.
+5. API waliduje issuer, podpis JWKS, audience oraz role tokenu, a następnie wykonuje kontrole RBAC i ownera.
+
+Tokenów nie wolno udostępniać JavaScriptowi przeglądarki ani zapisywać w `localStorage`.
 
 ### Role (client roles w Keycloak dla `hss-api`)
 
@@ -96,7 +106,8 @@ flowchart LR
 
 ### Wymagania twarde
 
-- API akceptuje wyłącznie tokeny wystawione przez Keycloak (JWKS).
+- Endpointy domenowe API akceptują wyłącznie tokeny wystawione przez Keycloak (JWKS).
+- Wewnętrzne endpointy auth BFF wymagają poprawnego `HSS_BFF_INTERNAL_SECRET`.
 - Dostęp do danych prób tylko dla ownera + komisji + admina + root.
 - Zmiana statusu tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 
@@ -274,7 +285,7 @@ sequenceDiagram
 
 ## Wymagania twarde
 
-- OIDC (Keycloak) jako jedyny mechanizm auth.
+- Keycloak jako źródło tożsamości i tokenów; Better Auth w API jako warstwa OAuth i sesji.
 - RBAC + owner-checks w API.
 - Zmiana statusu tylko `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Approval kont harcerzy przez `ADMIN`.

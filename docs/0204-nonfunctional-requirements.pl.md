@@ -60,8 +60,10 @@
 
 ### Wymagania twarde
 
-- **OIDC (Keycloak)** jako jedyny mechanizm auth.
+- **Keycloak OIDC** jako jedyne źródło tożsamości i tokenów; Better Auth w API zarządza flow OAuth i sesją aplikacyjną.
 - **RBAC + owner-checks w API** (frontend nie jest źródłem prawdy).
+- Web działa jako BFF bez dostępu do Prisma/PostgreSQL; komunikacja Web → wewnętrzne endpointy auth API wymaga sekretu BFF.
+- Sesja i limity wymagane dla poprawności muszą używać Redis, bez pamięci procesu.
 - Komisja: dostęp przez Google + domena `@zhr.pl` lub email/hasło.
 - Harcerze: self-registration + **approval flow** (enabled=false do akceptacji).
 - Presigned URLs do MinIO + bucket prywatny.
@@ -69,7 +71,7 @@
 - Walidacja limitów plików (MIME/size) w API.
 - Zmiana statusu próby tylko przez `COMMISSION_SECRETARY|COMMISSION_CHAIR`.
 - Admin endpoints tylko dla `ADMIN`.
-- Rate limiting na newralgicznych endpointach (MVP minimal): login/oidc callback (po stronie Keycloak) + API (opcjonalnie).
+- Rozproszony rate limiting na newralgicznych trasach Web BFF i Better Auth; awaria limitera dla chronionych tras nie może otwierać dostępu.
 
 ### Hardening (zalecane w MVP)
 
@@ -134,7 +136,7 @@
 
 ## 8) Wymagania twarde — podsumowanie
 
-- Keycloak OIDC + RBAC + owner-checks
+- Keycloak OIDC + Better Auth BFF + RBAC + owner-checks
 - Presigned URLs + prywatny bucket MinIO
 - Zmiana statusu przez sekretarza/przewodniczącego
 - Approval kont harcerzy (enabled=false → admin enable)
