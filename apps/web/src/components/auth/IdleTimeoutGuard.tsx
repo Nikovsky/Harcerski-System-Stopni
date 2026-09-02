@@ -11,6 +11,7 @@ import {
 
 import { envPublic } from "@/config/env.client";
 import { Button } from "@/components/ui/Button";
+import { navigateToLogout } from "@/lib/auth/logout-navigation";
 import { Popup } from "@/components/ui/Popup";
 import { Throbber } from "@/components/ui/Throbber";
 
@@ -64,7 +65,10 @@ function readStoredExpiresAt(): number | null {
 
 function writeStoredExpiresAt(expiresAtMs: number): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(SESSION_EXPIRES_AT_STORAGE_KEY, String(expiresAtMs));
+  window.sessionStorage.setItem(
+    SESSION_EXPIRES_AT_STORAGE_KEY,
+    String(expiresAtMs),
+  );
 }
 
 function clearStoredExpiresAt(): void {
@@ -94,11 +98,11 @@ async function fetchSessionStatus(): Promise<SessionStatus | null> {
   }
 }
 
-async function touchSession(extendSeconds?: number): Promise<SessionStatus | null> {
+async function touchSession(
+  extendSeconds?: number,
+): Promise<SessionStatus | null> {
   try {
-    const body = extendSeconds
-      ? JSON.stringify({ extendSeconds })
-      : undefined;
+    const body = extendSeconds ? JSON.stringify({ extendSeconds }) : undefined;
 
     const res = await fetch("/api/session/touch", {
       method: "POST",
@@ -109,7 +113,11 @@ async function touchSession(extendSeconds?: number): Promise<SessionStatus | nul
     });
 
     if (res.status === 401) {
-      return { authenticated: false, idleExpiresAtMs: null, absoluteExpiresAtMs: null };
+      return {
+        authenticated: false,
+        idleExpiresAtMs: null,
+        absoluteExpiresAtMs: null,
+      };
     }
 
     const payload = (await res.json().catch(() => null)) as unknown;
@@ -132,10 +140,13 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
   const localeRoot = locale === "en" ? "/en" : "/pl";
 
   const sessionTimeoutSec = envPublic.NEXT_PUBLIC_SESSION_TIMEOUT_SECONDS;
-  const promptBeforeExpirySec = envPublic.NEXT_PUBLIC_SESSION_PROMPT_BEFORE_EXPIRY_SECONDS;
-  const authCheckIntervalSec = envPublic.NEXT_PUBLIC_SESSION_AUTH_CHECK_INTERVAL_SECONDS;
+  const promptBeforeExpirySec =
+    envPublic.NEXT_PUBLIC_SESSION_PROMPT_BEFORE_EXPIRY_SECONDS;
+  const authCheckIntervalSec =
+    envPublic.NEXT_PUBLIC_SESSION_AUTH_CHECK_INTERVAL_SECONDS;
   const extendOptionsMinutes = useMemo(
-    () => parseExtendOptions(envPublic.NEXT_PUBLIC_SESSION_EXTEND_OPTIONS_MINUTES),
+    () =>
+      parseExtendOptions(envPublic.NEXT_PUBLIC_SESSION_EXTEND_OPTIONS_MINUTES),
     [],
   );
   const defaultExtendMinutes = extendOptionsMinutes[0] ?? 10;
@@ -143,7 +154,8 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [remainingSec, setRemainingSec] = useState(sessionTimeoutSec);
-  const [selectedExtendMinutes, setSelectedExtendMinutes] = useState(defaultExtendMinutes);
+  const [selectedExtendMinutes, setSelectedExtendMinutes] =
+    useState(defaultExtendMinutes);
 
   const promptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -164,7 +176,10 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
   }, []);
 
   const syncRemaining = useCallback(() => {
-    const next = Math.max(0, Math.ceil((expiresAtRef.current - Date.now()) / 1_000));
+    const next = Math.max(
+      0,
+      Math.ceil((expiresAtRef.current - Date.now()) / 1_000),
+    );
     setRemainingSec(next);
     return next;
   }, []);
@@ -191,7 +206,10 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
       setIsLoggingOut(false);
       startCountdownTicker();
 
-      const delayMs = Math.max(0, expiresAtRef.current - Date.now() - promptBeforeExpirySec * 1_000);
+      const delayMs = Math.max(
+        0,
+        expiresAtRef.current - Date.now() - promptBeforeExpirySec * 1_000,
+      );
       promptTimerRef.current = setTimeout(() => {
         setIsDialogOpen(true);
         syncRemaining();
@@ -201,45 +219,48 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
         broadcast({ type: "sync", expiresAtMs: expiresAtRef.current });
       }
     },
-    [broadcast, clearSessionTimers, promptBeforeExpirySec, startCountdownTicker, syncRemaining],
+    [
+      broadcast,
+      clearSessionTimers,
+      promptBeforeExpirySec,
+      startCountdownTicker,
+      syncRemaining,
+    ],
   );
 
   const applyDuration = useCallback(
     (durationSec: number, shouldBroadcast = true) => {
-      applyExpiry(Date.now() + Math.max(1, durationSec) * 1_000, shouldBroadcast);
+      applyExpiry(
+        Date.now() + Math.max(1, durationSec) * 1_000,
+        shouldBroadcast,
+      );
     },
     [applyExpiry],
   );
 
-  const doLogout = useCallback(async (reason: "timeout" | "manual" = "timeout") => {
-    if (logoutStartedRef.current) return;
-    logoutStartedRef.current = true;
-    setIsLoggingOut(true);
-    if (reason !== "manual") {
-      setIsDialogOpen(false);
-    }
-
-    try {
-      broadcast({ type: "logout" });
-      clearStoredExpiresAt();
-      const logoutParams = new URLSearchParams({
-        returnTo: localeRoot,
-      });
-      if (reason === "timeout") {
-        logoutParams.set("reason", "timeout");
+  const doLogout = useCallback(
+    (reason: "timeout" | "manual" = "timeout") => {
+      if (logoutStartedRef.current) return;
+      logoutStartedRef.current = true;
+      setIsLoggingOut(true);
+      if (reason !== "manual") {
+        setIsDialogOpen(false);
       }
-      const logoutUrl = `/api/auth/logout?${logoutParams.toString()}`;
-      await fetch(logoutUrl, {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-    } catch {
-      // Ignore network errors and proceed with redirect.
-    }
 
-    window.location.href = localeRoot;
-  }, [broadcast, localeRoot]);
+      try {
+        broadcast({ type: "logout" });
+        clearStoredExpiresAt();
+        navigateToLogout({
+          returnTo: localeRoot,
+          ...(reason === "timeout" ? { reason: "timeout" } : {}),
+        });
+      } catch {
+        // Fall back locally only if the browser cannot submit the logout form.
+        window.location.href = localeRoot;
+      }
+    },
+    [broadcast, localeRoot],
+  );
 
   const touchServerSession = useCallback(
     async (extendSeconds?: number) => {
@@ -351,23 +372,26 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
   }, [pathname, touchServerSession]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (logoutStartedRef.current) return;
+    const interval = setInterval(
+      () => {
+        if (logoutStartedRef.current) return;
 
-      void (async () => {
-        const status = await fetchSessionStatus();
-        if (!status) return;
+        void (async () => {
+          const status = await fetchSessionStatus();
+          if (!status) return;
 
-        if (!status.authenticated || !status.idleExpiresAtMs) {
-          await doLogout();
-          return;
-        }
+          if (!status.authenticated || !status.idleExpiresAtMs) {
+            await doLogout();
+            return;
+          }
 
-        if (Math.abs(status.idleExpiresAtMs - expiresAtRef.current) > 1_500) {
-          applyExpiry(status.idleExpiresAtMs, false);
-        }
-      })();
-    }, Math.max(10, authCheckIntervalSec) * 1_000);
+          if (Math.abs(status.idleExpiresAtMs - expiresAtRef.current) > 1_500) {
+            applyExpiry(status.idleExpiresAtMs, false);
+          }
+        })();
+      },
+      Math.max(10, authCheckIntervalSec) * 1_000,
+    );
 
     return () => {
       clearInterval(interval);
@@ -387,7 +411,8 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
 
   const isUrgent = remainingSec <= promptBeforeExpirySec;
   const timerText = formatClock(remainingSec);
-  const showSessionButton = remainingSec <= promptBeforeExpirySec || isDialogOpen || isLoggingOut;
+  const showSessionButton =
+    remainingSec <= promptBeforeExpirySec || isDialogOpen || isLoggingOut;
 
   return (
     <>
@@ -405,13 +430,13 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
               isUrgent ? "ring-2 ring-red-500/50" : "",
             ].join(" ")}
           >
-            <span className="pt-1 text-sm font-semibold">{t("sessionButton")}</span>
+            <span className="pt-1 text-sm font-semibold">
+              {t("sessionButton")}
+            </span>
             <span
               className={[
                 "pointer-events-none absolute left-0 top-0 inline-flex min-w-14 -translate-x-1/2 -translate-y-1/2 justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
-                isUrgent
-                  ? "bg-red-600 text-white"
-                  : "bg-blue-600 text-white",
+                isUrgent ? "bg-red-600 text-white" : "bg-blue-600 text-white",
               ].join(" ")}
             >
               {timerText}
@@ -437,9 +462,7 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
               {isLoggingOut ? (
                 <p className="text-muted-foreground">{t("loggingOut")}</p>
               ) : (
-                <p className="text-muted-foreground">
-                  {t("helpText")}
-                </p>
+                <p className="text-muted-foreground">{t("helpText")}</p>
               )}
             </div>
           }
@@ -457,7 +480,11 @@ export function IdleTimeoutGuard({ locale }: IdleTimeoutGuardProps) {
                     id="session-extend-select"
                     className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={selectedExtendMinutes}
-                    onChange={(e) => setSelectedExtendMinutes(Number.parseInt(e.target.value, 10))}
+                    onChange={(e) =>
+                      setSelectedExtendMinutes(
+                        Number.parseInt(e.target.value, 10),
+                      )
+                    }
                     disabled={isLoggingOut}
                   >
                     {extendOptionsMinutes.map((min) => (

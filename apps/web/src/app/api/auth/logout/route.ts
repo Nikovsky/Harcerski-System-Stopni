@@ -33,6 +33,23 @@ function parseOriginFromReferer(referer: string | null): string | null {
   }
 }
 
+function isAllowedLogoutRequest(
+  req: NextRequest,
+  allowedOrigin: string,
+): boolean {
+  const origin = req.headers.get("origin");
+  if (origin && origin !== "null") return origin === allowedOrigin;
+
+  const refererOrigin = parseOriginFromReferer(req.headers.get("referer"));
+  if (refererOrigin) return refererOrigin === allowedOrigin;
+
+  return (
+    req.headers.get("sec-fetch-site") === "same-origin" &&
+    req.headers.get("sec-fetch-mode") === "navigate" &&
+    req.headers.get("sec-fetch-dest") === "document"
+  );
+}
+
 function forceReauthCookie(secure: boolean): string {
   return [
     `${forceReauthCookieName}=1`,
@@ -75,11 +92,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return serviceUnavailableResponse(requestId);
   }
 
-  const requestOrigin =
-    req.headers.get("origin") ??
-    parseOriginFromReferer(req.headers.get("referer"));
   const allowedOrigin = new URL(envServer.HSS_WEB_ORIGIN).origin;
-  if (requestOrigin !== allowedOrigin) {
+  if (!isAllowedLogoutRequest(req, allowedOrigin)) {
     const response = NextResponse.json(
       { code: "FORBIDDEN", message: "Forbidden.", requestId },
       { status: 403 },

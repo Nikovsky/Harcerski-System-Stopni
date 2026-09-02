@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { SignOutButtonProps } from "@/components/props/ui";
+import { navigateToLogout } from "@/lib/auth/logout-navigation";
 import { Button } from "./Button";
 import { Popup } from "./Popup";
 
@@ -18,10 +19,7 @@ function resolveLocaleRoot(pathname: string | null): string {
   return `/${locale}`;
 }
 
-export function SignOutButton({
-  label,
-  className = "",
-}: SignOutButtonProps) {
+export function SignOutButton({ label, className = "" }: SignOutButtonProps) {
   const t = useTranslations("common.signOutPopup");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -35,23 +33,13 @@ export function SignOutButton({
     setErrorMessage(null);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
     setErrorMessage(null);
 
     try {
-      const logoutUrl = `/api/auth/logout?returnTo=${encodeURIComponent(localeRoot)}`;
-      const res = await fetch(logoutUrl, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Logout failed");
-      }
-
-      window.location.href = localeRoot;
+      navigateToLogout({ returnTo: localeRoot });
     } catch {
       setIsLoggingOut(false);
       setErrorMessage(t("error"));
@@ -60,13 +48,10 @@ export function SignOutButton({
 
   return (
     <>
-        <Button
-          type="button"
-          className={[
-            "bg-red-700 text-white border-red-800",
-            className,
-          ]
-            .filter(Boolean)
+      <Button
+        type="button"
+        className={["bg-red-700 text-white border-red-800", className]
+          .filter(Boolean)
           .join(" ")}
         onClick={() => {
           setOpen(true);
@@ -106,7 +91,7 @@ export function SignOutButton({
                 <Button
                   colorClass="bg-red-600 text-white border-red-700"
                   type="button"
-                  onClick={() => void handleLogout()}
+                  onClick={handleLogout}
                 >
                   {t("logoutNow")}
                 </Button>
